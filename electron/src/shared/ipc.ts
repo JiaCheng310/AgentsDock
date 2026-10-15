@@ -472,6 +472,10 @@ export interface AgentsDockAPI {
       input: CodexBackgroundTerminalsCleanInput
     ): Promise<boolean>
   }
+  gemini?: {
+    runtime(sessionId: string): Promise<{ pending_interactions: CodexPendingInteraction[] }>
+    resolveInteraction(sessionId: string, interactionId: string, response: Record<string, JsonValue>): Promise<CodexPendingInteraction>
+  }
   claude: {
     runtime(sessionId: string): Promise<ClaudeRuntimeSnapshot>
     setGoal(sessionId: string, condition: string): Promise<ClaudeRuntimeSnapshot>

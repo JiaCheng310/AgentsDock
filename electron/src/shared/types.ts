@@ -12,7 +12,7 @@ export interface LanguageSettingsSnapshot {
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
-export type Backend = 'claude' | 'codex' | 'cursor' | 'opencode'
+export type Backend = 'claude' | 'codex' | 'cursor' | 'opencode' | 'gemini'
 export type CodexProvider = 'default' | 'custom'
 export type ChatSyncStatus = 'idle' | 'cached' | 'syncing' | 'live' | 'reconnecting' | 'offline' | 'error'
 export type ServerConnectionState = 'online' | 'degraded' | 'connecting' | 'retrying' | 'offline' | 'cached'
@@ -467,6 +467,7 @@ export interface Session {
   cursor_session_id?: string | null
   cursor_permission_mode?: CursorPermissionMode | null
   opencode_session_id?: string | null
+  gemini_session_id?: string | null
   opencode_permission_mode?: OpenCodePermissionMode | null
   /** Server-enforced scheduled-job access granted to this chat's agent. */
   provider_jobs_access?: ProviderJobsAccess | null
@@ -1731,6 +1732,7 @@ export interface HealthCapabilities {
   claude_controls?: InteractiveProviderCapability
   cursor_backend?: CursorBackendCapability
   opencode_backend?: OpenCodeBackendCapability
+  gemini_backend?: ServerCapability & { version?: number; transport?: string; features?: Record<string, boolean> }
   local_provider_commands_v1?: ServerCapability & { version?: number; supported_backends?: Backend[] }
   agent_team_mail_v1?: AgentTeamMailCapability
   agent_team_messages_v1?: AgentTeamMessagesCapability

@@ -309,6 +309,7 @@ export function newChatPermissions(input: NewChatPermissionDefaults, backend: Ba
   if (backend === 'claude') return { claude_permission_mode: input.claude_permission_mode ?? null }
   if (backend === 'cursor') return { cursor_permission_mode: input.cursor_permission_mode ?? 'default' }
   if (backend === 'opencode') return { opencode_permission_mode: input.opencode_permission_mode ?? 'default' }
+  if (backend === 'gemini') return {}
   return {
     codex_approval_policy: input.codex_approval_policy ?? null,
     codex_sandbox_mode: input.codex_sandbox_mode ?? null,
@@ -336,7 +337,7 @@ function parseNewChatDefaults(value: unknown): NewChatDefaults | null {
   const candidate = value as Partial<NewChatDefaults>
   if (
     candidate.version !== 1
-    || !['claude', 'codex', 'cursor', 'opencode'].includes(String(candidate.backend))
+    || !['claude', 'codex', 'cursor', 'opencode', 'gemini'].includes(String(candidate.backend))
     || candidate.codex_provider !== undefined && !['default', 'custom'].includes(candidate.codex_provider)
     || candidate.provider_connection !== undefined && !['default', 'custom'].includes(candidate.provider_connection)
     || typeof candidate.folder !== 'string'
@@ -4998,7 +4999,7 @@ export function interactiveClientCapabilities(
   selectedSkill = false
 ): string[] {
   const opencode = session?.backend === 'opencode'
-  const capabilities = opencode
+  const capabilities = session?.backend === 'gemini' ? ['gemini_acp_v1'] : opencode
     ? selectedSkill && openCodeProviderCommandsAvailable(health) ? ['opencode_provider_commands_v1'] : []
     : ['codex_interactive_v1', 'codex_goal_steer_v1']
   if (opencode && !supportedCrossChatTargetBackends(health).includes('opencode')) return capabilities

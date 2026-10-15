@@ -3763,6 +3763,14 @@ export class AppService {
     return this.providerRequest(scope => scope.client.claudeRuntime(sessionId))
   }
 
+  async geminiRuntime(sessionId: string) {
+    return this.providerRequest(scope => scope.client.geminiRuntime(sessionId))
+  }
+
+  async resolveGeminiInteraction(sessionId: string, interactionId: string, response: Record<string, JsonValue>) {
+    return this.providerRequest(scope => scope.client.resolveGeminiInteraction(sessionId, interactionId, response))
+  }
+
   async setClaudeGoal(sessionId: string, condition: string): Promise<ClaudeRuntimeSnapshot> {
     return this.providerRequest(scope => scope.client.setClaudeGoal(sessionId, condition))
   }

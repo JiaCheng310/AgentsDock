@@ -3460,7 +3460,7 @@ export function ImportChatsDialog() {
         </div>}
         {resumeNeedsDetails && resumeMatches.length === 0 && <div className="import-chats-resume-details">
           <small>{t("ui.Dialogs.ImportChatsDialog.this_id_was_not_found_in_local_history_con_dca866c")}</small>
-          <label><span>Agent</span><select aria-label="Agent" value={resumeBackend} disabled={operationBusy} onChange={event => setResumeBackend(event.target.value as Backend)}>{selectableChatBackends(health, useAppStore.getState().runtimeCatalog).filter(backend => backend !== 'opencode').map(backend => <option value={backend} key={backend}>{backendLabel(backend)}</option>)}</select></label>
+          <label><span>Agent</span><select aria-label="Agent" value={resumeBackend} disabled={operationBusy} onChange={event => setResumeBackend(event.target.value as Backend)}>{selectableChatBackends(health, useAppStore.getState().runtimeCatalog).filter(backend => backend !== 'opencode' && backend !== 'gemini').map(backend => <option value={backend} key={backend}>{backendLabel(backend)}</option>)}</select></label>
           <label><span>{t("ui.Dialogs.ImportChatsDialog.working_directory_865e85c")}</span><input aria-label={t("ui.Dialogs.ImportChatsDialog.working_directory_865e85c")} value={resumeCwd} disabled={operationBusy} onChange={event => setResumeCwd(event.target.value)} placeholder={health?.default_cwd || '/path/to/project'} /></label>
         </div>}
         {resumeError && <small className="import-chats-resume-error" role="alert">{resumeError}</small>}

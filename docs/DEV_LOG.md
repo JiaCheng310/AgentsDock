@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-15 — Begin an opt-in Gemini provider preview
+
+- Add an experimental desktop/server Gemini CLI adapter behind a development
+  flag, pinned to CLI 0.64.0. Google CLI login and Gemini Developer API credentials
+  remain isolated; ACP is the transport, not a separate login method.
+- Wire My Agents, native model discovery, same-session continuation, bounded
+  approvals and run-bound provider tools. Guard asynchronous native history
+  replay so it cannot be appended as a new response. Forget must not fall back
+  to another account; Delete preserves native history.
+- Actual CLI and HTTP contracts used a loopback fake API and disposable state.
+  Actual offscreen desktop acceptance exercised configuration, displayed model
+  options, manual default selection and two sends through production IPC/HTTP.
+  It caught and fixed a client backend allowlist omission and duplicate replay.
+- Validation: 252 focused desktop tests, TypeScript and production compilation;
+  server batches of 773 lifecycle/authorization regressions, 129 runtime checks,
+  72 provider/transport checks and 20 packaging-manifest checks passed. These
+  batches overlap; they are not a full-suite or real-Google acceptance claim.
+- Not release-ready: real Google account/API, tool/cross-chat/native parity,
+  new-chat dialog and native select-popup acceptance remain pending. Imports,
+  automatic titles, attachments, fork, skills UI and mobile are not included.
+  See the server's Gemini preview record for precise limits and remaining gates.
+
 ## 2026-10-14 — Explain failed desktop file links
 
 - File links and binary attachment links now surface native open/download

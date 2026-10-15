@@ -38,6 +38,19 @@ beforeEach(() => {
 
 afterEach(() => { cleanup(); setLocale('en'); vi.restoreAllMocks() })
 
+it('shows the Gemini preview only with explicit server capability, with separate CLI and API cards', () => {
+  bridge()
+  setLocale('zh-CN')
+  useAppStore.setState(state => ({ health: { ...state.health!, capabilities: {
+    gemini_backend: { available: true, required: false, message: 'Preview', action: null, version: 1, transport: 'acp' }
+  } } }))
+  render(<AppSettingsDialog />)
+  fireEvent.click(screen.getByRole('button', { name: '我的 Agent' }))
+  expect(document.querySelectorAll('.provider-group')).toHaveLength(5)
+  expect(screen.getByRole('region', { name: 'Gemini CLI CLI 登录', hidden: true })).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Gemini 自定义接口', hidden: true })).toBeInTheDocument()
+})
+
 it('opens existing provider controls on their own page without probing or changing credentials', async () => {
   const api = bridge()
   render(<AppSettingsDialog />)

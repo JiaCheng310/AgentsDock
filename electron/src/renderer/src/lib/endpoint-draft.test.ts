@@ -4,6 +4,16 @@ import { flushEndpointDraft, queueEndpointDraft, readEndpointDraft } from './end
 const draft = { baseURL: 'https://gateway.example/v1', model: 'model-one', protocol: 'anthropic' as const, authHeader: 'x-api-key' as const }
 afterEach(() => { vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.restoreAllMocks(); localStorage.clear() })
 
+it('keeps Gemini native API protocol and only non-secret draft fields', () => {
+  vi.useFakeTimers()
+  const gemini = { baseURL: 'https://generativelanguage.googleapis.com', model: '', protocol: 'gemini' as const, authHeader: 'x-goog-api-key' as const }
+  queueEndpointDraft('server-g', 'gemini', { ...gemini, api_key: 'not-stored' } as typeof gemini)
+  flushEndpointDraft('server-g', 'gemini')
+  expect(readEndpointDraft('server-g', 'gemini')).toEqual(gemini)
+  expect(localStorage.getItem(localStorage.key(0)!)).not.toContain('not-stored')
+  expect(readEndpointDraft('server-g', 'opencode')).toBeNull()
+})
+
 it('debounces writes, restores pending fields, and allowlists non-secret fields only', () => {
   vi.useFakeTimers()
   const write = vi.spyOn(localStorage, 'setItem')

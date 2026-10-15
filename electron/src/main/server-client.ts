@@ -969,7 +969,7 @@ export class AgentServerClient {
 
   async createSession(input: CreateSessionInput | ResumeSessionInput): Promise<Session> {
     const connection = validateCodexProviderSelection(input.provider_connection)
-    if (connection === 'custom' && !['claude', 'opencode'].includes(input.backend)) throw new Error('Unsupported custom API backend.')
+    if (connection === 'custom' && !['claude', 'opencode', 'gemini'].includes(input.backend)) throw new Error('Unsupported custom API backend.')
     const codexProvider = validateCodexProviderSelection(input.codex_provider)
     if (codexProvider === 'custom' && input.backend !== 'codex') throw new Error('Custom endpoints require Codex.')
     const providerId = 'providerId' in input ? input.providerId : undefined
@@ -1340,6 +1340,17 @@ export class AgentServerClient {
 
   claudeRuntime(sessionId: string): Promise<ClaudeRuntimeSnapshot> {
     return this.get(`/api/sessions/${encodeURIComponent(sessionId)}/claude/runtime`)
+  }
+
+  geminiRuntime(sessionId: string): Promise<{ pending_interactions: CodexPendingInteraction[] }> {
+    return this.privilegedNativeRequest(`/api/sessions/${encodeURIComponent(sessionId)}/gemini/runtime`, {}, 15_000, 200, 512 * 1024)
+  }
+
+  async resolveGeminiInteraction(sessionId: string, interactionId: string, response: Record<string, JsonValue>): Promise<CodexPendingInteraction> {
+    return (await this.privilegedNativeRequest<{ interaction: CodexPendingInteraction }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/gemini/interactions/${encodeURIComponent(interactionId)}/resolve`,
+      { method: 'POST', body: JSON.stringify({ response }) }, 15_000, 200, 512 * 1024
+    )).interaction
   }
 
   setClaudeGoal(sessionId: string, condition: string): Promise<ClaudeRuntimeSnapshot> {
@@ -2852,7 +2863,7 @@ function isEmergencySessionPacket(value: unknown): value is Session {
     || typeof session.title !== 'string'
     || !session.title
     || session.title.length > 240
-    || (session.backend !== 'codex' && session.backend !== 'claude' && session.backend !== 'cursor' && session.backend !== 'opencode')
+    || (session.backend !== 'codex' && session.backend !== 'claude' && session.backend !== 'cursor' && session.backend !== 'opencode' && session.backend !== 'gemini')
     || typeof session.unacknowledged_emergency_count !== 'number'
     || !Number.isSafeInteger(session.unacknowledged_emergency_count)
     || session.unacknowledged_emergency_count < 0
@@ -3285,10 +3296,12 @@ function isPrivilegedNativeControlTarget(
       && /^[A-Za-z0-9_-]{1,128}$/.test(target.searchParams.get('session_id') ?? '')
       && (!target.searchParams.has('refresh') || target.searchParams.get('refresh') === 'true')
   }
-  if (/^\/api\/admin\/provider-connections\/(claude|opencode|cursor)$/.test(path)) return !target.search && ['GET', 'PUT', 'DELETE'].includes(method)
-  if (/^\/api\/admin\/provider-connections\/(claude|opencode|cursor)\/check$/.test(path)) return !target.search && method === 'POST'
+  if (/^\/api\/admin\/provider-connections\/(claude|opencode|cursor|gemini)$/.test(path)) return !target.search && ['GET', 'PUT', 'DELETE'].includes(method)
+  if (/^\/api\/admin\/provider-connections\/(claude|opencode|cursor|gemini)\/check$/.test(path)) return !target.search && method === 'POST'
   if (/^\/api\/admin\/provider-accounts\/(claude|cursor|opencode)$/.test(path)) return !target.search && method === 'GET'
-  if (/^\/api\/admin\/provider-models\/(codex|claude|opencode|cursor)$/.test(path)) return method === 'PUT' ? !target.search : method === 'GET' && [...target.searchParams.keys()].every(key => key === 'session_id') && target.searchParams.getAll('session_id').length <= 1
+  if (/^\/api\/admin\/provider-models\/(codex|claude|opencode|cursor|gemini)$/.test(path)) return method === 'PUT' ? !target.search : method === 'GET' && [...target.searchParams.keys()].every(key => key === 'session_id') && target.searchParams.getAll('session_id').length <= 1
+  if (/^\/api\/sessions\/[A-Za-z0-9_-]{1,128}\/gemini\/runtime$/.test(path)) return !target.search && method === 'GET'
+  if (/^\/api\/sessions\/[A-Za-z0-9_-]{1,128}\/gemini\/interactions\/geminireq_[a-f0-9]{32}\/resolve$/.test(path)) return !target.search && method === 'POST'
   if (path === '/api/admin/codex/auth') return !target.search && method === 'GET'
   if (path === '/api/admin/codex/auth/reload') return !target.search && method === 'POST'
   if (path === '/api/admin/codex/provider') return !target.search && ['GET', 'PUT', 'DELETE'].includes(method)

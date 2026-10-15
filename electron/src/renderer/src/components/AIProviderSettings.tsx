@@ -51,13 +51,19 @@ function ProviderGroup({ backend, requested }: { backend: Backend; requested?: {
   useEffect(() => { if (requested?.backend === backend) setOpen(true) }, [requested, backend])
   const signedIn = backend === 'codex' ? codexNative || native : native
   const ready = connected && (signedIn || api)
-  const name = { codex: 'Codex', claude: 'Claude Code', cursor: 'Cursor', opencode: 'OpenCode' }[backend]
+  const name = { codex: 'Codex', claude: 'Claude Code', cursor: 'Cursor', opencode: 'OpenCode', gemini: 'Gemini CLI' }[backend]
   return <details open={open} className={`provider-group ${ready ? 'is-connected' : ''}`} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary><ChevronRight size={16} className="provider-group-chevron" /><strong>{name}</strong>
       <span className="provider-group-status">{ready ? <CheckCircle2 size={17} /> : <Circle size={17} />}{t(ready ? 'connections.connected' : 'connections.empty')}</span>
     </summary>
     <div className="provider-group-body">
-      {backend === 'codex' ? <CodexAuthSettings expanded={open} connected={connected} profileId={profileId} profileGeneration={profileGeneration} onAPIStatus={setAPI} onNativeStatus={setCodexNative} /> : <>
+      {backend === 'gemini' ? <><section className="codex-auth-settings cli-account-card" aria-label={t('connections.nativeAccountLabel', { provider: 'Gemini CLI' })}>
+        <span className="codex-auth-settings-icon">{signedIn ? <CheckCircle2 size={18} /> : <KeyRound size={17} />}</span>
+        <div className="codex-auth-settings-copy"><strong>{t('connections.nativeLogin')}</strong>
+          <small role="status">{t(signedIn ? 'connections.nativeDetected' : 'connections.notSignedIn')}</small>
+          {!signedIn && <NativeProviderSignIn backend="gemini" disabled={!connected} />}
+        </div>
+      </section><ProviderConnectionSettings expanded={open} backend="gemini" connected={connected} profileId={profileId} profileGeneration={profileGeneration} onStatus={setAPI} /></> : backend === 'codex' ? <CodexAuthSettings expanded={open} connected={connected} profileId={profileId} profileGeneration={profileGeneration} onAPIStatus={setAPI} onNativeStatus={setCodexNative} /> : <>
         <CLIAccountCard backend={backend} signedIn={signedIn} open={open} />
         <ProviderConnectionSettings expanded={open} backend={backend} connected={connected} profileId={profileId} profileGeneration={profileGeneration} onStatus={setAPI} />
       </>}
@@ -75,12 +81,13 @@ export function AIProviderSettings({ requested }: { requested?: { backend?: Back
   const generation = useAppStore(state => state.profileGeneration)
   const connected = useAppStore(state => state.connected)
   const { refreshing, recheck } = useRuntimeRecheck()
+  const geminiSupported = useAppStore(state => state.health?.capabilities?.gemini_backend?.available === true)
   const [revision, setRevision] = useState(0)
   return <div className="app-settings-provider-page">
     <div className="app-settings-provider-context">
       <strong>{profile ? t('settings.providersServer', { server: profile.name }) : t('settings.providersNoServer')}</strong>
       <button type="button" className="quiet-button" disabled={!connected || refreshing} onClick={() => void recheck().then(() => setRevision(value => value + 1))}><RefreshCw size={14} className={refreshing ? 'spin' : ''} />{t('connections.refresh')}</button>
     </div>
-    {(['codex', 'claude', 'cursor', 'opencode'] as Backend[]).map(backend => <ProviderGroup key={`${profile?.id}:${generation}:${revision}:${backend}`} backend={backend} requested={requested} />)}
+    {(['codex', 'claude', 'cursor', 'opencode', ...(geminiSupported ? ['gemini'] : [])] as Backend[]).map(backend => <ProviderGroup key={`${profile?.id}:${generation}:${revision}:${backend}`} backend={backend} requested={requested} />)}
   </div>
 }

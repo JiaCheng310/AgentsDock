@@ -10,6 +10,7 @@ const LOGIN = {
   claude: ['claude auth login', 'https://code.claude.com/docs'],
   cursor: ['agent login', 'https://cursor.com/docs'],
   opencode: ['opencode auth login', 'https://opencode.ai/docs'],
+  gemini: ['gemini', 'https://geminicli.com/docs/get-started/authentication/'],
 } as const
 
 export function NativeProviderSignIn({ backend, disabled = false }: { backend: Backend; disabled?: boolean }) {

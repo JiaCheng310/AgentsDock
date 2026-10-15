@@ -5,13 +5,14 @@ const BACKEND_MARK_SRC: Record<Backend, string> = {
   claude: './backend-claude.png',
   codex: './backend-codex.png',
   cursor: './backend-cursor.png',
-  opencode: ''
+  opencode: '',
+  gemini: ''
 }
 
 export function BackendMark({ backend, size = 18 }: { backend: Backend; size?: number }) {
   return (
     <span className={`backend-mark backend-${backend}`} style={{ width: size, height: size }} aria-hidden="true">
-      {backend !== 'opencode' && <img
+      {BACKEND_MARK_SRC[backend] && <img
         src={window.agentsDock?.sharedChat ? `/interactive-chat/assets/backend-${backend}.png` : BACKEND_MARK_SRC[backend]}
         alt=""
         draggable={false}
