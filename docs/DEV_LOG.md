@@ -8,7 +8,10 @@
   and native activation requests with ordinary tool permissions. API profiles
   reference installed skill assets while keeping login credentials isolated.
 - Real pinned CLI/local API fixtures cover native activation, approve/deny,
-  continuation and cleanup. Targeted desktop tests, type checking and production
+  continuation and cleanup. A skill-follow-up regression found native load-time
+  history normalization; accept only its exact known text/tool transformation
+  while still rejecting unrelated changes and suppressing historical replay.
+  Targeted desktop tests, type checking and production
   compilation pass. Real desktop sends reached Google's service but eligibility
   and API billing responses block successful real-account acceptance.
 - This remains an opt-in development preview. Cross-chat, complete streaming
