@@ -1,5 +1,46 @@
 # Public development log
 
+## 2026-10-16 — Harden Gemini lifecycle and complete shared-chat wiring
+
+- Keep native Gemini identity before visible activity/tool approval. Add an owned
+  parent-death guard and verified-cleanup contract; an unconfirmed cleanup keeps
+  Stop/Delete fenced instead of erasing the chat or reporting false success.
+  Persist that failure fence across restart; loss of the live cleanup handle
+  requires operator verification, not an automatic unlock.
+  Permit only the native loader's exact leading environment-header refresh.
+- Fix native-account skill discovery without an API connection and capability
+  admission for scheduled chat/standalone jobs. Extend the jobs helper's provider
+  selectors. Keep run-bound MCP instructions free of shell authority-file paths.
+- Wire Gemini prompts, approvals and runtime updates through interactive shares.
+  Fix both the shared-state allowlist and the mounted approval shelf refresh.
+  Preserve share-token, CSRF, exact-chat/run and revocation checks.
+- Verification: 88 Gemini cases using actual CLI 0.64.0 and a loopback fake API;
+  247 related server regressions; 83 transport/cleanup/shared-control cases; 29
+  jobs-helper cases; 160 queue/Stop/goal/job regression cases. These batches
+  overlap and are not a unique-test total. Nine release-manifest checks pass.
+  Desktop: 5,193 tests pass, five skip; type checks, production/shared builds
+  and eight package/license checks pass. Native remote Google requests were not
+  retried: real-account eligibility/billing acceptance remains deferred.
+- Actual offscreen desktop acceptance covers API setup, New Chat, composer
+  model selection, skills/approval, repeated resume, live answers and title
+  import. Actual packaged shared-web acceptance covers token entry, native
+  approval, two turns and revoke. English/dark, Chinese/light/narrow and keyboard
+  focus were checked; native HTML-select popup interaction remains unaccepted.
+- Crash-mid-tool/descendant cleanup, failed cleanup, queued Delete, unauthorized
+  and revoked recipients, busy mailbox delivery, idempotent retry, WAV transport
+  and three-chat concurrency have dedicated fixtures. Process sampling is not a
+  security sandbox or a low-memory/load guarantee. Native Fork, native goals,
+  managed subagents, side questions, explicit compaction and later external
+  history reconciliation are not claimed. See the Gemini preview matrix.
+- Availability: source and isolated test builds only; no server deployment,
+  publication or mobile changes. Full repository CI and real-account acceptance
+  remain release gates.
+- The full local server-suite attempt is not a pass: it was stopped after an
+  installer scenario stalled. A separate probe reproduced 22 IPC setup errors
+  where the local test filesystem could not provide private POSIX file modes;
+  those guards were not weakened. The relevant Gemini/adjacent suites above
+  were run with disposable POSIX-backed state.
+
 ## 2026-10-16 — Extend the Gemini development preview
 
 - Add live answer snapshots, bounded text/image/audio attachments, native

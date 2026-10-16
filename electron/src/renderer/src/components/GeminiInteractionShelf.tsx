@@ -43,8 +43,12 @@ export function GeminiInteractionShelf({ session }: { session?: Session | null }
       if (payload.profileId !== profileId || payload.profileGeneration !== generation || payload.event.session_id !== id) return
       if (['gemini_interaction_requested', 'gemini_interaction_resolved', 'turn_finished'].includes(payload.event.type)) void refresh()
     })
+    const unsubscribeRuntime = window.agentsDock.events.on('server:provider-runtime', payload => {
+      if (payload.profileId === profileId && payload.profileGeneration === generation
+        && payload.event.session_id === id && payload.event.backend === 'gemini') void refresh()
+    })
     void refresh()
-    return () => { epoch.current++; unsubscribe(); refreshRef.current = async () => {} }
+    return () => { epoch.current++; unsubscribe(); unsubscribeRuntime(); refreshRef.current = async () => {} }
   }, [id, profileId, generation, connected, supported])
   if (!id || !connected || !supported || (!interactions.length && !error)) return null
   return <section className="codex-interaction-shelf" aria-label={providerInteractionShelfLabel('Gemini', interactions)}>
