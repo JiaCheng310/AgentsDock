@@ -1,5 +1,25 @@
 # Public development log
 
+## 2026-10-16 — Bounded Gemini stress acceptance
+
+- Runtime source `ffe22869`: a development-instance HTTP/WebSocket soak ran for
+  60 seconds with 16 HTTP workers and 16 reconnecting event-stream workers.
+  All 8,515 reads and 1,854 socket catch-ups succeeded; existing history and
+  configuration remained unchanged. This was loopback and empty test chats,
+  not a remote-network/large-history benchmark.
+- A separate disposable server with actual Gemini CLI 0.64.0 and a fake local
+  model API completed four concurrent chats × ten turns, with 134,890-byte
+  streamed Unicode replies and 40 socket reconnects. Text stayed exact, replay
+  produced no duplicate turns, UUIDs stayed isolated/stable, and Delete retained
+  native history. Native repeated-output loop protection remains enabled.
+- Nine additional stream/runner/approval regressions pass. An offscreen native
+  Electron client used production IPC/HTTP against the updated development
+  instance to inspect My Agents and select/cancel the configured Gemini API
+  option in New Chat, without changing credentials or sending model requests.
+- Availability: development test service only; no release/publication. Google
+  account generation remains unaccepted, and full CI/platform, long-duration,
+  real-network and resource-pressure acceptance are still pending.
+
 ## 2026-10-16 — Harden Gemini lifecycle and complete shared-chat wiring
 
 - Keep native Gemini identity before visible activity/tool approval. Add an owned
