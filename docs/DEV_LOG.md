@@ -1,5 +1,30 @@
 # Public development log
 
+## 2026-10-16 — Extend the Gemini development preview
+
+- Add live answer snapshots, bounded text/image/audio attachments, native
+  summary adoption and opt-in main-session discovery/initial text import.
+  Preserve manual titles, exact native workspace/identity, ownership exclusion
+  and compatibility with older import clients. Native edits are not reconciled.
+- Fix retry after an empty failed first generation without resetting existing
+  conversations. Preserve native identity after exposed activity, including
+  history-recorder failures; retain partial output on Stop and native tool diffs.
+  CLI mode no longer assumes a custom API connection object exists.
+- Exercise native queue/restart/resume, one-time approvals, denied writes,
+  pending-tool Delete, retained native continuation and cross-chat send/read/
+  reply. Report missing MCP under native folder trust without granting trust.
+  Include new modules in installation and package manifests.
+- Verification uses Gemini CLI 0.64.0, disposable state and a loopback fake model
+  API: 72 Gemini tests and 247 related server regressions pass. Actual offscreen
+  desktop IPC/HTTP acceptance covers API/model settings, skills, repeated sends,
+  live answer delivery and native-title import. Desktop tests: 5,191 pass, five
+  skip; type checking, production compilation, eight package checks and nine
+  server manifest checks pass.
+- Still an opt-in preview, not release-ready. Real-account acceptance is
+  deferred; native Fork, later history reconciliation and remaining optional
+  provider-checklist workflows are not presented as completed. No deployment
+  or publication is part of this validation.
+
 ## 2026-10-15 — Use the official Gemini product icon
 
 - Replace the approximate sparkle with Google's unmodified four-colour asset,

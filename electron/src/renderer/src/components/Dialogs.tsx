@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, u
 import * as Dialog from '@radix-ui/react-dialog'
 import { ArrowRight, Check, ChevronDown, ChevronRight, CircleAlert, Clock3, Command, Copy, Download, ExternalLink, FileText, FolderOpen, GitFork, Import, KeyRound, Laptop, LoaderCircle, Network, RefreshCw, RotateCcw, Search, Server, Sparkles, X } from 'lucide-react'
 import type { AppUpdateStatus, AppUpdateTrack, Backend, BulkImportSessionItem, BulkImportSessionResult, ChatReference, ChatReferenceAction, CoordinatedServerUpdate, CreateJobInput, Health, Job, JobContextMode, JobScheduleKind, LocalSessionCandidate, ServerRestartBlockerSnapshot, ServerSetupCapabilities, ServerSetupProgress, ServerUpdateStatus, ServerUpdateTrack, Session, TeamReference, UpdateJobInput, WorkspaceProfileScope } from '@shared/types'
-import { cursorLocalSessionImportSupported, localSessionImportKey, localSessionImportSupported } from '@shared/local-session-import'
+import { cursorLocalSessionImportSupported, geminiLocalSessionImportSupported, localSessionImportKey, localSessionImportSupported } from '@shared/local-session-import'
 import { opencodeBackendAvailable, opencodeBackendUnavailableReason, chatBackendChoice, chatBackendSelection, codexCustomProviderAvailable, cursorBackendAvailable, cursorBackendUnavailableReason, runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError, selectableChatBackendChoices, selectableChatBackends, type ChatBackendChoice } from '@shared/runtime-catalog'
 import { trackEvent, trackOperation } from '../lib/analytics'
 import { readAppearance, setAppearanceMode, type AppearanceMode } from '../lib/appearance'
@@ -3424,7 +3424,7 @@ export function ImportChatsDialog() {
 
   const operationBusy = importing || resumingById
 
-  return <Shell open={open} onOpenChange={value => useAppStore.getState().setModal('importChats', value)} title={t("ui.Dialogs.ImportChatsDialog.import_chat_ed32942")} description={cursorLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.cursor_snapshot_history') : t("ui.Dialogs.ImportChatsDialog.bring_in_your_local_claude_code_and_codex__0ffcba9")}>
+  return <Shell open={open} onOpenChange={value => useAppStore.getState().setModal('importChats', value)} title={t("ui.Dialogs.ImportChatsDialog.import_chat_ed32942")} description={geminiLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.gemini_snapshot_history') : cursorLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.cursor_snapshot_history') : t("ui.Dialogs.ImportChatsDialog.bring_in_your_local_claude_code_and_codex__0ffcba9")}>
     <div className="dialog-form import-chats-dialog">
       <form className="import-chats-resume" onSubmit={event => void submitResumeById(event)}>
         <div className="import-chats-resume-heading">

@@ -51,6 +51,14 @@ export function cursorLocalSessionImportSupported(health: Health | null | undefi
     && capability.history_mode === 'initial_text_snapshot'
 }
 
+export function geminiLocalSessionImportSupported(health: Health | null | undefined): boolean {
+  const capability = health?.capabilities?.gemini_backend
+  return localSessionImportSupported(health) && capability?.available === true
+    && Number.isInteger(capability.version) && Number(capability.version) >= 1
+    && capability.history_mode === 'initial_text_snapshot'
+    && capability.features?.external_import === true
+}
+
 export function requireLocalSessionImportCapability(health: Health | null | undefined): LocalSessionImportCapability {
   const capability = localSessionImportCapability(health)
   if (!capability) {
@@ -166,12 +174,12 @@ function positiveInteger(value: unknown): value is number {
 }
 
 function parseBackend(value: unknown, field: string): Backend {
-  if (value !== 'claude' && value !== 'codex' && value !== 'cursor') throw new Error(`Import Chat ${field} is invalid.`)
+  if (value !== 'claude' && value !== 'codex' && value !== 'cursor' && value !== 'gemini') throw new Error(`Import Chat ${field} is invalid.`)
   return value
 }
 
 function parseBackendResponse(value: unknown, field: string): Backend {
-  if (value !== 'claude' && value !== 'codex' && value !== 'cursor') throw invalidResponse(field)
+  if (value !== 'claude' && value !== 'codex' && value !== 'cursor' && value !== 'gemini') throw invalidResponse(field)
   return value
 }
 
@@ -194,7 +202,7 @@ function responseString(value: unknown, max: number, field: string, allowWhitesp
 }
 
 function responseLabel(value: unknown, backend: Backend, providerSessionId: string): string {
-  const fallback = `${backend === 'claude' ? 'Claude' : backend === 'cursor' ? 'Cursor' : 'Codex'} chat ${providerSessionId.slice(0, 8)}`
+  const fallback = `${backend === 'claude' ? 'Claude' : backend === 'cursor' ? 'Cursor' : backend === 'gemini' ? 'Gemini' : 'Codex'} chat ${providerSessionId.slice(0, 8)}`
   if (
     typeof value !== 'string'
     || value.length === 0

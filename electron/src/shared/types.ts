@@ -1732,7 +1732,7 @@ export interface HealthCapabilities {
   claude_controls?: InteractiveProviderCapability
   cursor_backend?: CursorBackendCapability
   opencode_backend?: OpenCodeBackendCapability
-  gemini_backend?: ServerCapability & { version?: number; transport?: string; features?: Record<string, boolean> }
+  gemini_backend?: ServerCapability & { version?: number; transport?: string; history_mode?: string; features?: Record<string, boolean> }
   local_provider_commands_v1?: ServerCapability & { version?: number; supported_backends?: Backend[] }
   agent_team_mail_v1?: AgentTeamMailCapability
   agent_team_messages_v1?: AgentTeamMessagesCapability
@@ -2262,8 +2262,8 @@ export interface SessionSnapshot {
 export interface ReasoningSummaryStreamItem extends Omit<Partial<Event>, 'seq' | 'id' | 'session_id' | 'type' | 'run_id' | 'item_id' | 'backend' | 'phase' | 'text' | 'ts'> {
   run_id: string
   item_id: string
-  backend: 'codex'
-  phase: 'summary' | 'reasoning'
+  backend: 'codex' | 'gemini'
+  phase: 'summary' | 'reasoning' | 'assistant'
   text: string
   ts: string
   after_seq: number

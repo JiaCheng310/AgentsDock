@@ -1004,12 +1004,12 @@ export class AgentServerClient {
     return response.session
   }
 
-  async listLocalSessions(limit = LOCAL_SESSION_IMPORT_HARD_LIST_LIMIT, includeCursor = false): Promise<LocalSessionCandidate[]> {
+  async listLocalSessions(limit = LOCAL_SESSION_IMPORT_HARD_LIST_LIMIT, includeCursor = false, includeGemini = false): Promise<LocalSessionCandidate[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > LOCAL_SESSION_IMPORT_HARD_LIST_LIMIT) {
       throw new Error('Import Chat local session limit is invalid.')
     }
     const response = await this.get<unknown>(
-      `/api/local-sessions?limit=${limit}${includeCursor ? '&include_cursor=true' : ''}`,
+      `/api/local-sessions?limit=${limit}${includeCursor ? '&include_cursor=true' : ''}${includeGemini ? '&include_gemini=true' : ''}`,
       this.configuration,
       DEFAULT_REQUEST_TIMEOUT_MS,
       LOCAL_SESSION_LIST_RESPONSE_MAX_BYTES

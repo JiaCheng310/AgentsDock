@@ -24,6 +24,7 @@ import { sideChatSyncAvailable, type SyncedSideChat, sideQuestionLimit, sideQues
 import { parseBulletinHintRefresh } from '../shared/team-bulletin-hints'
 import {
   cursorLocalSessionImportSupported,
+  geminiLocalSessionImportSupported,
   localSessionImportBatchLimit,
   localSessionImportListLimit,
   parseBulkImportSessionItems,
@@ -2561,7 +2562,9 @@ export class AppService {
     const scope = this.captureScope()
     await this.ensureValidatedScope(scope)
     const capability = requireLocalSessionImportCapability(this.health)
-    const candidates = cursorLocalSessionImportSupported(this.health)
+    const candidates = geminiLocalSessionImportSupported(this.health)
+      ? await scope.client.listLocalSessions(localSessionImportListLimit(capability), cursorLocalSessionImportSupported(this.health), true)
+      : cursorLocalSessionImportSupported(this.health)
       ? await scope.client.listLocalSessions(localSessionImportListLimit(capability), true)
       : await scope.client.listLocalSessions(localSessionImportListLimit(capability))
     this.assertCurrentScope(scope)
@@ -2575,6 +2578,9 @@ export class AppService {
     const normalized = parseBulkImportSessionItems(items, localSessionImportListLimit(capability))
     if (normalized.some(item => item.backend === 'cursor') && !cursorLocalSessionImportSupported(this.health)) {
       throw new Error('Cursor Import Chat requires a server with Cursor local import support.')
+    }
+    if (normalized.some(item => item.backend === 'gemini') && !geminiLocalSessionImportSupported(this.health)) {
+      throw new Error('Gemini Import Chat requires a server with Gemini local import support.')
     }
     const batchLimit = localSessionImportBatchLimit(capability)
     const results: BulkImportSessionResult[] = []
