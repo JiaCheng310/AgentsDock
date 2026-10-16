@@ -1,5 +1,18 @@
 # Public development log
 
+## 2026-10-15 — Use the official Gemini product icon
+
+- Replace the approximate sparkle with Google's unmodified four-colour asset,
+  bundled locally with attribution. Preserve its transparency without showing
+  the fallback underneath, and include the SVG in shared-chat packaging.
+- Actual desktop checks verified the sidebar, composer and new-chat provider
+  picker in dark mode and emulated light/narrow layouts. Type checking,
+  production and shared-renderer builds, 5,189 desktop tests and eight package
+  checks passed; five desktop tests were skipped. The packaged shared-chat
+  asset matches the original, but its live web route was not exercised.
+- Icon-only acceptance does not resolve the Gemini preview's account, billing
+  or provider-checklist limitations. No server deployment or publication.
+
 ## 2026-10-15 — Exercise Gemini connections and native skills
 
 - Give Gemini a distinct sparkle mark and correctly name its error notice.

@@ -1,13 +1,32 @@
-import { render, cleanup } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import { render, cleanup, fireEvent } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
 import { BackendMark } from './BackendMark'
 
-afterEach(cleanup)
-it('renders a Gemini sparkle with unique gradients instead of the generic bot', () => {
-  const { container } = render(<><BackendMark backend="gemini" /><BackendMark backend="gemini" /></>)
-  const gradients = [...container.querySelectorAll('linearGradient')]
-  expect(gradients).toHaveLength(2)
-  expect(gradients[0].id).not.toBe(gradients[1].id)
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+it('uses the bundled official Gemini asset without a fallback showing through its transparency', () => {
+  const { container } = render(<BackendMark backend="gemini" size={24} />)
+  expect(container.querySelector('img')).toHaveAttribute('src', './backend-gemini.svg')
+  expect(container.querySelector('img')).toHaveAttribute('alt', '')
+  expect(container.querySelector('.backend-mark')).toHaveStyle({ width: '24px', height: '24px' })
+  expect(container.querySelector('.backend-fallback')).toBeNull()
   expect(container.querySelector('.lucide-bot')).toBeNull()
-  expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(2)
+})
+it('uses the shared-chat asset route with the correct SVG extension', () => {
+  vi.stubGlobal('agentsDock', { sharedChat: true })
+  const { container } = render(<BackendMark backend="gemini" />)
+  expect(container.querySelector('img')).toHaveAttribute('src', '/interactive-chat/assets/backend-gemini.svg')
+})
+it('falls back on an asset error and does not hide another provider after switching', () => {
+  const { container, rerender } = render(<BackendMark backend="gemini" />)
+  fireEvent.error(container.querySelector('img')!)
+  expect(container.querySelector('img')).toBeNull()
+  expect(container.querySelector('.lucide-bot')).not.toBeNull()
+  rerender(<BackendMark backend="claude" />)
+  expect(container.querySelector('img')).toHaveAttribute('src', './backend-claude.png')
+  expect(container.querySelector('.backend-fallback')).toBeNull()
+})
+it('retains the existing icon fallback for providers without an asset', () => {
+  const { container } = render(<BackendMark backend="opencode" />)
+  expect(container.querySelector('img')).toBeNull()
+  expect(container.querySelector('.backend-fallback svg')).not.toBeNull()
 })
