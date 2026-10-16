@@ -8,6 +8,13 @@ import { RuntimeHealthNotice, RuntimeHealthPanel } from './RuntimeHealth'
 
 afterEach(cleanup)
 
+it('labels a Gemini API error as Gemini, not Codex', () => {
+  useAppStore.setState({ health: null, runtimeCatalog: null, snapshots: {}, sessions: [] })
+  render(<RuntimeHealthNotice backend="gemini" codexProvider="custom" sessionId="gemini-test" admissionError="API test failed" />)
+  expect(screen.getByText('Gemini')).toBeTruthy()
+  expect(screen.queryByText(/Codex runtime/)).toBeNull()
+})
+
 const readyCatalog: RuntimeCatalog = {
   generated_at: '2026-07-30T20:01:00Z',
   backends: {

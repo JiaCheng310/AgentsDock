@@ -7741,11 +7741,14 @@ export function mergeSessionSummaries(previous: Session[], incoming: Session[]):
 }
 
 function preserveCustomProviderModels(previous: Session, incoming: Session): Session {
-  const saved = previous.codex_provider_catalog
-  const summary = incoming.codex_provider_catalog
-  if (incoming.codex_provider !== 'custom' || previous.codex_provider !== 'custom' || !saved || !summary
+  const codex = incoming.backend === 'codex'
+  const field = codex ? 'codex_provider_catalog' : 'provider_connection_catalog'
+  const choice = codex ? 'codex_provider' : 'provider_connection'
+  const saved = previous[field]
+  const summary = incoming[field]
+  if (incoming.backend !== previous.backend || incoming[choice] !== 'custom' || previous[choice] !== 'custom' || !saved || !summary
     || !summary.configured || saved.base_url !== summary.base_url || summary.models !== undefined) return incoming
-  return { ...incoming, codex_provider_catalog: {
+  return { ...incoming, [field]: {
     ...summary,
     ...(saved.models !== undefined ? { models: saved.models } : {}),
     ...(saved.model_efforts !== undefined ? { model_efforts: saved.model_efforts } : {}),

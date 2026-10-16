@@ -1,5 +1,20 @@
 # Public development log
 
+## 2026-10-15 — Exercise Gemini connections and native skills
+
+- Give Gemini a distinct sparkle mark and correctly name its error notice.
+  Preserve custom endpoint model choices through compact session-list refreshes.
+- Add bounded native skill discovery, opaque per-chat selection/revalidation,
+  and native activation requests with ordinary tool permissions. API profiles
+  reference installed skill assets while keeping login credentials isolated.
+- Real pinned CLI/local API fixtures cover native activation, approve/deny,
+  continuation and cleanup. Targeted desktop tests, type checking and production
+  compilation pass. Real desktop sends reached Google's service but eligibility
+  and API billing responses block successful real-account acceptance.
+- This remains an opt-in development preview. Cross-chat, complete streaming
+  parity, titles/import, mobile and the other recorded provider-checklist gates
+  are not accepted merely because basic fixtures pass. Nothing is published.
+
 ## 2026-10-15 — Begin an opt-in Gemini provider preview
 
 - Add an experimental desktop/server Gemini CLI adapter behind a development

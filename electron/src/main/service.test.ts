@@ -390,6 +390,16 @@ describe('opening artifact files externally', () => {
 })
 
 describe('session summary merging', () => {
+  it.each(['gemini', 'claude', 'opencode', 'cursor'] as const)('retains %s models through slim polls, but honors Forget and a changed endpoint', backend => {
+    const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
+      models: [{ value: 'test-model', label: 'Test model' }] }
+    const existing: Session = { id: 'chat', title: 'Chat', backend, provider_connection: 'custom', provider_connection_catalog: catalog }
+    const { models: _models, ...summary } = catalog
+    expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: summary }])[0].provider_connection_catalog?.models).toEqual(catalog.models)
+    for (const changed of [{ ...summary, configured: false }, { ...summary, base_url: 'https://second.example' }, { ...summary, models: [] }]) {
+      expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: changed }])[0].provider_connection_catalog?.models ?? []).toEqual([])
+    }
+  })
   it('keeps the retained endpoint model list when a slim summary omits it', () => {
     const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
       models: [{ value: 'first/model', label: 'First' }], model_efforts: { 'first/model': [{ value: 'high', label: 'High' }] } }
