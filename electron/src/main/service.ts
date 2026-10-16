@@ -411,6 +411,7 @@ export class AppService {
   private rendererReadyWindows = new WeakSet<BrowserWindow>()
   private rendererGrantEpochs = new Map<number, number>()
   private rendererFileOperations = new Map<number, Set<AbortController>>()
+  private pendingHistoryProjectionRefresh = new Set<string>()
   private stagedClipboardFiles = new Map<string, StagedClipboardFile>()
   private clipboardStagingDirectory: string | null = null
   private clipboardStagingScavenged = false
@@ -3532,6 +3533,14 @@ export class AppService {
       if (!this.isCurrentTimeline(scope, sessionId, lease)) return
       this.emit('provider-usage:changed', { profileId: scope.profileId, profileGeneration: scope.generation, sessionId, backend,
         serverIdentity: this.settings.getProfile(scope.profileId)?.serverIdentity ?? null })
+    }, () => {
+      if (!this.isCurrentTimeline(scope, sessionId, lease)) return
+      // Metadata proof can finish after initial display. Fetch the bounded
+      // semantic tail once when its projection changes; never poll or replay
+      // the entire chat just to discover a repaired historical row.
+      const key = `${scope.generation}:${sessionId}:${lease}`
+      if (this.timelineReconcileInFlight.has(key)) this.pendingHistoryProjectionRefresh.add(key)
+      else void this.reconcileTimelineAndStream(scope, sessionId, lease)
     })
     const current = this.timelineSubscriptions.get(sessionId)
     if (current?.lease === lease) current.stop = stop
@@ -3669,6 +3678,13 @@ export class AppService {
     assertLocalAgentChatReferences(input.chatReferences)
     const scope = this.captureScope()
     await this.ensureValidatedScope(scope)
+    // Commit the identity before transport, in the selected server's durable
+    // cache. Lost responses and renderer/app restarts reuse the same request.
+    const receiptKey = `turnReceipt:${input.sessionId}`
+    const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex')
+    const previous = this.cache.preference<{ fingerprint: string; id: string } | null>(scope.namespace, receiptKey, null)
+    const requestId = input.clientRequestId ?? (previous?.fingerprint === fingerprint ? previous.id : randomUUID())
+    this.cache.putPreference(scope.namespace, receiptKey, { fingerprint, id: requestId })
     const response = await scope.client.sendTurn(
       input.sessionId,
       input.prompt,
@@ -3678,8 +3694,12 @@ export class AppService {
       input.clientCapabilities ?? ['codex_interactive_v1'],
       input.chatReferences ?? [],
       input.teamReferences ?? [],
-      input.skillSelection
+      input.skillSelection,
+      requestId
     )
+    // Acceptance wins even if local cleanup fails. Keep the receipt in that
+    // case, so a retry can only replay the accepted result.
+    try { this.cache.putPreference(scope.namespace, receiptKey, null) } catch { /* storage health reports the failure */ }
     this.assertCurrentScope(scope)
     this.upsertSession(scope, response.session)
     if (response.event) {
@@ -5625,6 +5645,9 @@ export class AppService {
     } finally {
       this.finishTimelineInitialization(sessionId, lease)
       this.timelineReconcileInFlight.delete(reconcileKey)
+      if (this.pendingHistoryProjectionRefresh?.delete(reconcileKey) && this.isCurrentTimeline(scope, sessionId, lease)) {
+        queueMicrotask(() => void this.reconcileTimelineAndStream(scope, sessionId, lease))
+      }
     }
   }
 
