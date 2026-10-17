@@ -289,7 +289,7 @@ const defaultModals: ModalState = { settings: false, appSettings: false, newChat
 export const NEW_CHAT_DEFAULTS_PREFERENCE_KEY = 'newChatDefaults:v1'
 const DIRECT_CHAT_PLACEHOLDER_PREFERENCE_PREFIX = 'directChatPlaceholder:v1:'
 
-type NewChatPermissionDefaults = Pick<CreateSessionInput, 'claude_permission_mode' | 'cursor_permission_mode' | 'opencode_permission_mode' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer'>
+type NewChatPermissionDefaults = Pick<CreateSessionInput, 'claude_permission_mode' | 'cursor_permission_mode' | 'opencode_permission_mode' | 'gemini_permission_mode' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer'>
 type NewChatDefaultsInput = Pick<CreateSessionInput, 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort' | 'system_prompt' | 'subagent_limit'> & NewChatPermissionDefaults
 
 export interface NewChatDefaults extends NewChatPermissionDefaults {
@@ -311,7 +311,7 @@ export function newChatPermissions(input: NewChatPermissionDefaults, backend: Ba
   if (backend === 'claude') return { claude_permission_mode: input.claude_permission_mode ?? null }
   if (backend === 'cursor') return { cursor_permission_mode: input.cursor_permission_mode ?? 'default' }
   if (backend === 'opencode') return { opencode_permission_mode: input.opencode_permission_mode ?? 'default' }
-  if (backend === 'gemini') return {}
+  if (backend === 'gemini') return { gemini_permission_mode: input.gemini_permission_mode ?? 'default' }
   return {
     codex_approval_policy: input.codex_approval_policy ?? null,
     codex_sandbox_mode: input.codex_sandbox_mode ?? null,
@@ -355,6 +355,7 @@ function parseNewChatDefaults(value: unknown): NewChatDefaults | null {
     claude_permission_mode: ['default', 'acceptEdits', 'plan', 'bypassPermissions', 'dontAsk', 'auto'],
     cursor_permission_mode: ['default', 'full_access', 'plan'],
     opencode_permission_mode: ['default', 'full_access', 'plan'],
+    gemini_permission_mode: ['default', 'autoEdit', 'yolo', 'plan'],
     codex_approval_policy: ['never', 'on-request', 'untrusted'],
     codex_sandbox_mode: ['read-only', 'workspace-write', 'danger-full-access'],
     codex_approvals_reviewer: ['user', 'auto_review', 'guardian_subagent']
@@ -434,6 +435,7 @@ function directChatPlaceholderFingerprint(session: Session): string {
     claudePermissionMode: session.claude_permission_mode ?? null,
     cursorPermissionMode: session.cursor_permission_mode ?? null,
     ...(session.backend === 'opencode' ? { opencodePermissionMode: session.opencode_permission_mode ?? null } : {}),
+    ...(session.backend === 'gemini' ? { geminiPermissionMode: session.gemini_permission_mode ?? 'default' } : {}),
     providerJobsAccess: session.provider_jobs_access ?? null
   })
 }
@@ -4994,6 +4996,7 @@ function normalizeSessionPatch(patch: Partial<Session>) { return {
   claude_permission_mode: patch.claude_permission_mode,
   cursor_permission_mode: patch.cursor_permission_mode,
   opencode_permission_mode: patch.opencode_permission_mode,
+  gemini_permission_mode: patch.gemini_permission_mode,
   provider_jobs_access: patch.provider_jobs_access ?? undefined,
   pinned: patch.pinned ?? undefined,
   archived: patch.archived ?? undefined

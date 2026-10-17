@@ -11,7 +11,7 @@ describe('preferred new-chat settings', () => {
     { backend: 'claude' as const, provider_connection: 'custom' as const, claude_permission_mode: 'plan' as const },
     { backend: 'cursor' as const, provider_connection: 'custom' as const, cursor_permission_mode: 'plan' as const },
     { backend: 'opencode' as const, provider_connection: 'custom' as const, opencode_permission_mode: 'full_access' as const },
-    { backend: 'gemini' as const, provider_connection: 'custom' as const }
+    { backend: 'gemini' as const, provider_connection: 'custom' as const, gemini_permission_mode: 'plan' as const }
   ])('inherits $backend settings, not saved defaults or session-owned state', policy => {
     const opened = { ...base, ...policy, system_prompt: 'Use concise replies.', session_id: 'native-thread', provider_jobs_access: 'full' as const }
     const actual = preferredNewChatDefaults([opened], opened.id, '/server', saved)

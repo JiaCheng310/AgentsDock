@@ -23,6 +23,8 @@ import { awaitAllClaudePermissionUpdates, awaitClaudePermissionUpdates } from '.
 import { supportedClaudePermissionModes } from '../lib/claude-permission-copy'
 import { awaitAllCodexPermissionUpdates, awaitCodexPermissionUpdates } from '../lib/codex-permission-updates'
 import { awaitAllCursorPermissionUpdates, awaitCursorPermissionUpdates } from '../lib/cursor-permission-updates'
+import { awaitAllGeminiPermissionUpdates, awaitGeminiPermissionUpdates } from '../lib/gemini-permission-updates'
+import { GeminiPermissionMenu } from './GeminiPermissionMenu'
 import { nativeFileRefsFromFiles } from '../lib/native-files'
 import { profileSessionKey } from '../lib/profile-scope'
 import { orderedActiveSessions, rankSessionsForSearch } from '../lib/sessions'
@@ -821,6 +823,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       return codexGoalsAvailable
     }
     if (command.id === 'permissions') return codexPermissionsAvailable || claudePermissionsAvailable || cursorPermissionsAvailable || session.backend === 'opencode' && opencodeBackendAvailable(health, catalog)
+      || session.backend === 'gemini' && health?.capabilities?.gemini_backend?.features?.permission_mode_control === true && !window.agentsDock.sharedChat
     if (command.id === 'reasoning') {
       return session.backend !== 'cursor' && session.backend !== 'opencode'
         && runtimeEffortOptions(catalog, session.backend, session.model, session.effort, (session.provider_connection === 'custom' ? 'custom' : session.codex_provider), (session.provider_connection_catalog ?? session.codex_provider_catalog))
@@ -1124,6 +1127,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
         awaitAllClaudePermissionUpdates(),
         awaitAllCodexPermissionUpdates(),
         awaitAllOpenCodePermissionUpdates(),
+        awaitAllGeminiPermissionUpdates(),
         awaitAllCursorPermissionUpdates()
       ]).then(() => {
         referencesDirtyRef.current = false
@@ -1424,6 +1428,10 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       }
       if (session.backend === 'opencode') {
         try { await awaitOpenCodePermissionUpdates(session.id) } catch (error) { reportActionError(error); return }
+        if (!composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, session.id, draftContextRef, mountedRef)) return
+      }
+      if (session.backend === 'gemini') {
+        try { await awaitGeminiPermissionUpdates(session.id) } catch (error) { reportActionError(error); return }
         if (!composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, session.id, draftContextRef, mountedRef)) return
       }
       const currentRuntimeState = useAppStore.getState()
@@ -2249,6 +2257,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
           {goalControlsAvailable && <button type="button" className="composer-icon" aria-label={goalTitle} title={goalTitle} onClick={openGoalControls}><Goal size={15} /></button>}
           {session.backend === 'cursor' && <CursorPermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
           {session.backend === 'opencode' && <OpenCodePermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
+          {session.backend === 'gemini' && !window.agentsDock.sharedChat && <GeminiPermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
         </div>
         <div className="composer-actions">
           {(steeringPending || admitting) && <span className="steering-pending" role="status"><span className="activity-ring" /><span className="steering-pending-label">{

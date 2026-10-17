@@ -1,5 +1,41 @@
 # Public development log
 
+## 2026-10-17 — Gemini native permission-mode controls
+
+- Add a localized Gemini permission menu in the desktop composer for both
+  native-login and API chats: Default, Auto Edit, explicit-confirmation YOLO,
+  and Plan once a native workspace handshake reports it enabled. Preserve
+  next-turn semantics and the native session ID; newly created chats inherit
+  the selected Gemini chat's saved mode without copying another provider's
+  sandbox options. Default remains normal native approval policy.
+- Pass native approval flags and confirm the requested ACP mode before the
+  prompt. Preserve native folder trust, tool denies and administrator YOLO
+  restrictions. Disabled Plan fails closed rather than silently running in
+  Default. API profiles preserve native Plan settings without changing login.
+  Shared chats do not gain this administrative permission editor.
+- Keep a mode-change acknowledgement out of assistant replies by correlating
+  the exact pinned CLI notice with the outstanding mode-change RPC. Identical
+  text in an actual model response is still retained.
+- Verification: 85 focused server/protocol/schema/packaging tests pass. Six
+  additional real CLI/HTTP mode cases verify default approvals, auto-edit
+  writes, shell confirmation, YOLO, Plan denial, native tool/admin restrictions,
+  unavailable modes and same-session next-turn changes. The model in those
+  deterministic native tests is a loopback fixture, not Google inference.
+- Desktop regression: 5,214 tests pass, five skip, plus eight compile/license
+  checks. TypeScript and production compilation pass. Five additional native
+  regression cases cover API reconnect, resume, Auto routing, cross-chat and
+  Stop/Delete isolation; these are separate from the live Google acceptance.
+- Actual offscreen Electron with production IPC/HTTP and native Gemini verifies
+  selecting/saving modes, pending approval isolation, denial, automatic writes,
+  YOLO confirmation/cancellation, Plan blocking writes, keyboard focus,
+  light/dark/narrow layouts, English/Chinese and reopening. No internal mode
+  notice appears as an answer. A separate real Google Developer API run through
+  this App completes Default then Plan in the same native session. Google
+  OAuth-account mode acceptance and wider platform/policy coverage remain open.
+- Source only on the Gemini development branch. No existing service or working
+  desktop was replaced; no cleanup fence bypass, existing native trust change, public
+  release or merge. The broader provider acceptance limitations remain.
+
 ## 2026-10-16 — Keep Gemini workspace trust separate from sign-in
 
 - Report unavailable communication tools as a workspace/MCP issue, not an

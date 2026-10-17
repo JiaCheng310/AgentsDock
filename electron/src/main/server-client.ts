@@ -990,6 +990,7 @@ export class AgentServerClient {
       codex_permission_profile: input.codex_permission_profile ?? null,
       codex_approvals_reviewer: input.codex_approvals_reviewer ?? null,
       claude_permission_mode: input.claude_permission_mode ?? null,
+      ...(input.backend === 'gemini' ? { gemini_permission_mode: input.gemini_permission_mode ?? 'default' } : {}),
       cursor_permission_mode: input.backend === 'cursor'
         ? normalizeCursorPermissionMode(input.cursor_permission_mode)
         : null,
@@ -1342,7 +1343,7 @@ export class AgentServerClient {
     return this.get(`/api/sessions/${encodeURIComponent(sessionId)}/claude/runtime`)
   }
 
-  geminiRuntime(sessionId: string): Promise<{ pending_interactions: CodexPendingInteraction[] }> {
+  geminiRuntime(sessionId: string): Promise<import('../shared/types').GeminiRuntimeSnapshot> {
     return this.privilegedNativeRequest(`/api/sessions/${encodeURIComponent(sessionId)}/gemini/runtime`, {}, 15_000, 200, 512 * 1024)
   }
 
