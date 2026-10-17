@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-16 — Keep Gemini workspace trust separate from sign-in
+
+- Report unavailable communication tools as a workspace/MCP issue, not an
+  invitation to sign in again. Include the exact chat workspace and native
+  trust/settings guidance without changing credentials or granting trust.
+- Do not require a communication tool for every ordinary question merely
+  because a chat has a durable communication permission. Use this turn's
+  validated references and internal delivery purpose. Explicit communication
+  and mailbox wakes still fail before model work when the tool is unavailable;
+  broker authorization, native trust and approval policy are unchanged.
+- Verification: the new real-CLI regression failed before the fix and passes
+  afterward. 82 focused regressions and seven native CLI/HTTP cases cover
+  ordinary follow-up, untrusted sender/recipient, queued cancellation, native
+  denial, unknown targets and busy-recipient retry/deduplication.
+- Actual offscreen Electron with production IPC/HTTP and the real native CLI
+  displays the workspace-specific error, then accepts an ordinary question in
+  the same chat without delivering mail; its answer survives reopening. This
+  isolated check uses a loopback model fixture, not Google authentication or
+  inference. Dependency lock and changed-module compilation checks pass.
+- Availability: source on the Gemini development branch; not deployed or
+  released. Existing development-service cleanup fencing was not bypassed.
+
 ## 2026-10-16 — Distinguish Gemini identity, chat access and delivery
 
 - Include Gemini's native identity in detailed session responses and the
