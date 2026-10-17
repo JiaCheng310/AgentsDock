@@ -20,6 +20,9 @@ export function customProviderAvailable(health: Health | null | undefined, catal
 }
 
 export function nativeProviderConnected(health: Health | null | undefined, catalog: RuntimeCatalog | null | undefined, backend: Backend): boolean {
+  // Gemini CLI remains the runtime, but AgentsDock exposes API credentials only.
+  // Also hide cached native-login availability from older preview servers.
+  if (backend === 'gemini') return false
   return catalog?.backends?.[backend]?.native_credentials_present ?? runtimeDiagnosticFor(health, catalog, backend)?.authenticated === true
 }
 
@@ -215,6 +218,7 @@ export function runtimeModelLockReason(
 export function runtimeSendAdmissionError(
   health: Health | null | undefined, backend: Backend, connection?: CodexProvider
 ): string | null {
+  if (backend === 'gemini' && connection !== 'custom') return t('gemini.apiOnlyError')
   // Capability mismatches are structural. Cached auth/model readiness is not:
   // the server and real provider request decide that on every send.
   if (connection === 'custom') {

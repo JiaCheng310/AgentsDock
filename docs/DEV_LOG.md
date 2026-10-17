@@ -1,5 +1,35 @@
 # Public development log
 
+## 2026-10-17 — Gemini API-only connections and clearer chat errors/archive state
+
+- Gemini's preview now offers API connections only. The CLI remains its runtime;
+  other providers' login choices are unchanged. Old Google-login chat history
+  remains readable, but sends cannot fall back to that account or silently move
+  to an API account. Settings, discovery and send admission agree on this policy.
+- Composer errors are selectable and have a localized copy action. Timeline
+  error cards also support copying. Long command text is preserved rather than
+  truncated, and an empty failed-turn summary no longer hides the actual error.
+- Archived chats have a muted row, archive icon and explicit label, including
+  in search. They remain readable in the collapsible Archived section and are
+  excluded from ordinary chat mention candidates.
+- When the owning Codex resume RPC explicitly rejects the exact native thread
+  as archived, the server mirrors it through the normal AgentsDock archive
+  lifecycle and does not retry through exec. Jobs/routes follow the existing
+  archive policy; provider history is untouched. Stale runs and other errors
+  cannot cause this transition. This is response-driven, not a background scan
+  of native archives or a migration of old error records.
+- Verification: 705 focused desktop tests, TypeScript and production compilation
+  passed. The server suite passed 230 cases with one optional native test skipped;
+  that native test then passed separately. These cover credentials, archive
+  lifecycle, routing and stale-run ownership. Actual offscreen Electron through production IPC/HTTP
+  verifies API-only Settings, copying both error surfaces, legacy-chat recovery
+  navigation, Archive persistence, mention exclusion, reopen, narrow layout,
+  light/dark and Chinese. A native Gemini CLI/loopback endpoint fixture covers
+  real failure propagation; separate Google Developer API Default/Plan sends
+  succeeded. A disposable native Codex archive/resume probe reproduced the
+  exact rejection and retained its native history without a model request.
+- Not published or deployed; existing user services and chats are unchanged.
+
 ## 2026-10-17 — Compact Gemini approval actions
 
 - Gemini tool requests now use localized Allow / Deny buttons. Full request

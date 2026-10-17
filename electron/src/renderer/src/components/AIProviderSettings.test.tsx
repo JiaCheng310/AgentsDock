@@ -38,7 +38,7 @@ beforeEach(() => {
 
 afterEach(() => { cleanup(); setLocale('en'); vi.restoreAllMocks() })
 
-it('shows the Gemini preview only with explicit server capability, with separate CLI and API cards', () => {
+it('shows the Gemini preview with API only, not a Google CLI login card', () => {
   bridge()
   setLocale('zh-CN')
   useAppStore.setState(state => ({ health: { ...state.health!, capabilities: {
@@ -47,7 +47,8 @@ it('shows the Gemini preview only with explicit server capability, with separate
   render(<AppSettingsDialog />)
   fireEvent.click(screen.getByRole('button', { name: '我的 Agent' }))
   expect(document.querySelectorAll('.provider-group')).toHaveLength(5)
-  expect(screen.getByRole('region', { name: 'Gemini CLI CLI 登录', hidden: true })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: /Gemini.*CLI 登录/, hidden: true })).not.toBeInTheDocument()
+  expect(screen.getByText('使用 Gemini API key 连接。服务器仍需安装 Gemini CLI 作为运行引擎。')).toBeInTheDocument()
   expect(screen.getByRole('region', { name: 'Gemini 自定义接口', hidden: true })).toBeInTheDocument()
 })
 

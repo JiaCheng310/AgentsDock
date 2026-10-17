@@ -1168,11 +1168,25 @@ describe('instant new chat defaults', () => {
       native: { analyticsDisabled: true }, preferences: { getScoped: vi.fn().mockResolvedValue(null), setScoped: vi.fn().mockResolvedValue(undefined) }, sessions: { create }
     } as unknown as AgentsDockAPI })
     useAppStore.setState({ requestNewChat, profiles: [profile], activeProfileId: profile.id, profileGeneration: 1,
-      switchingProfileId: null, sessions: [{ id: 'switched', title: 'Switched', backend: 'gemini', subagent_limit: 2 }],
+      switchingProfileId: null, sessions: [{ id: 'switched', title: 'Switched', backend: 'gemini', provider_connection: 'custom', subagent_limit: 2 }],
       selectedSessionId: 'switched', creatingChat: false, modals: closedModals,
       refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined) })
     await useAppStore.getState().requestNewChat()
     expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'gemini', subagent_limit: null }))
+  })
+
+  it('does not inherit the retired native Gemini connection into another new chat', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'new', title: 'New chat', backend: 'codex' })
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
+      native: { analyticsDisabled: true }, preferences: { getScoped: vi.fn().mockResolvedValue(null), setScoped: vi.fn().mockResolvedValue(undefined) }, sessions: { create }
+    } as unknown as AgentsDockAPI })
+    useAppStore.setState({ requestNewChat, profiles: [profile], activeProfileId: profile.id, profileGeneration: 1,
+      switchingProfileId: null, sessions: [{ id: 'legacy', title: 'Legacy', backend: 'gemini', model: 'old-model' }],
+      selectedSessionId: 'legacy', creatingChat: false, modals: closedModals, runtimeCatalog: null,
+      health: { ok: true }, refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined) })
+    await useAppStore.getState().requestNewChat()
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'codex', model: null }))
+    expect(useAppStore.getState().sessions[0].backend).toBe('gemini')
   })
 
   it('asks to connect when no server is selected without opening the retired dialog', async () => {

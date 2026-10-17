@@ -1,4 +1,10 @@
 {
+  "gemini.apiOnlyHelp": "Connect with a Gemini API key. Gemini CLI is still required on the server as the runtime.",
+  "gemini.apiOnlyError": "Gemini in AgentsDock supports API connections only. Configure a Gemini API key in My Agents and create a Gemini API chat. Your existing history is preserved.",
+  "runtimeError.copy": "Copy error details",
+  "runtimeError.copied": "Error details copied",
+  "runtimeError.copyFailed": "Could not copy. Select the error text and copy it manually.",
+  "chat.archived": "Archived",
   "gemini.permissions.title": "Gemini permissions",
   "gemini.permissions.button": "Gemini permissions: {mode}",
   "gemini.permissions.mode": "Permission mode",

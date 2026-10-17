@@ -16,7 +16,7 @@ const LOGIN = {
 export function NativeProviderSignIn({ backend, disabled = false }: { backend: Backend; disabled?: boolean }) {
   useLocale()
   const [command, docs] = LOGIN[backend]
-  if (disabled) return null
+  if (disabled || backend === 'gemini') return null
   return <small className="native-provider-signin">{t('connections.cliSignIn')} <code>{command}</code>.{' '}
     <a href={docs} onClick={event => { event.preventDefault(); void window.agentsDock.native.openExternal(docs) }}>{t('connections.readMore')}</a>
   </small>

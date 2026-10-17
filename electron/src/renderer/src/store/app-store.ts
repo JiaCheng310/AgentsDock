@@ -2181,11 +2181,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       // For a first-ever chat choose a connected agent when known. With no
       // catalog yet, create a native placeholder (no runtime is started); its
       // composer still offers available agents and Add Agent as discovery loads.
-      const defaults = openedDefaults ?? preferredNewChatDefaults(current.sessions, null, current.health?.default_cwd?.trim() || '', stored)
+      let defaults = openedDefaults ?? preferredNewChatDefaults(current.sessions, null, current.health?.default_cwd?.trim() || '', stored)
         ?? normalizedNewChatDefaults({
           ...chatBackendSelection(selectableChatBackendChoices(current.health, current.runtimeCatalog)[0] ?? 'codex'),
           folder: 'General', cwd: current.health?.default_cwd?.trim() || '', model: null, effort: null
         })
+      // Removed connection types are not stale auth: never create another
+      // native-Google Gemini chat from an old saved/opened preference.
+      if (defaults.backend === 'gemini' && defaults.provider_connection !== 'custom') {
+        defaults = { ...defaults,
+          ...chatBackendSelection(selectableChatBackendChoices(current.health, current.runtimeCatalog)[0] ?? 'codex'),
+          model: null, effort: null }
+      }
       const input: CreateSessionInput = {
         title: 'New chat',
         folder: defaults.folder,

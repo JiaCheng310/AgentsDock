@@ -110,6 +110,16 @@ describe('timeline pin state', () => {
     expect(loadHandoff).not.toHaveBeenCalled()
   })
 
+  it('copies complete error commands from a timeline error card', async () => {
+    const text = 'Diagnostic '.repeat(70) + 'Run `codex unarchive synthetic-thread` to unarchive it first.'
+    const event: Event = { id: 'copy-error', session_id: 'chat-1', seq: 1, type: 'error', backend: 'codex', message: text, ts: '' }
+    const item: SystemItem = { kind: 'system', id: event.id, key: event.id, seq: 1, event }
+    render(<TimelineRowView item={item} sessionId="chat-1" onFindFile={() => {}} pinnedItemIds={new Set()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy error details' }))
+    await waitFor(() => expect(writeClipboard).toHaveBeenCalledWith(text))
+    expect(screen.getByRole('button', { name: 'Error details copied' })).toBeInTheDocument()
+  })
+
   it('updates memoized message controls when language changes and preserves authored text', () => {
     const event: Event = {
       id: 'locale-message', session_id: 'chat-1', seq: 1, type: 'assistant_text',

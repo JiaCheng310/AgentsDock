@@ -3355,7 +3355,7 @@ function RuntimeMenu({
             <DropdownMenu.Label className="menu-label">Reasoning</DropdownMenu.Label>
             {efforts.map(option => <DropdownMenu.CheckboxItem data-runtime-section="reasoning" key={option.value || 'default'} className="menu-item" checked={(session.effort ?? '') === option.value} onCheckedChange={() => void useAppStore.getState().updateSession(session.id, { effort: option.value || null })}>{option.label}</DropdownMenu.CheckboxItem>)}
           </>}
-          {!window.agentsDock.sharedChat && session.backend !== 'cursor' && session.backend !== 'opencode' && <>
+          {!window.agentsDock.sharedChat && (session.backend === 'codex' || session.backend === 'claude') && <>
             <DropdownMenu.Separator className="menu-separator" />
             <DropdownMenu.Label className="menu-label">{t("ui.Composer.RuntimeMenu.agent_process_4dc27ee")}</DropdownMenu.Label>
             <DropdownMenu.Item
