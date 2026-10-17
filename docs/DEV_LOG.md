@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-16 — Include Gemini native built-in skills
+
+- Discover skills with the pinned native `skills list --all`; its default listing
+  omits built-ins. Parse the native built-in marker as scope metadata rather than
+  part of a skill's name, and show it in the existing composer badge. Keep native
+  trust, disabled-skill and same-name override behavior, opaque selection IDs
+  and file revision checks. Other providers' private skill folders are not
+  advertised as Gemini capabilities.
+- Verification: 43 focused server tests, three real CLI skill contracts, the
+  real HTTP/CLI five-turn resume/Forget/reconnect/Delete contract, and 226
+  composer tests pass. Native contracts use an isolated loopback model fixture;
+  they cover built-in activation, user-skill approval, denied and approved writes,
+  scope precedence, disabled entries and stale selections.
+- Actual offscreen Electron using production IPC/HTTP reproduced the missing
+  built-ins, then selected and activated `skill-creator` through the real CLI,
+  rendered its reply and reopened the picker successfully. That activation run
+  used disposable server state and a loopback model API, not Google inference.
+- Availability: Gemini development branch only at this checkpoint; no public
+  release, merge or mobile changes. This does not implement permission-mode
+  selection or resolve the separate Google native-login eligibility issue.
+
 ## 2026-10-16 — Always open new chats directly
 
 - Remove the retired setup modal from the desktop dialog tree and all new-chat
