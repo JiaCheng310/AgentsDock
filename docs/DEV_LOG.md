@@ -18,8 +18,15 @@
   disposable server state and a loopback model API, not Google inference.
 - Verification: 5,198 desktop tests pass, five skip; eight compile/license checks,
   TypeScript checks, production compilation and 37 focused server tests pass.
-- Availability: Gemini development branch; no publication, merge or mobile
-  change. Existing provider-wide acceptance limitations remain unchanged.
+- Live acceptance: the same offscreen native App used the designated development
+  service at source `8837b925`, created directly, inherited eight settings from
+  a disposable OpenCode API chat, switched to Gemini API in the composer, and
+  received the exact requested response from Google with Auto. Repeating New
+  chat retained Gemini API and Auto. No endpoint credentials were changed.
+- Availability: Gemini development branch and development service; the existing
+  development App was restarted without packaging or changing its selected
+  server. No publication, merge or mobile change. Existing provider-wide
+  acceptance limitations remain unchanged.
 
 ## 2026-10-16 — Honor Gemini API Auto and saved model defaults
 
