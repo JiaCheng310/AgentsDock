@@ -1,5 +1,30 @@
 # Public development log
 
+## 2026-10-17 — Prepare the Gemini preview for review against current main
+
+- Integrate main's history-responsiveness and desktop recovery updates while
+  retaining Gemini import, title and session-identity coverage. Resolve the
+  additive development-log and session-summary test conflicts without dropping
+  either side's behavior. Gemini remains an opt-in, API-only development preview.
+- Use the approved Chinese term for imported sessions. Update archive-label
+  assertions for both the section and per-session badge, make the clipboard
+  permission fixture independent of umask, and give native Gemini fixtures a
+  canonical workspace path. Align the old skills test with API-only policy
+  while retaining native skill discovery and unchanged terminal-login checks.
+- Clarify provider versus adapter limits: Gemini has native subagents and
+  terminal compression; this integration does not expose managed child
+  lifecycle controls or manual compression. Current ACP Fork returns
+  method-not-found, and unregistered slash commands are ordinary prompts.
+- Verification: 5,246 desktop tests pass with five skips, plus eight build/license
+  checks; TypeScript and production compilation pass. A focused server run
+  passes 246 tests with seven optional native cases skipped. Actual offscreen
+  Electron through production IPC/HTTP and the pinned CLI verifies both native
+  import/API connection entry points, repeated sends, original session IDs and
+  reopening. Chinese/narrow/light and English/dark rendering were inspected.
+  The current integration rerun uses a loopback model fixture, not Google
+  inference; earlier real-API acceptance and remaining release gaps are recorded
+  in the Gemini preview document. No public release or installed-server update.
+
 ## 2026-10-17 — Explicit API continuation for native Gemini imports
 
 - Import Chat can explicitly bind Gemini history to its saved API; existing

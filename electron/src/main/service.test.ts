@@ -8482,6 +8482,9 @@ describe('server profile lifecycle', () => {
     mkdirSync(stale, { mode: 0o700 })
     mkdirSync(recent, { mode: 0o700 })
     mkdirSync(unsafe, { mode: 0o755 })
+    // mkdir's requested mode is masked by the process umask. Keep this fixture
+    // genuinely non-private even when the test runner uses a restrictive umask.
+    if (process.platform !== 'win32') chmodSync(unsafe, 0o755)
     mkdirSync(symlinkTarget, { mode: 0o700 })
     symlinkSync(symlinkTarget, symlink)
     writeFileSync(join(stale, 'private.png'), 'stale', { mode: 0o600 })
