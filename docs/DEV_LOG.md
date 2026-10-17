@@ -1,5 +1,25 @@
 # Public development log
 
+## 2026-10-17 — Gemini first-turn summarized titles
+
+- Prefer the native summary; if absent after a successful ordinary turn, make
+  one bounded, tool-free background title request through that chat's own API
+  connection. Auto resolves from its exact native model metadata. Long prompt
+  excerpts retain the ending question as well as the beginning.
+- No hidden chat message, native session or tool invocation is created. Manual
+  names, late native titles, opt-out, connection revocation and identity changes
+  reject stale results. Failure keeps the prompt fallback without repeated usage.
+- Verification: 160 focused server regressions pass, plus a native CLI/HTTP
+  title contract without injected summary. Actual offscreen Electron through
+  production IPC/HTTP and the Google Developer API verifies short English and
+  long Chinese/log naming, visible refresh, repeated turns, stable native identity
+  and reopen. Manual-name and revocation races have focused server coverage.
+  The broader native lifecycle run passed 29 of 30 cases; the legacy Google-login
+  skills case fails identically on the unchanged baseline, independently of
+  this title change. Full provider/release acceptance remains separate.
+- No desktop source changes or public release. Prepared on the Gemini preview
+  branch for the explicitly authorized local test-server update.
+
 ## 2026-10-17 — Require real first-turn provider title acceptance
 
 - Tighten the provider checklist: existing native metadata and synthetic title
