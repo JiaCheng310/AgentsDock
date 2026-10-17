@@ -15,6 +15,8 @@
   "gemini.permissions.planAvailability": "Gemini 在一轮对话中确认当前工作区已启用规划后，才会显示该选项。",
   "gemini.permissions.yoloConfirm": "启用 YOLO",
   "gemini.permissions.cancel": "取消",
+  "gemini.approval.allow": "允许",
+  "gemini.approval.deny": "拒绝",
   "gemini.permissions.close": "关闭 Gemini 权限",
   "gemini.permissions.saving": "正在保存…",
   "gemini.permissions.notSaved": "未能保存 Gemini 权限。请重试后再发送消息。",

@@ -15,6 +15,8 @@
   "gemini.permissions.planAvailability": "Plan appears after Gemini reports it enabled for this workspace during a turn.",
   "gemini.permissions.yoloConfirm": "Enable YOLO",
   "gemini.permissions.cancel": "Cancel",
+  "gemini.approval.allow": "Allow",
+  "gemini.approval.deny": "Deny",
   "gemini.permissions.close": "Close Gemini permissions",
   "gemini.permissions.saving": "Saving…",
   "gemini.permissions.notSaved": "Could not save Gemini permissions. Try again before sending.",

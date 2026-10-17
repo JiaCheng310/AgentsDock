@@ -58,6 +58,7 @@ export function GeminiInteractionShelf({ session }: { session?: Session | null }
     </div>}
     <div className="codex-interaction-list">{interactions.map(interaction => <ProviderInteractionCard
       key={interaction.id} interaction={interaction} providerName="Gemini" busy={busy}
+      approvalActionLabels={{ allow: t('gemini.approval.allow'), deny: t('gemini.approval.deny') }}
       onRespond={async response => {
         const owner = epoch.current
         setBusy(true); setError(false)

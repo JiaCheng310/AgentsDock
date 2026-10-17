@@ -1,5 +1,23 @@
 # Public development log
 
+## 2026-10-17 — Compact Gemini approval actions
+
+- Gemini tool requests now use localized Allow / Deny buttons. Full request
+  details remain available, and approval still applies only to that request.
+  The shared card accepts optional labels; other providers retain their
+  existing controls and approval semantics.
+- Verification: 37 focused desktop tests cover long tool names, English and
+  Chinese, both decisions, ownership, existing Codex controls and Gemini modes.
+  TypeScript and production compilation pass; 39 transport/process regressions
+  pass. Actual offscreen Electron through production IPC/HTTP and the native
+  Gemini CLI verifies Allow executes a disposable write, Deny does not, mode
+  selection, next-turn isolation and five Stop/retry/reopen cycles. Narrow
+  rendering was inspected. These deterministic model replies use a loopback
+  fixture, not Google inference.
+- Prepared on the same Gemini preview branch for the authorized local test
+  update; no public release, push or merge. Google OAuth acceptance remains
+  separate from these tool-policy and lifecycle checks.
+
 ## 2026-10-17 — Gemini early Stop/Delete stress fixes
 
 - Reproduced immediate Stop leaving a chat fenced, first at the real process
