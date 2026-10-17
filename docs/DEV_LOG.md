@@ -1,5 +1,22 @@
 # Public development log
 
+## 2026-10-16 — Honor Gemini API Auto and saved model defaults
+
+- Fix API chats showing Auto while admission rejected an empty model. Google's
+  official Developer API now uses the pinned CLI's native `auto` alias; explicit
+  chat choices and immutable connection defaults take precedence. Third-party
+  gateways still require a selected model. Credential isolation and Forget
+  revocation remain enforced; no global login or model setting is rewritten.
+- My Agents and chat catalogs expose the effective default without pretending
+  model discovery or inference succeeded. The runner now passes a saved API
+  model to the CLI even when the chat has no separate override.
+- Verification: 39 settings/runner/admission cases, 72 related model/runtime
+  cases, 39 desktop catalog/settings cases, and two real CLI/loopback-API
+  contracts including native Auto routing pass. The existing real server/CLI
+  five-turn resume/Forget/reconnect/Delete contract also passes. Live Google
+  generation and actual-app acceptance are pending the development-service test.
+- Availability: Gemini development branch only; no publication.
+
 ## 2026-10-16 — Bounded Gemini stress acceptance
 
 - Runtime source `ffe22869`: a development-instance HTTP/WebSocket soak ran for
