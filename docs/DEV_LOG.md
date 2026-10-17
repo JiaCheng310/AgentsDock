@@ -1,5 +1,17 @@
 # Public development log
 
+## 2026-10-17 — Require real first-turn provider title acceptance
+
+- Tighten the provider checklist: existing native metadata and synthetic title
+  adoption tests do not establish automatic generation. Require an actual App
+  and real-model first-turn check with long pasted input, missing native titles,
+  manual rename protection, repeated turns and reopen.
+- Record Gemini's missing fallback title generator separately from its tested
+  native-summary reader. Align the preview's outstanding acceptance list with
+  the API-only policy; Google/CLI login is intentionally unsupported.
+- Documentation only. No title-generation implementation, chat repair or
+  service change is included; checks are documentation diff/link review.
+
 ## 2026-10-17 — Gemini API-only connections and clearer chat errors/archive state
 
 - Gemini's preview now offers API connections only. The CLI remains its runtime;
