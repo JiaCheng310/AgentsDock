@@ -1,5 +1,35 @@
 # Public development log
 
+## 2026-10-16 — Integrate responsive history maintenance with current main
+
+- Move provider-history preparation outside chat admission locks, retaining
+  ownership proofs and source/cursor validation before committing results.
+  Persist explicit send request identities and queue recovery checkpoints so
+  lost responses can be retried without admitting duplicate work.
+- Preserve current event-stream liveness and recovery while adding bounded
+  refresh notifications when background history projection changes.
+- Port the history-responsiveness changes without release-branch version bumps
+  or unrelated release-only changes. This requires both updated app and server.
+- Validation: 614 focused desktop tests passed; backend batches of 280 and 182
+  checks passed (including overlapping transport coverage and a 330 MiB import
+  fixture). TypeScript, production compilation and output verification passed.
+- Isolated native Electron exercised authenticated real transports, Codex and
+  Claude replies, same-provider-session continuation after restart, queued work,
+  Stop and subsequent sending, navigation, and large synthetic history views.
+  Eight concurrent retries after discarding a real send response joined one
+  durable admission; retry after server restart retained that receipt.
+- Full CI exposed incomplete isolated-test dependencies and regressions in
+  native-title refresh, partial-record migration proof and empty session-list
+  metadata. Restore the title lookup outside admission locks, require a fully
+  scanned journal for migration and keep never-started maintenance sparse.
+  Known maintenance failures and their cleared state remain visible. All 230
+  targeted history, title, mailbox, provider and session-summary checks pass.
+- Availability: local source integration and development app only; no public
+  release or installed production update. Large fixtures validate display and
+  storage behavior, not provider memory. Cold indexing still depends on
+  transcript size; signed-package, cross-machine and all-provider acceptance
+  are not established by these checks.
+
 ## 2026-10-15 - Remove mobile QR connection setup
 
 - Removed the mobile camera scanner, QR-image import, connection-link handler
