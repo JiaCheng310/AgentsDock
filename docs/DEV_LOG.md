@@ -1,5 +1,41 @@
 # Public development log
 
+## 2026-10-17 — Gemini early Stop/Delete stress fixes
+
+- Reproduced immediate Stop leaving a chat fenced, first at the real process
+  boundary and again through actual offscreen Electron. A process readiness
+  handshake prevents signalling the guard before its handlers exist; startup
+  cancellation retains the process handle for verified cleanup. Stop/Delete
+  now use the Gemini-owned cleanup operation instead of killing its guard
+  through generic tree termination. A failed native exec with no launched
+  provider is not misclassified as surviving tools. Cursor's legacy exit
+  contract is unchanged; unverified cleanup still fails closed.
+- Added early Stop/cancel/exec-failure regressions and repeatable opt-in native
+  long-message stress. Existing cleanup-failure and restart fences remain in
+  place; no old fence is automatically repaired by this change.
+- Actual offscreen desktop, production IPC/HTTP and native CLI: five consecutive
+  Stop/retry/reopen cycles, Default approval and rejection, next-turn policy
+  change, automatic edits, YOLO cancel/confirm, Plan write denial, keyboard
+  operation, narrow/light/dark and Chinese presentation pass. Separate actual
+  desktop journeys verify direct first/repeated new chat, inherited settings,
+  custom-provider switching, native built-in skill activation and repeated
+  picker use, and blocked untrusted handoff followed by an ordinary question.
+  These deterministic flows use a local model fixture, not Google inference.
+- A separate actual desktop Google Developer API run completes Default then
+  Plan with the same native ID. Google OAuth-account acceptance remains open.
+  Four simultaneous native chats complete 40 long-message turns and 40 socket
+  reconnects with exact replies and stable identities. Native history survives
+  deletion. This is bounded regression coverage, not a production load claim.
+- Verification: 377 focused server regressions pass, followed by 39 transport/
+  process tests including two additional failed-exec cases; 41 native CLI/HTTP
+  lifecycle, permissions, skills and API-binding cases pass. Desktop: 5,214
+  tests pass, five skip, plus eight compile/license checks. TypeScript and
+  production compilation pass. Counts overlap and are not a readiness claim.
+- Availability: same Gemini development branch and isolated local test Apps;
+  no existing service, working desktop, credentials or trust settings replaced.
+  No deployment, public release, push or merge. Remaining provider limitations
+  are tracked in the Gemini preview documentation.
+
 ## 2026-10-17 — Gemini native permission-mode controls
 
 - Add a localized Gemini permission menu in the desktop composer for both
