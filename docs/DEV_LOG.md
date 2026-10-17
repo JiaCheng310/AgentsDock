@@ -17,9 +17,15 @@
   built-ins, then selected and activated `skill-creator` through the real CLI,
   rendered its reply and reopened the picker successfully. That activation run
   used disposable server state and a loopback model API, not Google inference.
-- Availability: Gemini development branch only at this checkpoint; no public
-  release, merge or mobile changes. This does not implement permission-mode
-  selection or resolve the separate Google native-login eligibility issue.
+- Live acceptance: the development service at source `b3759a17` preserved its
+  identity, credentials and existing sessions. Actual offscreen Electron using
+  production IPC/HTTP showed the native local and built-in inventory, selected
+  `skill-creator`, observed successful native activation and rendered the exact
+  requested Google API reply. Reopening the picker retained the built-in skill.
+- Availability: Gemini development branch and designated development service;
+  no public release, merge or mobile changes. This does not implement
+  permission-mode selection or resolve the separate native-login eligibility
+  issue. No client installation was required for this server-side discovery fix.
 
 ## 2026-10-16 — Always open new chats directly
 
