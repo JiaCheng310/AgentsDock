@@ -378,11 +378,14 @@ describe('ChatHeader', () => {
     expect(openSplit).toHaveBeenCalledWith(candidate.id)
   })
 
-  it('copies the full session id from the header', async () => {
+  it.each([
+    { backend: 'codex' as const, session_id: '01a04c9e-7ac-full-value' },
+    { backend: 'gemini' as const, gemini_session_id: '01a04c9e-7ac-full-value' }
+  ])('copies the full $backend session id from the header', async identity => {
     const writeClipboard = vi.fn().mockResolvedValue(undefined)
     ;(window.agentsDock as unknown as { native: { writeClipboard: typeof writeClipboard } }).native = { writeClipboard }
     useAppStore.setState({
-      sessions: [{ id: 'chat', title: 'Chat', backend: 'codex', session_id: '01a04c9e-7ac-full-value' }],
+      sessions: [{ id: 'chat', title: 'Chat', ...identity }],
       selectedSessionId: 'chat'
     })
     render(<ChatHeader />)
@@ -391,6 +394,13 @@ describe('ChatHeader', () => {
 
     expect(writeClipboard).toHaveBeenCalledWith('01a04c9e-7ac-full-value')
     expect(await screen.findByRole('button', { name: 'Session copied' })).toBeInTheDocument()
+  })
+
+  it('explains an unavailable Gemini native identity without copying a fabricated id', () => {
+    useAppStore.setState({ sessions: [{ id: 'chat', title: 'Chat', backend: 'gemini' }], selectedSessionId: 'chat' })
+    render(<ChatHeader />)
+    expect(screen.getByText('session Not created yet')).toHaveAttribute('title', 'Gemini has not saved a resumable session yet. Check any sign-in, model or tool error below.')
+    expect(screen.queryByRole('button', { name: 'Copy session' })).not.toBeInTheDocument()
   })
 
   it('sizes the rename field to its title instead of filling the header', () => {

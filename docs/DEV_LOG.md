@@ -1,5 +1,23 @@
 # Public development log
 
+## 2026-10-16 — Distinguish Gemini identity, chat access and delivery
+
+- Include Gemini's native identity in detailed session responses and the
+  header's ID/copy fallback. If no resumable native session has been saved,
+  show a localized pending explanation instead of an unexplained dash; never
+  invent a provider ID for a failed first turn.
+- Label a newly granted chat route as communication permission, explicitly not
+  a sent message. Queued user work still waits its turn; native MCP loading
+  failures now explicitly report that no cross-chat message was sent. Folder
+  trust and provider approval policy remain unchanged.
+- Focused verification: 85 server regressions, eight actual CLI/HTTP lifecycle
+  cases and 172 desktop component cases pass; TypeScript and production compile
+  pass. Native tests use a loopback model fixture, including queued sender,
+  cancellation, busy recipient, reply, deduplication, revoked/unknown routes,
+  denied tool approval and untrusted workspaces. Live App acceptance is pending.
+- Availability: source on the Gemini development branch; no public release or
+  merge. An account/model quota error remains separate from workspace trust.
+
 ## 2026-10-16 — Include Gemini native built-in skills
 
 - Discover skills with the pinned native `skills list --all`; its default listing

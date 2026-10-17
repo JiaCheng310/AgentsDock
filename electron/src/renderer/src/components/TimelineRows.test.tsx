@@ -776,11 +776,15 @@ describe('timeline pin state', () => {
     const original = structuredClone(event)
     const item = renderTimelineItems(projectTimeline([event], []))[0]
     const view = render(<TimelineRowView item={item} sessionId="chat-1" onFindFile={() => {}} pinnedItemIds={new Set()} />)
-    expect(screen.getByText(`${verb} approved chat route to ${targetTitle}.`)).toBeInTheDocument()
+    const receipt = (title: string) => action === 'created'
+      ? `Allowed communication with ${title}. Granting access does not send a message.`
+      : `${verb} approved chat route to ${title}.`
+    expect(screen.getByText(receipt(targetTitle))).toBeInTheDocument()
+    expect(view.container.querySelector('.cross-chat-message')).toBeNull()
     expect(view.container.textContent).not.toContain('@chat1')
     expect(view.container.querySelector('em, a')).toBeNull()
     act(() => useAppStore.setState({ sessions: [{ id: 'chat-2', title: 'Renamed target', backend: 'claude' }] }))
-    expect(screen.getByText(`${verb} approved chat route to Renamed target.`)).toBeInTheDocument()
+    expect(screen.getByText(receipt('Renamed target'))).toBeInTheDocument()
     expect(event).toEqual(original)
     expect(loadHandoff).not.toHaveBeenCalled()
     expect(loadExchange).not.toHaveBeenCalled()
@@ -797,11 +801,11 @@ describe('timeline pin state', () => {
     }
     const item: SystemItem = { kind: 'system', id: event.id, key: event.id, seq: event.seq, event }
     const view = render(<TimelineRowView item={item} sessionId="chat-1" onFindFile={() => {}} pinnedItemIds={new Set()} />)
-    expect(screen.getByText('Created approved chat route to Saved target.')).toBeInTheDocument()
+    expect(screen.getByText('Allowed communication with Saved target. Granting access does not send a message.')).toBeInTheDocument()
     act(() => setLocale('zh-CN'))
-    expect(screen.getByText('已创建通往 Saved target 的授权会话访问。')).toBeInTheDocument()
+    expect(screen.getByText('已允许与 Saved target 通信。此授权操作不会发送消息。')).toBeInTheDocument()
     view.rerender(<TimelineRowView item={{ ...item, event: { ...event, target_title: null } }} sessionId="chat-1" onFindFile={() => {}} pinnedItemIds={new Set()} />)
-    expect(screen.getByText('已创建通往 其他会话 的授权会话访问。')).toBeInTheDocument()
+    expect(screen.getByText('已允许与 其他会话 通信。此授权操作不会发送消息。')).toBeInTheDocument()
     expect(view.container.textContent).not.toContain('@chat1')
     expect(view.container.textContent).not.toContain('Wrong workspace name')
   })
