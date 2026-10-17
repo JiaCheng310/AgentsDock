@@ -13,9 +13,18 @@
 - Verification: 39 settings/runner/admission cases, 72 related model/runtime
   cases, 39 desktop catalog/settings cases, and two real CLI/loopback-API
   contracts including native Auto routing pass. The existing real server/CLI
-  five-turn resume/Forget/reconnect/Delete contract also passes. Live Google
-  generation and actual-app acceptance are pending the development-service test.
-- Availability: Gemini development branch only; no publication.
+  five-turn resume/Forget/reconnect/Delete contract also passes. Desktop type
+  checks pass; the unchanged renderer uses its existing production compilation.
+- Actual-app verification: isolated offscreen Electron using production IPC/HTTP
+  against the development service, runtime source `70ed513c`. My Agents showed
+  Auto without a saved model ID; an API-bound empty-model test chat displayed
+  Auto and completed two consecutive real Google requests with exact requested
+  replies. No model/key selection was required and no native-login fallback was
+  used. The fixture chat was created through HTTP before UI sending; the rapid
+  new-chat/provider-switch workflow was not accepted in this check.
+- Availability: Gemini development branch and designated development service;
+  no publication. This validates API Auto, not the separate Google-login quota
+  issue or the remaining provider-wide acceptance checklist.
 
 ## 2026-10-16 — Bounded Gemini stress acceptance
 
