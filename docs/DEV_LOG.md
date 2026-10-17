@@ -1,5 +1,28 @@
 # Public development log
 
+## 2026-10-17 — Keep chat messages visible in repair-heavy history pages
+
+- Fix #91: reserve semantic-page slots for ordinary user prompts and assistant
+  output before emitting same-ID history repair receipts. Give repairs a
+  separate bounded allowance while retaining the absolute response cap,
+  existing replay suppression, trace access and older-page cursors.
+- Five focused regressions cover default and small pages, older-page reads,
+  active/interrupted turns, dense corrections and the absolute response limit.
+  The original allocation fails the new message-retention checks. All 147
+  targeted paging, job-history, async-message and Claude-repair checks pass.
+  The wider Codex native-proof suite has one existing malformed-provider-line
+  failure, reproduced with the unmodified allocation; it is not fixed here.
+- An isolated offscreen native Electron development app used production
+  IPC/HTTP against the changed server source and synthetic Codex history with
+  real native-replay proof. The 48-item response retained all 169 corrections
+  and the latest user/final messages. Native input exercised trace expansion,
+  collapse, older-history loading and reload: prompt/final output stayed
+  visible without opening the trace. No real provider turn was submitted.
+- Python source compilation and the dependency lock check pass. Desktop code
+  and the user's installed app/server are unchanged. Availability: source and
+  isolated validation only; requires a server update, not a desktop UI change.
+  No release or production deployment, and no cross-machine acceptance claim.
+
 ## 2026-10-16 — Integrate responsive history maintenance with current main
 
 - Move provider-history preparation outside chat admission locks, retaining
