@@ -1,5 +1,37 @@
 # Public development log
 
+## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
+
+- Scope known Codex model retirements to native ChatGPT sign-in. Filter the
+  discovered list, configured defaults and fallback options; publish replacement
+  metadata so the desktop does not reinsert an old chat's retired selection.
+  Native API-key authentication and custom endpoints keep their own availability.
+- Migrate an old selection at the next admitted turn, retaining the native
+  conversation ID and history. Preserve supported reasoning levels, record a
+  visible model-change event, and leave running work untouched. Standalone
+  scheduled runs migrate their runtime snapshot without rewriting the parent.
+- Discard the older desktop model-catalog cache on upgrade, rather than retaining
+  its obsolete default until the cache expires. Historical model names remain in
+  history; this change does not rewrite transcripts or hide provider errors.
+- Validation: 244 targeted server checks and 477 targeted desktop checks passed;
+  TypeScript, production compilation and output verification passed. The desktop
+  filesystem fixture suite required its expected POSIX umask; a first run under
+  a restrictive umask failed an unrelated clipboard-directory fixture.
+- Native acceptance: reproduced the obsolete default and reinserted selection in
+  the baseline Electron app. An isolated native development app and real
+  authenticated server then hid that selection, migrated a disposable saved
+  selection on send, and completed two real Codex continuations with the same
+  provider thread and remembered context. Reopening retained history and exactly
+  one migration notice; a new chat using Server default also replied successfully.
+  The QA launcher isolated local-server discovery from existing installations;
+  provider calls, Keychain access and client/server transport were real.
+- API/custom exceptions and scheduled-parent isolation used deterministic fixtures,
+  not live paid endpoints or a long-running production schedule. Native compaction
+  recovery and its error attribution remain separate work tracked in issue #89;
+  this test does not establish recovery of previously failing long contexts.
+- Availability: source branch and isolated development testing only. Both server
+  and desktop updates are needed; no production instance or public release changed.
+
 ## 2026-10-16 — Integrate responsive history maintenance with current main
 
 - Move provider-history preparation outside chat admission locks, retaining

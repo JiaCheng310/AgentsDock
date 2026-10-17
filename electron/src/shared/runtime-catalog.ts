@@ -161,7 +161,8 @@ export function runtimeCatalogOptions(
   customCatalog?: RuntimeBackendCatalog['custom_provider']
 ): RuntimeOption[] {
   const backendCatalog = runtimeBackendCatalogFor(catalog, backend, codexProvider, customCatalog)
-  const available = backendCatalog?.[type] ?? []
+  const replacements = type === 'models' ? backendCatalog?.model_replacements : undefined
+  const available = (backendCatalog?.[type] ?? []).filter(option => !replacements?.[option.value])
   const configuredDefault = type === 'models' ? backendCatalog?.default_model : backendCatalog?.default_effort
   const advertisedDefault = available.find(option => option.value === '')
   const defaultLabel = (codexProvider === 'custom' && type === 'models' && !configuredDefault?.trim() ? t('customModels.choose') : '') || (backend === 'opencode' && type === 'models'
@@ -174,7 +175,7 @@ export function runtimeCatalogOptions(
     ...available.filter(option => option.value !== '')
   ]
   const selected = current?.trim()
-  if (selected && !options.some(option => option.value === selected)) {
+  if (selected && !replacements?.[selected] && !options.some(option => option.value === selected)) {
     options.push({ value: selected, label: selected })
   }
   if (backend === 'codex' && codexProvider === 'custom' && type === 'models') {
