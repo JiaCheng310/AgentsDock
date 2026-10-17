@@ -935,7 +935,7 @@ describe('instant new chat defaults', () => {
     modals: closedModals
   }))
 
-  it.each([true, false])('preserves custom Codex defaults and fails closed when readiness is %s', async ready => {
+  it.each([true, false])('preserves custom Codex defaults without opening a dialog when cached readiness is %s', async ready => {
     const stored = { version: 1, folder: 'Saved', cwd: '/work/saved', backend: 'codex', codex_provider: 'custom', model: 'gpt-6-astra', effort: null }
     const create = vi.fn().mockResolvedValue({ id: 'custom-created', title: 'New chat', ...stored })
     Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
@@ -949,20 +949,17 @@ describe('instant new chat defaults', () => {
       } } } }, refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined)
     })
     await useAppStore.getState().requestNewChat()
-    if (ready) expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'codex', codex_provider: 'custom', model: 'gpt-6-astra' }))
-    else {
-      expect(create).not.toHaveBeenCalled()
-      expect(useAppStore.getState().modals.newChat).toBe(true)
-    }
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'codex', codex_provider: 'custom', model: 'gpt-6-astra' }))
+    expect(useAppStore.getState().modals.newChat).toBe(false)
   })
 
-  it('opens the chooser for the first chat in an empty workspace', async () => {
-    const create = vi.fn()
+  it('opens the first chat directly even before the initial runtime catalog arrives', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'first-chat', title: 'New chat', backend: 'codex' })
     Object.defineProperty(window, 'agentsDock', {
       configurable: true,
       value: {
         native: { analyticsDisabled: true },
-        preferences: { getScoped: vi.fn().mockResolvedValue(null) },
+        preferences: { getScoped: vi.fn().mockResolvedValue(null), setScoped: vi.fn().mockResolvedValue(undefined) },
         sessions: { create }
       } as unknown as AgentsDockAPI
     })
@@ -970,13 +967,15 @@ describe('instant new chat defaults', () => {
       requestNewChat,
       profiles: [profile], activeProfileId: profile.id, profileGeneration: 1, switchingProfileId: null,
       sessions: [], selectedSessionId: null, folderOrder: [], health: { ok: true }, runtimeCatalog: null,
-      creatingChat: false, modals: closedModals
+      creatingChat: false, modals: closedModals,
+      refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined)
     })
 
     await useAppStore.getState().requestNewChat()
 
-    expect(create).not.toHaveBeenCalled()
-    expect(useAppStore.getState().modals.newChat).toBe(true)
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'New chat', backend: 'codex', model: null }))
+    expect(useAppStore.getState().selectSession).toHaveBeenCalledWith('first-chat')
+    expect(useAppStore.getState().modals.newChat).toBe(false)
     expect(useAppStore.getState().creatingChat).toBe(false)
   })
 
@@ -998,7 +997,7 @@ describe('instant new chat defaults', () => {
     useAppStore.setState({
       requestNewChat,
       profiles: [profile], activeProfileId: profile.id, profileGeneration: 1, switchingProfileId: null,
-      sessions: [{ id: 'older', title: 'Older chat', folder: 'Older', cwd: '/work/older', backend: 'codex', model: 'gpt-old', effort: 'low', codex_approval_policy: 'on-request', codex_sandbox_mode: 'read-only', codex_permission_profile: 'safe', codex_approvals_reviewer: 'user' }],
+      sessions: [{ id: 'older', title: 'Older chat', folder: 'Older', cwd: '/work/older', backend: 'codex', model: 'gpt-old', effort: 'low', system_prompt: 'Use concise replies.', subagent_limit: 2, codex_approval_policy: 'on-request', codex_sandbox_mode: 'read-only', codex_permission_profile: 'safe', codex_approvals_reviewer: 'user' }],
       selectedSessionId: 'older', folderOrder: ['Older', 'Fresh'], health: { ok: true }, runtimeCatalog: { backends: { codex: { native_credentials_present: true, models: [], efforts: [] }, claude: { native_credentials_present: true, models: [], efforts: [] } } },
       refreshSessions: refresh, selectSession: select, creatingChat: false, modals: closedModals
     })
@@ -1007,7 +1006,7 @@ describe('instant new chat defaults', () => {
     const duplicate = useAppStore.getState().requestNewChat()
     await vi.waitFor(() => expect(create).toHaveBeenCalledOnce())
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'New chat', folder: 'Older', cwd: '/work/older', backend: 'codex', model: 'gpt-old', effort: 'low', codex_approval_policy: 'on-request', codex_sandbox_mode: 'read-only', codex_permission_profile: 'safe', codex_approvals_reviewer: 'user'
+      title: 'New chat', folder: 'Older', cwd: '/work/older', backend: 'codex', model: 'gpt-old', effort: 'low', system_prompt: 'Use concise replies.', subagent_limit: 2, codex_approval_policy: 'on-request', codex_sandbox_mode: 'read-only', codex_permission_profile: 'safe', codex_approvals_reviewer: 'user'
     }))
     created.resolve({ id: 'created', title: 'New chat', folder: 'Older', cwd: '/work/older', backend: 'codex', model: 'gpt-old', effort: 'low' })
     await Promise.all([first, duplicate])
@@ -1109,13 +1108,13 @@ describe('instant new chat defaults', () => {
     expect(useAppStore.getState().modals.newChat).toBe(false)
   })
 
-  it('requires a choice for an unavailable opened provider instead of reverting to available saved settings', async () => {
-    const create = vi.fn()
+  it('opens the composer for an unavailable opened provider without silently switching accounts', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'created', title: 'New chat', backend: 'codex' })
     Object.defineProperty(window, 'agentsDock', {
       configurable: true,
       value: {
         native: { analyticsDisabled: true },
-        preferences: { getScoped: vi.fn().mockResolvedValue({ version: 1, folder: 'General', cwd: '/work', backend: 'claude', model: 'sonnet', effort: null }) },
+        preferences: { getScoped: vi.fn().mockResolvedValue({ version: 1, folder: 'General', cwd: '/work', backend: 'claude', model: 'sonnet', effort: null }), setScoped: vi.fn().mockResolvedValue(undefined) },
         sessions: { create }
       } as unknown as AgentsDockAPI
     })
@@ -1124,13 +1123,67 @@ describe('instant new chat defaults', () => {
       profiles: [profile], activeProfileId: profile.id, profileGeneration: 1, switchingProfileId: null,
       sessions: [{ id: 'chat', title: 'Existing', folder: 'General', backend: 'codex' }],
       selectedSessionId: 'chat', folderOrder: ['General'], health: { ok: true, capabilities: {} }, runtimeCatalog: { backends: { claude: { native_credentials_present: true, models: [], efforts: [] } } },
-      creatingChat: false, modals: closedModals
+      creatingChat: false, modals: closedModals,
+      refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined)
     })
 
     await useAppStore.getState().requestNewChat()
 
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'codex' }))
+    expect(useAppStore.getState().modals.newChat).toBe(false)
+  })
+
+  it('chooses the connected API for a first chat without requiring a model ID', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'first-gemini', title: 'New chat', backend: 'gemini', provider_connection: 'custom' })
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
+      native: { analyticsDisabled: true }, preferences: { getScoped: vi.fn().mockResolvedValue(null), setScoped: vi.fn().mockResolvedValue(undefined) }, sessions: { create }
+    } as unknown as AgentsDockAPI })
+    useAppStore.setState({ requestNewChat, profiles: [profile], activeProfileId: profile.id, profileGeneration: 1,
+      switchingProfileId: null, sessions: [], selectedSessionId: null, creatingChat: false, modals: closedModals,
+      health: { ok: true, default_cwd: '/project', capabilities: { provider_connections_v1: { per_chat: true }, gemini_backend: { available: true, version: 1, required: false, message: '', action: '' } } },
+      runtimeCatalog: { backends: { gemini: { models: [], efforts: [], native_credentials_present: false, custom_provider: { configured: true, available: true, model: null, base_url: 'https://generativelanguage.googleapis.com' } } } },
+      refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined) })
+    await useAppStore.getState().requestNewChat()
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'gemini', provider_connection: 'custom', cwd: '/project', model: null }))
+    expect(useAppStore.getState().modals.newChat).toBe(false)
+  })
+
+  it('reports a revoked API creation error without opening the retired dialog or retrying native login', async () => {
+    const create = vi.fn().mockRejectedValue(new Error('API connection is disconnected'))
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
+      native: { analyticsDisabled: true }, preferences: { getScoped: vi.fn().mockResolvedValue(null) }, sessions: { create }
+    } as unknown as AgentsDockAPI })
+    useAppStore.setState({ requestNewChat, profiles: [profile], activeProfileId: profile.id, profileGeneration: 1,
+      switchingProfileId: null, sessions: [{ id: 'old', title: 'Old', backend: 'gemini', provider_connection: 'custom' }],
+      selectedSessionId: 'old', creatingChat: false, modals: closedModals, runtimeCatalog: null })
+    await useAppStore.getState().requestNewChat()
+    expect(create).toHaveBeenCalledOnce()
+    expect(useAppStore.getState().error).toBe('API connection is disconnected')
+    expect(useAppStore.getState().modals.newChat).toBe(false)
+  })
+
+  it('does not copy an unsupported subagent limit left over from a provider switch', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'new-gemini', title: 'New chat', backend: 'gemini' })
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
+      native: { analyticsDisabled: true }, preferences: { getScoped: vi.fn().mockResolvedValue(null), setScoped: vi.fn().mockResolvedValue(undefined) }, sessions: { create }
+    } as unknown as AgentsDockAPI })
+    useAppStore.setState({ requestNewChat, profiles: [profile], activeProfileId: profile.id, profileGeneration: 1,
+      switchingProfileId: null, sessions: [{ id: 'switched', title: 'Switched', backend: 'gemini', subagent_limit: 2 }],
+      selectedSessionId: 'switched', creatingChat: false, modals: closedModals,
+      refreshSessions: vi.fn().mockResolvedValue(undefined), selectSession: vi.fn().mockResolvedValue(undefined) })
+    await useAppStore.getState().requestNewChat()
+    expect(create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ backend: 'gemini', subagent_limit: null }))
+  })
+
+  it('asks to connect when no server is selected without opening the retired dialog', async () => {
+    const create = vi.fn()
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: { sessions: { create } } as unknown as AgentsDockAPI })
+    useAppStore.setState({ requestNewChat, profiles: [], activeProfileId: null, switchingProfileId: null,
+      creatingChat: false, modals: closedModals, error: null })
+    await useAppStore.getState().requestNewChat()
     expect(create).not.toHaveBeenCalled()
-    expect(useAppStore.getState().modals.newChat).toBe(true)
+    expect(useAppStore.getState().error).toBe('Connect to a server before starting a new chat.')
+    expect(useAppStore.getState().modals.newChat).toBe(false)
   })
 })
 

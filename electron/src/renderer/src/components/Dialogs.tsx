@@ -442,7 +442,7 @@ export function Dialogs() {
   return <>
     <ServerOnboardingDialog />
     <SettingsDialog />
-    <SessionDialog mode="newChat" />
+    {/* New chat always opens the composer through requestNewChat. */}
     <SessionDialog mode="resume" />
     <ImportChatsDialog />
     <FolderDialog />

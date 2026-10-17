@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-16 — Always open new chats directly
+
+- Remove the retired setup modal from the desktop dialog tree and all new-chat
+  fallbacks, including first use and stale/unavailable runtime discovery. Reuse
+  the last-opened chat settings; also retain custom instructions and supported
+  subagent limits. Available agents remain selectable before the first send.
+  Creation errors remain inline; no silent switch from a revoked API to native
+  credentials, and no conversation identity or delegated/job authority copying.
+- Rebind the selected provider when switching between custom API agents before
+  the first turn. Do not reuse another provider's immutable connection ID;
+  first-turn backend locking and credential revocation remain unchanged.
+- Actual offscreen Electron with production IPC/HTTP reproduced the old
+  first-chat modal, then verified direct first creation, eight inherited fields,
+  Claude API to Gemini API switching, model selection, a rendered native CLI
+  reply and repeated creation with the newly selected settings. This run used
+  disposable server state and a loopback model API, not Google inference.
+- Verification: 5,198 desktop tests pass, five skip; eight compile/license checks,
+  TypeScript checks, production compilation and 37 focused server tests pass.
+- Availability: Gemini development branch; no publication, merge or mobile
+  change. Existing provider-wide acceptance limitations remain unchanged.
+
 ## 2026-10-16 — Honor Gemini API Auto and saved model defaults
 
 - Fix API chats showing Auto while admission rejected an empty model. Google's

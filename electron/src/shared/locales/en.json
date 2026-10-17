@@ -1,4 +1,5 @@
 {
+  "newChat.connectFirst": "Connect to a server before starting a new chat.",
   "files.openFailed": "Could not open \"{filename}\": {reason}",
   "files.linkUnavailable": "This file is not available as an attachment in this chat. Ask the agent to attach it, then try again.",
   "serverConnection.qrFor": "Connection QR code for {server}",

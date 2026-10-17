@@ -73,6 +73,14 @@ Server identity scopes sessions, preferences, timeline rows, read state, jobs,
 files, and pins so aliases for one server share data without contaminating a
 different server.
 
+New chat opens the composer directly, including the first chat on a server.
+It inherits the last-opened chat's agent/connection, model, thinking, permissions,
+workspace, folder, custom instructions and supported subagent limit. Without
+previous settings it prefers an available agent; discovery still loading does
+not reopen the old setup dialog. Before the first message, use the composer's
+Agent picker to switch agents or open My Agents. Credentials, native session
+identity, goals and delegated/job authorization are not copied.
+
 Settings → Server starts with collapsed cards showing each saved server's name,
 URL and connection status. Add server is above the cards. Expand a card for
 separate version and identity rows. A token field shows its first four characters

@@ -10,7 +10,7 @@ import { mailHintPending, type MailArrivalCursor, type MailboxCoverage, type Mai
 import { bulletinHintPending, type BulletinHintRefresh } from '@shared/team-bulletin-hints'
 import { applyOpenCodeSessionEvent, openCodeProviderCommandsAvailable } from '@shared/opencode'
 import { t } from '@shared/i18n'
-import { chatBackendChoice, runtimeSelectionError, runtimeSendAdmissionError, selectableChatBackendChoices } from '@shared/runtime-catalog'
+import { chatBackendSelection, runtimeSendAdmissionError, selectableChatBackendChoices } from '@shared/runtime-catalog'
 import { isAsyncCrossChatMessage, isNativeGoalSteerEvent, isNativeSteerTransitionStop, timelineSemanticUnits } from '@shared/semantic-timeline'
 import { turnSendErrorMessage } from '@shared/server-errors'
 import { completedPrefixForkAvailable, RUNNING_FORK_UNAVAILABLE } from '@shared/session-fork'
@@ -290,7 +290,7 @@ export const NEW_CHAT_DEFAULTS_PREFERENCE_KEY = 'newChatDefaults:v1'
 const DIRECT_CHAT_PLACEHOLDER_PREFERENCE_PREFIX = 'directChatPlaceholder:v1:'
 
 type NewChatPermissionDefaults = Pick<CreateSessionInput, 'claude_permission_mode' | 'cursor_permission_mode' | 'opencode_permission_mode' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer'>
-type NewChatDefaultsInput = Pick<CreateSessionInput, 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort'> & NewChatPermissionDefaults
+type NewChatDefaultsInput = Pick<CreateSessionInput, 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort' | 'system_prompt' | 'subagent_limit'> & NewChatPermissionDefaults
 
 export interface NewChatDefaults extends NewChatPermissionDefaults {
   version: 1
@@ -301,10 +301,12 @@ export interface NewChatDefaults extends NewChatPermissionDefaults {
   provider_connection?: CreateSessionInput['provider_connection']
   model: string | null
   effort: string | null
+  system_prompt?: string | null
+  subagent_limit?: number | null
 }
 
-// Only copy the selected provider's permission fields, never instructions,
-// jobs, credentials, provider-session identity or another provider's policy.
+// Only copy the selected provider's permission fields, never jobs,
+// credentials, provider-session identity or another provider's policy.
 export function newChatPermissions(input: NewChatPermissionDefaults, backend: Backend): NewChatPermissionDefaults {
   if (backend === 'claude') return { claude_permission_mode: input.claude_permission_mode ?? null }
   if (backend === 'cursor') return { cursor_permission_mode: input.cursor_permission_mode ?? 'default' }
@@ -328,6 +330,8 @@ function normalizedNewChatDefaults(input: NewChatDefaultsInput): NewChatDefaults
     ...(input.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
     model: input.model?.trim() || null,
     effort: input.effort?.trim() || null,
+    system_prompt: input.system_prompt || null,
+    subagent_limit: ['claude', 'codex'].includes(input.backend) ? input.subagent_limit ?? null : null,
     ...newChatPermissions(input, input.backend)
   }
 }
@@ -344,6 +348,8 @@ function parseNewChatDefaults(value: unknown): NewChatDefaults | null {
     || typeof candidate.cwd !== 'string'
     || candidate.model !== null && typeof candidate.model !== 'string'
     || candidate.effort !== null && typeof candidate.effort !== 'string'
+    || candidate.system_prompt != null && typeof candidate.system_prompt !== 'string'
+    || candidate.subagent_limit != null && (!Number.isInteger(candidate.subagent_limit) || candidate.subagent_limit < 1)
   ) return null
   const permissions: Record<string, readonly string[]> = {
     claude_permission_mode: ['default', 'acceptEdits', 'plan', 'bypassPermissions', 'dontAsk', 'auto'],
@@ -382,7 +388,9 @@ function sessionNewChatDefaults(session: Session, defaultCwd: string): NewChatDe
     codex_provider: session.codex_provider,
     provider_connection: session.provider_connection,
     model: session.model,
-    effort: session.effort
+    effort: session.effort,
+    system_prompt: session.system_prompt,
+    subagent_limit: session.subagent_limit
   })
 }
 
@@ -2149,13 +2157,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (initial.switchingProfileId || initial.creatingChat) return
     const preferenceScope = captureWorkspaceScope(initial)
     if (!preferenceScope) {
-      initial.setModal('newChat', true)
+      set({ error: t('newChat.connectFirst') })
       return
     }
     const profileScope = captureProfileScope(initial)
     // Freeze the initiating pane/settings before the asynchronous preference read.
     const openedDefaults = preferredNewChatDefaults(initial.sessions.filter(session => session.id === initial.selectedSessionId), initial.selectedSessionId, initial.health?.default_cwd?.trim() || '', null)
-    set({ creatingChat: true })
+    set(state => ({ creatingChat: true, modals: { ...state.modals, newChat: false } }))
     try {
       let stored: unknown = null
       try {
@@ -2165,20 +2173,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       if (!workspaceScopeMatches(preferenceScope, get()) || !profileScopeMatches(profileScope, get())) return
       const current = get()
+      // Creation opens the composer, not the retired configuration dialog.
+      // Readiness/model checks belong to sending; stale discovery must not
+      // discard the last-opened chat's choices or silently change its account.
+      // For a first-ever chat choose a connected agent when known. With no
+      // catalog yet, create a native placeholder (no runtime is started); its
+      // composer still offers available agents and Add Agent as discovery loads.
       const defaults = openedDefaults ?? preferredNewChatDefaults(current.sessions, null, current.health?.default_cwd?.trim() || '', stored)
-      if (!defaults) {
-        set({ creatingChat: false })
-        current.setModal('newChat', true)
-        return
-      }
-      if (
-        !selectableChatBackendChoices(current.health, current.runtimeCatalog).includes(chatBackendChoice(defaults))
-        || runtimeSelectionError(current.health, current.runtimeCatalog, defaults.backend, defaults.model, defaults.provider_connection === 'custom' ? 'custom' : defaults.codex_provider)
-      ) {
-        set({ creatingChat: false })
-        current.setModal('newChat', true)
-        return
-      }
+        ?? normalizedNewChatDefaults({
+          ...chatBackendSelection(selectableChatBackendChoices(current.health, current.runtimeCatalog)[0] ?? 'codex'),
+          folder: 'General', cwd: current.health?.default_cwd?.trim() || '', model: null, effort: null
+        })
       const input: CreateSessionInput = {
         title: 'New chat',
         folder: defaults.folder,
@@ -2188,7 +2193,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...(defaults.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
         model: defaults.model,
         effort: defaults.effort,
-        system_prompt: null,
+        system_prompt: defaults.system_prompt ?? null,
+        subagent_limit: defaults.subagent_limit ?? null,
         ...newChatPermissions(defaults, defaults.backend)
       }
       const session = await window.agentsDock.sessions.create(input)
