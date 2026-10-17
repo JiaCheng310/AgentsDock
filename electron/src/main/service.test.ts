@@ -8699,12 +8699,25 @@ describe('server profile lifecycle', () => {
     expect(settings.getProfile('b')).not.toBeNull()
   })
 
-  it('keeps a cached runtime catalog fresh across profile activation', async () => {
+  it('refreshes legacy catalogs instead of reviving retired model choices after upgrade', async () => {
     const client = fakeClient()
     const { service } = createProfileService({
       'http://a.test:7850': [client]
     }, cache => {
       cache.putPreference('profile:a', 'runtimeCatalog:v1', runtimeCatalog)
+    })
+    const payload = await service.bootstrap()
+    await service.refreshServer('a', payload.profileGeneration)
+    await settleBackgroundWork()
+    expect(client.runtimeCatalog).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a cached runtime catalog fresh across profile activation', async () => {
+    const client = fakeClient()
+    const { service } = createProfileService({
+      'http://a.test:7850': [client]
+    }, cache => {
+      cache.putPreference('profile:a', 'runtimeCatalog:v2', runtimeCatalog)
     })
     const payload = await service.bootstrap()
 
@@ -8730,7 +8743,7 @@ describe('server profile lifecycle', () => {
     const { service } = createProfileService({
       'http://a.test:7850': [client]
     }, cache => {
-      cache.putPreference('profile:a', 'runtimeCatalog:v1', runtimeCatalog)
+      cache.putPreference('profile:a', 'runtimeCatalog:v2', runtimeCatalog)
     })
     const payload = await service.bootstrap()
     await service.refreshServer('a', payload.profileGeneration)
@@ -8754,7 +8767,7 @@ describe('server profile lifecycle', () => {
     const { service } = createProfileService({
       'http://a.test:7850': [client]
     }, cache => {
-      cache.putPreference('profile:a', 'runtimeCatalog:v1', runtimeCatalog)
+      cache.putPreference('profile:a', 'runtimeCatalog:v2', runtimeCatalog)
     })
     const payload = await service.bootstrap()
 
@@ -8837,7 +8850,7 @@ describe('server profile lifecycle', () => {
     const { service } = createProfileService({
       'http://a.test:7850': [client]
     }, cache => {
-      cache.putPreference('profile:a', 'runtimeCatalog:v1', runtimeCatalog)
+      cache.putPreference('profile:a', 'runtimeCatalog:v2', runtimeCatalog)
     })
 
     await expect(service.runtime(true)).rejects.toThrow('CLI probe timed out')

@@ -225,7 +225,9 @@ const FILE_PAGE_LIMIT = 60
 const MAX_AGENT_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
 const AGENT_TEXT_FILE_TIMEOUT_MS = 30_000
 const WORKSPACE_PREVIEW_PROBE_TIMEOUT_MS = 30_000
-const RUNTIME_CATALOG_CACHE_KEY = 'runtimeCatalog:v1'
+// v2 discards pre-retirement-policy catalogs so an app upgrade does not keep
+// an obsolete default/selectable model for the disk cache's full lifetime.
+const RUNTIME_CATALOG_CACHE_KEY = 'runtimeCatalog:v2'
 const SERVER_VERSION_CACHE_KEY = 'serverVersion:v1'
 const SEMANTIC_TIMELINE_CAPABILITY_CACHE_KEY = 'semanticTimelineCapability:v1'
 const RUNTIME_CATALOG_RETRY_MS = 30_000
