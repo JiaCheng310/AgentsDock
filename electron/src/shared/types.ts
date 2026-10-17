@@ -539,6 +539,8 @@ export interface RuntimeDiagnostic {
   last_error_at?: string | null
 }
 export interface RuntimeBackendCatalog {
+  /** Authentication-scoped retirement policy; never applies to custom catalogs. */
+  model_replacements?: Record<string, string>
   native_credentials_present?: boolean
   /** Safe metadata only; credentials stay on the server. */
   custom_provider?: {
