@@ -1550,7 +1550,7 @@ const CONTEXT_DIGEST_HEADINGS = ['# AgentsDock Context Digest']
 
 function isNativeMailboxWakeInput(event: Event): boolean {
   return event.type === 'turn_started' && event.imported !== true
-    && (event.backend === 'codex' || event.backend === 'claude')
+    && (event.backend === 'codex' || event.backend === 'claude' || event.backend === 'gemini')
     && typeof event.run_id === 'string' && Boolean(event.run_id.trim()) && !event.run_id.startsWith('import_')
     && event.purpose === 'chat_mailbox_wake' && event.prompt === '' && event.provider_generated === true
     && !hasProviderUserProvenance(event)

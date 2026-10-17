@@ -10,13 +10,29 @@
   a sent message. Queued user work still waits its turn; native MCP loading
   failures now explicitly report that no cross-chat message was sent. Folder
   trust and provider approval policy remain unchanged.
+- Hide Gemini's server-attested automatic mailbox wake input, like Codex and
+  Claude, without hiding real user inputs, agent progress or replies. This
+  removes an empty "You" bubble exposed during actual cross-chat acceptance.
 - Focused verification: 85 server regressions, eight actual CLI/HTTP lifecycle
-  cases and 172 desktop component cases pass; TypeScript and production compile
+  cases and 195 desktop component/projection cases pass; TypeScript and production compile
   pass. Native tests use a loopback model fixture, including queued sender,
   cancellation, busy recipient, reply, deduplication, revoked/unknown routes,
-  denied tool approval and untrusted workspaces. Live App acceptance is pending.
-- Availability: source on the Gemini development branch; no public release or
-  merge. An account/model quota error remains separate from workspace trust.
+  denied tool approval and untrusted workspaces.
+- Full desktop regression: 5,201 pass, five skip, plus eight compile/license
+  checks. These counts do not substitute for the live-provider acceptance.
+- Live acceptance: actual offscreen Electron with production IPC/HTTP and the
+  real Google API verified queued permission without premature delivery,
+  cancellation, one message each way, native IDs, purple message cards and
+  reopening. Only the requested native communication tools were approved.
+  A second actual-App review verifies no fake user bubble on the receiving
+  mailbox turn and retained messages after reload.
+- Remaining limitation: an extremely early startup Stop left a disposable
+  chat behind a truthful cleanup fence. Its cleanup/race investigation remains
+  open; this acceptance does not establish all lifecycle paths are ready.
+- Availability: Gemini development branch and designated development service
+  (server source `b668e787`), with the corrected development desktop restarted
+  using its existing profile; no public release or merge. Model quota and
+  workspace trust remain distinct.
 
 ## 2026-10-16 — Include Gemini native built-in skills
 
