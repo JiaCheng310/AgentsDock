@@ -30,7 +30,7 @@ that listens on that address; generating a QR does not change network binding,
 firewall rules or Tailscale membership. This grants the access of the existing
 operator token, rather than read-only access to an individual chat.
 
-## Shared mobile connection contract
+## Retained connection payload
 
 The payload is `agentsdock://connect#` followed by URL-encoded fragment fields:
 
@@ -48,26 +48,12 @@ must round-trip through URL encoding. Reject unsupported versions, duplicate or
 unknown fields, empty tokens and oversized payloads. The size limit is 1,800
 UTF-8 bytes for the complete link. Treat the whole link and QR image as secrets.
 
-The mobile integration now:
-
-1. Accepts camera scans, selected QR images, and the registered connection deep link.
-2. Parses the payload and shows the server address/name for confirmation.
-3. Tests authenticated health at that address and compares the expected identity
-   before saving. Never silently overwrite an existing server or bypass TLS.
-4. Stores the token in the existing mobile secure store, preserving profile
-   identity isolation and deduplication.
-5. Explains unreachable/local-only addresses and failed authentication.
-
-In mobile, open Servers → Scan connection QR. Tap **Connect and save** after
-reviewing the address. There is no manual token/URL paste. Authentication and
-identity checks run before secure profile creation/update. Existing matching
-identities are reused; a different identity at an existing URL is rejected.
-The legacy app URL scheme is retained alongside `agentsdock`. No new token is
-issued or rotated. Live camera scanning still requires a physical device.
-
-The CLI, desktop and mobile serializers share a versioned contract test. Mobile
-and desktop keep independent source modules so the server npm package and native
-clients do not need each other installed.
+Mobile QR connection support has been removed for now, including camera scans,
+QR-image import and connection-link handling. On mobile, use **Servers → Add
+Server**, enter the URL and access token, and test the connection before saving.
+The existing identity checks, secure token storage and terminal links remain.
+The payload above describes the retained desktop/CLI implementation, not an
+available mobile connection method.
 
 ## CLI
 
@@ -123,7 +109,10 @@ picker, reopen the app, and repeat. Use disposable connection profiles and keep
 token-bearing screenshots and PNGs out of public reports.
 
 
-CLI/mobile follow-up verification:
+Prior CLI/mobile verification (before mobile QR removal):
+
+The mobile QR fixtures and integration described below were subsequently removed.
+Current mobile checks cover manual connection and the absence of QR entry points.
 
 - Packaged runtime + short CLI installed offline with lifecycle scripts disabled.
   The installed CLI rejected automatic localhost pairing; explicit local pairing

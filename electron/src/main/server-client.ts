@@ -329,6 +329,7 @@ export class TeamHubBootstrapTransportError extends Error {
 export class AgentServerClient {
   private readonly placeholderClientId?: string
   private configuration: ClientConfiguration
+  private readonly historyProjectionRevisions = new Map<string, string>()
   private readonly uploadTimeoutMs: number | null
   private readonly timeoutSignal: (timeoutMs: number) => AbortSignal
 
@@ -340,6 +341,7 @@ export class AgentServerClient {
   }
 
   configure(baseURL: string, token: string): void {
+    this.historyProjectionRevisions.clear()
     const previous = this.configuration
     this.configuration = createConfiguration(baseURL, token)
     cancelConfiguration(previous)
@@ -1289,11 +1291,13 @@ export class AgentServerClient {
     clientCapabilities: string[] = ['codex_interactive_v1'],
     chatReferences: ChatReference[] = [],
     teamReferences: TeamReference[] = [],
-    skillSelection?: ProviderCommandSelection
+    skillSelection?: ProviderCommandSelection,
+    clientRequestId?: string
   ): Promise<{ session: Session; event?: Event; queued?: boolean; queued_id?: string; position?: number }> {
     const selection = providerCommandSelectionPayload(skillSelection)
     const response = await this.post<{ session: Session; event?: Event; queued?: boolean; queued_id?: string; position?: number }>(`/api/sessions/${encodeURIComponent(sessionId)}/turns`, {
       prompt,
+      ...(clientRequestId ? { client_request_id: clientRequestId } : {}),
       file_ids: fileIds,
       model: model ?? '',
       effort: effort ?? '',
@@ -1302,6 +1306,9 @@ export class AgentServerClient {
       ...(teamReferences.length ? { team_references: teamReferences } : {}),
       ...(selection ? { skill_selection: selection } : {})
     })
+    if ((response as { acceptance?: string }).acceptance === 'pending') {
+      throw new Error('The server is still accepting this message. Your draft is retained; retry the same message to check its acceptance safely.')
+    }
     return response.event ? { ...response, event: compactTimelineEvent(response.event) } : response
   }
 
@@ -2200,7 +2207,8 @@ export class AgentServerClient {
     onPinnedItemsChanged?: (event: TimelinePinsChanged) => void,
     onReasoningStream?: (snapshot: ReasoningSummaryStreamSnapshot) => void,
     onSideChatChanged?: (revision: number) => void,
-    onProviderUsageChanged?: (backend: 'codex' | 'claude') => void
+    onProviderUsageChanged?: (backend: 'codex' | 'claude') => void,
+    onHistoryProjectionChanged?: () => void
   ): () => void {
     const configuration = this.configuration
     const endpoint = new URL(configurationURL(configuration, `/api/sessions/${encodeURIComponent(sessionId)}/events`))
@@ -2234,6 +2242,7 @@ export class AgentServerClient {
       if (liveness) url.searchParams.set('liveness', 'true')
       url.searchParams.set('after', String(lastSeq))
       url.searchParams.set('visible', 'true')
+      if (onHistoryProjectionChanged) url.searchParams.set('history_projection', 'true')
       if (onReasoningStream) {
         url.searchParams.set('reasoning_stream', 'true')
         url.searchParams.set('reasoning_text', 'true')
@@ -2308,6 +2317,15 @@ export class AgentServerClient {
               }
             }
             return // Control packets never acknowledge durable event sequence.
+          }
+          if (packet && typeof packet === 'object' && 'type' in packet && packet.type === 'history_projection_changed') {
+            if ('session_id' in packet && packet.session_id === sessionId && 'revision' in packet
+              && typeof packet.revision === 'string' && packet.revision.length <= 128
+              && this.historyProjectionRevisions.get(sessionId) !== packet.revision) {
+              this.historyProjectionRevisions.set(sessionId, packet.revision)
+              onHistoryProjectionChanged?.()
+            }
+            return
           }
           if (packet && typeof packet === 'object' && 'type' in packet && packet.type === 'reasoning_summary_stream') {
             if (isReasoningSummaryStream(packet) && packet.session_id === sessionId

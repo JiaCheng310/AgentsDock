@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActionSheetIOS, Alert, FlatList, Image, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { MenuView, type MenuAction, type MenuComponentRef } from '@expo/ui/community/menu'
-import { ChevronDown, ChevronRight, FolderPlus, MoreHorizontal, Network, Plus, RefreshCw, Search, Server, Settings } from 'lucide-react-native'
+import { ChevronDown, ChevronRight, FolderPlus, MoreHorizontal, Plus, RefreshCw, Search, Server, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAppStore } from '../store/useAppStore'
 import { usePalette } from '../theme'
@@ -51,7 +51,7 @@ function sessionScopeIsCurrent(scope: ProfileScope, sessionId: string): boolean 
     && state.sessions.some(session => session.id === sessionId)
 }
 
-export function Sidebar({ profiles, activeProfileId, switchingProfileId, onSwitchServer, onAddServer, onManageServers, onSettings, onTeamNetwork, onNewChat, onOpenChat }: {
+export function Sidebar({ profiles, activeProfileId, switchingProfileId, onSwitchServer, onAddServer, onManageServers, onSettings, onNewChat, onOpenChat }: {
   profiles: readonly ServerProfileListItem[]
   activeProfileId: string | null
   switchingProfileId?: string | null
@@ -59,7 +59,6 @@ export function Sidebar({ profiles, activeProfileId, switchingProfileId, onSwitc
   onAddServer: () => void
   onManageServers: () => void
   onSettings: () => void
-  onTeamNetwork: () => void
   onNewChat: () => void
   onOpenChat?: () => void
 }) {
@@ -291,15 +290,6 @@ export function Sidebar({ profiles, activeProfileId, switchingProfileId, onSwitc
           onAddServer={() => { if (profileScopeCanNavigate(profileScope)) onAddServer() }}
           onManageServers={() => { if (profileScopeCanNavigate(profileScope)) onManageServers() }}
         /></View>
-      {!needsServerSetup ? <Pressable
-        testID="sidebar-team-network"
-        accessibilityRole="button"
-        accessibilityLabel="Open Team Network"
-        accessibilityState={{ disabled: workspaceAdopting || Boolean(switchingProfileId) }}
-        disabled={workspaceAdopting || Boolean(switchingProfileId)}
-        onPress={() => { dismissSearchKeyboard(); if (profileScopeCanNavigate(profileScope)) onTeamNetwork() }}
-        style={({ pressed }) => [styles.teamNetworkButton, { backgroundColor: colors.raised, borderColor: colors.border, opacity: workspaceAdopting || switchingProfileId ? 0.4 : pressed ? 0.68 : 1 }]}
-      ><Network size={16} color={colors.blue} /><Text style={[styles.teamNetworkButtonText, { color: colors.text }]}>Team Network</Text><ChevronRight size={15} color={colors.muted} /></Pressable> : null}
       {needsServerSetup ? <Pressable
         testID="sidebar-setup-server"
         accessibilityRole="button"
@@ -667,7 +657,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: '800' },
   actions: { minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2 },
   serverSelector: { marginHorizontal: 10, marginBottom: 8 },
-  teamNetworkButton: { minHeight: 44, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, marginHorizontal: 10, marginBottom: 8, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }, teamNetworkButtonText: { flex: 1, fontSize: 12.5, fontWeight: '800' },
   setupBanner: { minHeight: 40, borderRadius: 7, marginHorizontal: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   setupBannerText: { color: 'white', fontSize: 13, fontWeight: '700' },
   search: { minHeight: 38, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, marginHorizontal: 10, marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 7 },

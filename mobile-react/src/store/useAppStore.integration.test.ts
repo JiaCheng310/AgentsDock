@@ -532,9 +532,15 @@ try {
   assert.equal(storeModule.client.isValidated, false, 'Authenticated sessions rejection should leave the store client unvalidated')
   assert.match(state.error ?? '', /authentication|token|validat/i)
 
+  const bRuntimeBeforeReconnect = serverB.requests.filter(request => request.path === '/api/runtime/catalog').length
   await useAppStore.getState().reconnect()
   assert.equal(useAppStore.getState().connected, true)
   assert.equal(storeModule.client.isValidated, true)
+  // Reconnect returns before its optional runtime discovery finishes.
+  await waitFor(
+    () => serverB.requests.filter(request => request.path === '/api/runtime/catalog').length > bRuntimeBeforeReconnect,
+    'Reconnect runtime discovery must arrive before checking identity rejection',
+  )
 
   const bRuntimeBeforeMismatch = serverB.requests.filter(request => request.path === '/api/runtime/catalog').length
   serverB.identity = 'foreign-server'

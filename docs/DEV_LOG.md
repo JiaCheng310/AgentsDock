@@ -450,6 +450,143 @@
   new-chat dialog and native select-popup acceptance remain pending. Imports,
   automatic titles, attachments, fork, skills UI and mobile are not included.
   See the server's Gemini preview record for precise limits and remaining gates.
+## 2026-10-16 — Integrate responsive history maintenance with current main
+
+- Move provider-history preparation outside chat admission locks, retaining
+  ownership proofs and source/cursor validation before committing results.
+  Persist explicit send request identities and queue recovery checkpoints so
+  lost responses can be retried without admitting duplicate work.
+- Preserve current event-stream liveness and recovery while adding bounded
+  refresh notifications when background history projection changes.
+- Port the history-responsiveness changes without release-branch version bumps
+  or unrelated release-only changes. This requires both updated app and server.
+- Validation: 614 focused desktop tests passed; backend batches of 280 and 182
+  checks passed (including overlapping transport coverage and a 330 MiB import
+  fixture). TypeScript, production compilation and output verification passed.
+- Isolated native Electron exercised authenticated real transports, Codex and
+  Claude replies, same-provider-session continuation after restart, queued work,
+  Stop and subsequent sending, navigation, and large synthetic history views.
+  Eight concurrent retries after discarding a real send response joined one
+  durable admission; retry after server restart retained that receipt.
+- Full CI exposed incomplete isolated-test dependencies and regressions in
+  native-title refresh, partial-record migration proof and empty session-list
+  metadata. Restore the title lookup outside admission locks, require a fully
+  scanned journal for migration and keep never-started maintenance sparse.
+  Known maintenance failures and their cleared state remain visible. All 230
+  targeted history, title, mailbox, provider and session-summary checks pass.
+- Availability: local source integration and development app only; no public
+  release or installed production update. Large fixtures validate display and
+  storage behavior, not provider memory. Cold indexing still depends on
+  transcript size; signed-package, cross-machine and all-provider acceptance
+  are not established by these checks.
+
+## 2026-10-15 - Remove mobile QR connection setup
+
+- Removed the mobile camera scanner, QR-image import, connection-link handler
+  and setup prompts. Removed the camera dependency and plugin, camera permission
+  and pairing URL scheme. Manual server URL/token entry, authenticated connection
+  tests, identity checks, secure storage, photo/video attachments and the legacy
+  terminal URL scheme remain. Desktop and server pairing code is unchanged.
+- Restrict terminal deep-link matching to the outer URL so a discarded connection
+  payload containing a terminal URL cannot open the terminal accidentally.
+- A clean candidate using the committed dependencies passed TypeScript, seven
+  focused library/store test entrypoints, 310 UI checks and an iOS JavaScript
+  export. One generated-native-metadata check was skipped in the source-only
+  candidate. CI now checks manual connection and the absence of QR entry points.
+- Actual iPhone simulator interaction verified manual add/test/save/switch
+  against an isolated production server, three repeated management openings,
+  light/dark presentation and a cold launch with saved-token authentication.
+  Installed-bundle checks verified no camera permission or pairing scheme while
+  retaining photo-library permission. Old connection links do not present setup
+  or open a terminal through an embedded URL. No user chat messages were sent.
+- Native acceptance used an ad-hoc-signed Debug simulator build with Keychain
+  entitlements and the existing local SDK-aligned dependencies. Those unrelated
+  dependency adjustments remain outside this change. No physical-device or
+  Android acceptance, TestFlight upload, release or server deployment is claimed.
+
+## 2026-10-15 - Stress-test mobile sync and connection fixes
+
+- Added repeatable CI coverage for latest-first sync, recovery, stable native
+  Markdown nodes, server-name migration and the first-page navigation change.
+- Store stress passed 40 cycles across eight chats with 36,000 events and
+  1,200 duplicate deliveries. Checks cover bounded snapshots, one active
+  stream, repeated retry taps, transient failures, backgrounding, late HTTP
+  responses and retired-stream callbacks. Rendering stress retained all 160
+  paragraph host instances through 300 text/appearance updates using the real
+  Markdown renderer with mocked native hosts. Profile migration preserved 64
+  identities, custom names and credential versions across 100 round trips.
+- A clean candidate using the committed lockfile passed all 28 focused
+  TypeScript test entrypoints, type checking, 307 UI checks and an iOS production
+  JavaScript export. One generated-native-metadata check was skipped because
+  the source-only candidate has no generated native project. Updated stale UI
+  source assertions and removed an integration fixture race by waiting for
+  reconnect's optional runtime request before measuring identity rejection;
+  that integration check also passed 20 consecutive runs.
+- Six production mobile API clients made 60 latest-page reads and underwent
+  18 forced WebSocket disconnects against the isolated production service.
+  Every client received all 105 expected events in order, without duplicates.
+  The fixture used synthetic Claude and Codex history, not model requests.
+- Actual iPhone simulator input repeated 20 long-chat openings, three
+  background/foreground cycles and five right-edge server-menu openings. All
+  returned the latest content and remained operable. Adding an unnamed server
+  displayed its host and port. The original profile was retained throughout.
+- Native checks reused the installed development app and its local SDK-aligned
+  dependencies. Those dependency adjustments are excluded from this repair PR;
+  no native release archive, physical-device or real-provider parity acceptance
+  is claimed. The affected real conversation still needs user confirmation.
+
+## 2026-10-14 - Open mobile long chats latest-first
+
+- Opening a chat, returning to the foreground, or recovering a disconnected
+  timeline now fetches the latest bounded page before subscribing. Cached
+  content remains visible until that page arrives; healthy live windows keep
+  their bounded delta path. Older history remains available through paging,
+  and servers without semantic paging retain the legacy tail fallback.
+- Replacement reads retire the previous stream. Concurrent send results are
+  retained, but the replacement stream starts at the HTTP snapshot boundary
+  so intervening events cannot be skipped. Failed or obsolete reads cannot
+  clear visible content or restart an old chat's stream.
+- Markdown now memoizes its parsed AST and gives paragraphs and the root
+  stable structural keys. Text updates no longer remount every native text
+  view; links, code, tables, math and range-selection rendering are retained.
+- Regression tests reproduced old-cursor reads and native text remounts before
+  the fix. Latest-first, fallback, retry, background, concurrent-event and
+  retired-response tests pass, along with store/client/history regressions,
+  63 rendering/contract checks, TypeScript and an iOS production JS export.
+- Exercised the installed iPhone simulator against an isolated instance of
+  the production service with 2,000 synthetic turns / 8,000 initial events per
+  Claude and Codex chat: latest opening, repeated reopening, live appends,
+  draft retention, upward pagination, return to latest and foreground recovery.
+  Light/dark rendering was inspected. A Claude live-update recording sampled
+  at 30 fps had no blank transcript frames; this is not a guarantee against
+  every form of flicker. The history automation was adjusted after automatic
+  pagination moved its target, and the resulting older page was checked in-app.
+- Availability: local mobile branch and simulator only; no server deployment,
+  publication or native archive. Real provider output parity, the user's
+  affected conversation, physical devices and network switching remain
+  unverified. Server/provider history and model context are unchanged.
+
+## 2026-10-14 - Use readable mobile server names
+
+- Unnamed mobile connections now use the URL host and port instead of the
+  internal server identity. Loading saved profiles repairs names equal to that
+  identity while retaining other names, profile IDs, credential versions,
+  timestamps and identity-scoped workspaces.
+- The server selector measures its available row width explicitly so the
+  intrinsic native menu label does not shrink the button to its text.
+- Removed the first-page Team Network shortcut as requested, retaining its
+  existing workspace and other entry points.
+- Verified the installed iPhone simulator development app against the existing
+  connected server: the saved name migrated, the selector filled its row, and
+  right-edge taps, menu reopening and server management displayed the same
+  address in light and dark modes. No chat messages were sent. New-profile,
+  legacy migration, credential/draft preservation and pairing paths also passed
+  focused tests; those tests use isolated fixtures, not a new live pairing.
+- Profile/storage/store regressions, 14 UI source-contract checks, TypeScript
+  and an iOS production JavaScript export passed. Source: local changes on
+  `988edb6e`; no new native archive, physical-device or Android acceptance.
+  Availability: local simulator only; no server update or publication required.
+  Long-conversation sync recovery is separate and is not changed by this fix.
 
 ## 2026-10-14 — Explain failed desktop file links
 
@@ -617,6 +754,43 @@
   without restoring the banner. This fixture used no model provider.
 - No published release or running user service was replaced by this merge
   validation. Signed end-to-end release acceptance remains separate.
+
+## 2026-10-14 — Exercise receiving-client timeline synchronization
+
+- Added component coverage for sync backfill plus overlapping authoritative
+  corrections, a newer sync window arriving during scheduled empty-range
+  recovery, and a genuinely empty authoritative history. Sync must preserve
+  loaded messages and a stale recovery must not rebuild the newer window.
+- Validation: 240 targeted synchronization, history, projection, service and
+  viewport checks passed; 483 unrelated checks were excluded by the test-name
+  filter. TypeScript passed.
+- A native offscreen Electron fixture exercised 31 viewport observations:
+  empty-cache arrival, incremental catch-up, prepend while reading, expanding
+  and shrinking corrected history, disjoint replacement, hidden-tab sync and
+  return, and a narrow window. It used real timeline/store reducers and wheel
+  events with synthetic snapshots, not a remote server or a second physical
+  machine. The unmodified baseline also passed all 31 observations; these
+  checks do not reproduce the reported persistent blank viewport or establish
+  that the candidate recovery fixes its cause. Remote-machine acceptance is
+  still pending. This follow-up changes only tests and documentation.
+
+## 2026-10-13 — Recover a persistently empty virtual timeline range
+
+- When a populated timeline emits an empty virtual range after previously
+  displaying messages, allow layout to settle and rebuild its measurements
+  only if the viewport remains visible and empty. Retain the semantic reading
+  anchor rather than reusing a potentially stale pixel offset. Initial,
+  transient and hidden empty ranges do not trigger this recovery.
+- Validation: 34 focused component/position checks, TypeScript and production
+  compilation passed. An isolated native offscreen Electron fixture exercised
+  wheel scrolling during response growth, completion/collapse and cached-event
+  replay. It used the production timeline and virtualizer, with stubbed IPC;
+  this was not a new live-provider request.
+- This is defensive recovery for a suspected stale virtual range. The reported
+  intermittent blank viewport was not reproduced, so exact-cause confirmation
+  and acceptance in the affected live conversation remain pending. Visible-app
+  automation was unavailable. Available as a local test package only; no server
+  change or release is included.
 
 ## 2026-10-13 — Stress-test recovery and component updates with large histories
 

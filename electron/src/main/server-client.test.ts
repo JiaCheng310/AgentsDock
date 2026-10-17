@@ -22,6 +22,16 @@ vi.mock('./logger', () => ({ appLog: vi.fn() }))
 describe('AgentServerClient network diagnostics', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.mocked(appLog).mockClear() })
 
+  it('keeps a send receipt ID on the wire and treats pending acceptance as unresolved', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ acceptance: 'pending' }), { status: 202 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const client = new AgentServerClient('http://example.test:7850', 'test-token')
+    await expect(client.sendTurn('chat', 'hello', [], null, null, [], [], [], undefined, 'request_test'))
+      .rejects.toThrow('still accepting this message')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).client_request_id).toBe('request_test')
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it('records nested socket codes without secrets and preserves the original failure without retrying', async () => {
     const socket = Object.assign(new Error('secret token and request body'), { code: 'ECONNRESET', syscall: 'read' })
     const cause = Object.assign(new AggregateError([socket], 'private query'), { code: 'UND_ERR_SOCKET' })
@@ -99,6 +109,20 @@ class FakeWebSocket {
 }
 
 describe('Team Mail metadata websocket', () => {
+  it('delivers a matching history projection notice without advancing the event cursor', () => {
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    const client = new AgentServerClient('http://example.test', 'test-token')
+    const event = vi.fn(), changed = vi.fn()
+    const stop = client.stream('chat', 5, event, vi.fn(), undefined, undefined, undefined, undefined, undefined, changed)
+    const socket = FakeWebSocket.instances.at(-1)!
+    socket.emit('message', JSON.stringify({ type: 'history_projection_changed', session_id: 'other', revision: 'instance:1' }))
+    socket.emit('message', JSON.stringify({ type: 'history_projection_changed', session_id: 'chat', revision: 'instance:1' }))
+    socket.emit('message', JSON.stringify({ type: 'history_projection_changed', session_id: 'chat', revision: 'instance:1' }))
+    socket.emit('message', JSON.stringify({ type: 'assistant_text', session_id: 'chat', seq: 6, text: 'hello' }))
+    expect(changed).toHaveBeenCalledOnce()
+    expect(event).toHaveBeenCalledOnce()
+    stop()
+  })
   const mailbox = { hub_id: 'hub-a', team_id: 'team-a', recipient_server_id: null }
   const cursor = { version: 1 as const, team_id: 'team-a', recipient_server_id: 'node-a',
     through_sequence: 3, arrival_id: `tmsg_${'a'.repeat(32)}` }
@@ -1661,6 +1685,31 @@ describe('AgentServerClient live stream', () => {
     expect(state).not.toHaveBeenCalledWith(true)
     socket.emit('message', JSON.stringify({ type: 'event_stream_status', version: 1, session_id: 'chat', phase: 'ready' }))
     expect(state).toHaveBeenLastCalledWith(true)
+    stop()
+  })
+
+  it('keeps projection refresh separate from catch-up readiness and reconnect cursors', async () => {
+    const client = await livenessClient()
+    const state = vi.fn(), event = vi.fn(), changed = vi.fn()
+    const stop = client.stream('chat', 5, event, state, undefined, undefined, undefined, undefined, undefined, changed)
+    const first = FakeWebSocket.instances[0]
+    expect(first.url.searchParams.get('history_projection')).toBe('true')
+    expect(first.url.searchParams.get('liveness')).toBe('true')
+    first.emit('open')
+    const projection = { type: 'history_projection_changed', session_id: 'chat', revision: 'instance:7', seq: 9999 }
+    first.emit('message', JSON.stringify(projection))
+    expect(changed).toHaveBeenCalledOnce()
+    expect(state).not.toHaveBeenCalledWith(true)
+    first.emit('message', JSON.stringify({ type: 'event_stream_status', session_id: 'chat', version: 1, phase: 'ready' }))
+    expect(state).toHaveBeenLastCalledWith(true)
+    first.emit('message', JSON.stringify({ id: 'e6', session_id: 'chat', seq: 6, type: 'assistant_text', ts: 'now' }))
+    first.emit('close')
+    vi.advanceTimersByTime(500)
+    const second = FakeWebSocket.instances[1]
+    expect(second.url.searchParams.get('after')).toBe('6')
+    second.emit('message', JSON.stringify(projection))
+    expect(changed).toHaveBeenCalledOnce()
+    expect(event).toHaveBeenCalledOnce()
     stop()
   })
 

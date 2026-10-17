@@ -30,6 +30,13 @@ test('server selector permanently exposes profile status, host, and unread count
   assert.match(source, /<MenuView[\s\S]*?onPressAction=/)
 })
 
+test('server selector gives the intrinsic native menu label the full measured row width', () => {
+  assert.match(source, /testID="server-profile-selector-container"/)
+  assert.match(source, /selectorContainer: \{ alignSelf: 'stretch', minWidth: 0 \}/)
+  assert.match(source, /onLayout=\{event => setSelectorWidth\(event\.nativeEvent\.layout\.width\)\}/)
+  assert.match(source, /styles\.selector, selectorWidth > 0 && \{ width: selectorWidth \}/)
+})
+
 test('server switching tracks resolved and thrown failures without swallowing the error', () => {
   const switchCallback = appShell.match(/const switchServer = useCallback\(async \(profileId: string\) => \{[\s\S]*?\n  \}, \[switchServerProfile\]\)/)?.[0]
   assert.ok(switchCallback)

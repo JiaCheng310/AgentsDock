@@ -53,7 +53,7 @@ export function ServerSetupDialog({
     <View style={styles.setupSteps}>
       <SetupStep icon={SquareTerminal} text="Install AgentsServer on a Mac or Linux host with the Codex or Claude Code CLI." />
       <SetupStep icon={Network} text="Make your server reachable over the same Wi-Fi or private Tailscale network." />
-      <SetupStep icon={KeyRound} text="Scan a QR from agentsdock pair, or enter the server address and access token in connection settings." />
+      <SetupStep icon={KeyRound} text="Enter the server address and access token in connection settings." />
     </View>
     <Pressable
       testID="server-setup-guide"

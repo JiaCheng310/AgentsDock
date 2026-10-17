@@ -92,10 +92,20 @@ jobs:
         working-directory: mobile-react
       - run: pnpm test:server-setup
         working-directory: mobile-react
-      - name: Verify QR pairing contract and confirmation flow
+      - name: Verify manual server connection and profile management
         run: |
-          node scripts/run-history-tests.mjs src/lib/server-pairing.test.ts
-          node --test tests/server-pairing-ui.test.mjs tests/server-profiles.test.mjs
+          node --test tests/server-manual-connection.test.mjs tests/server-profiles.test.mjs
+        working-directory: mobile-react
+      - name: Verify mobile latest-first sync and stable text rendering
+        run: |
+          node scripts/run-history-tests.mjs src/lib/server-profiles.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/storage/cache.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.integration.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.latest-first.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.sync-stress.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.lifecycle-hardening.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.timeline-recovery.test.ts --native-mocks
+          node --test tests/markdown-reconciliation.test.mjs tests/markdown-content-compact.test.mjs tests/timeline-text-selection.test.mjs tests/team-network-ui-contract.test.mjs tests/button-wiring.test.mjs tests/interaction-reliability.test.mjs
         working-directory: mobile-react
       - run: node scripts/run-history-tests.mjs src/lib/team-references.test.ts
         working-directory: mobile-react

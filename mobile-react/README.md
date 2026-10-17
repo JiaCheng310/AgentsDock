@@ -42,15 +42,12 @@ deletes and recreates the generated project. See
 [Expo's native generation guide](https://docs.expo.dev/workflow/continuous-native-generation/).
 
 The app connects directly to the same AgentsDock server contract as desktop.
-Configure the host and access token from Settings, or open **Servers → Scan
-connection QR** and scan `agentsdock pair [NAME]` (or choose a saved QR image).
-Review the server address and tap **Connect and save**; URL/token entry is
-automatic. The app authenticates the server identity and stores the token in
-SecureStore. Both `agentsdock://connect#...` and the existing terminal URL scheme
-are registered. QR camera support requires a native rebuild; Metro alone cannot
-add it. Simulator testing uses an imported QR image/deep link; live camera scanning
-needs a physical device. See [connection sharing](../docs/SERVER_CONNECTION_SHARING.md). Plain HTTP is intentionally
-permitted for private LAN and Tailscale endpoints.
+Open **Servers → Add Server**, enter the server URL and access token, then test
+the connection before saving. The app authenticates the server identity and
+stores the token in SecureStore. QR scanning, QR-image import and connection
+links are not available on mobile. The existing terminal URL scheme remains
+registered. Plain HTTP is intentionally permitted for private LAN and Tailscale
+endpoints.
 
 Keep dependency caches, temporary files, archives, DerivedData, exports and
 release logs in a local build-output directory excluded from Git. Configure

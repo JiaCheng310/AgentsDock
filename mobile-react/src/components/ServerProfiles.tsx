@@ -12,8 +12,7 @@ import {
 } from 'react-native'
 import { MenuView, type MenuAction } from '@expo/ui/community/menu'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Check, ChevronDown, MoreHorizontal, Pencil, Plus, QrCode, Server, Wifi, X } from 'lucide-react-native'
-import { ServerPairing } from './ServerPairing'
+import { Check, ChevronDown, MoreHorizontal, Pencil, Plus, Server, Wifi, X } from 'lucide-react-native'
 import {
   buildCreateServerProfileInput,
   buildUpdateServerProfileInput,
@@ -68,9 +67,6 @@ export interface ServerProfileSelectorProps extends CommonServerProfileProps {
 }
 
 export interface ServerProfilesManagerProps extends CommonServerProfileProps {
-  pairingLink?: string | null
-  onPairingConsumed?: () => void
-  onPairingActiveChange?: (active: boolean) => void
   initialMode?: ServerProfileEditorInitialMode
   onSwitchProfile: (profileId: string) => Awaitable<ActionResult>
   onTestConnection: (input: ServerProfileTestInput) => Awaitable<ServerConnectionTestResult>
@@ -95,6 +91,7 @@ export function ServerProfileSelector({
   onManageServers,
 }: ServerProfileSelectorProps) {
   const colors = usePalette()
+  const [selectorWidth, setSelectorWidth] = useState(0)
   const active = profiles.find(profile => profile.id === activeProfileId) ?? profiles[0] ?? null
   const switching = profiles.find(profile => profile.id === switchingProfileId) ?? null
   const host = active ? profileHostSubtitle(active) : null
@@ -123,7 +120,7 @@ export function ServerProfileSelector({
     accessibilityRole="button"
     accessibilityLabel={selectorLabel}
     accessibilityState={{ disabled: unavailable, expanded: false }}
-    style={[styles.selector, { backgroundColor: colors.raised, borderColor: colors.border, opacity: disabled ? 0.4 : 1 }]}
+    style={[styles.selector, selectorWidth > 0 && { width: selectorWidth }, { backgroundColor: colors.raised, borderColor: colors.border, opacity: disabled ? 0.4 : 1 }]}
   >
     <ServerConnectionDot state={switching ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
     <View style={styles.selectorCopy}>
@@ -134,8 +131,13 @@ export function ServerProfileSelector({
     {switching ? <ActivityIndicator size="small" color={colors.blue} /> : <ChevronDown size={15} color={colors.muted} />}
   </View>
 
-  if (unavailable) return trigger
-  return <MenuView
+  // The native menu measures its label intrinsically; pass the row's width
+  // through explicitly so short names do not shrink its label and hit target.
+  return <View
+    testID="server-profile-selector-container"
+    style={styles.selectorContainer}
+    onLayout={event => setSelectorWidth(event.nativeEvent.layout.width)}
+  >{unavailable ? trigger : <MenuView
     title="Servers"
     actions={actions}
     onPressAction={event => {
@@ -150,7 +152,7 @@ export function ServerProfileSelector({
       }
     }}
     style={styles.selectorMenu}
-  >{trigger}</MenuView>
+  >{trigger}</MenuView>}</View>
 }
 
 export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfilesSheetProps) {
@@ -183,9 +185,6 @@ export function ServerProfilesManager({
   activeProfileId,
   switchingProfileId = null,
   initialMode = 'manage',
-  pairingLink,
-  onPairingConsumed,
-  onPairingActiveChange,
   onSwitchProfile,
   onTestConnection,
   onCreateProfile,
@@ -194,14 +193,8 @@ export function ServerProfilesManager({
   onRemoveProfile,
 }: ServerProfilesManagerProps) {
   const colors = usePalette()
-  const [pairing, setPairing] = useState(Boolean(pairingLink))
-  useEffect(() => {
-    onPairingActiveChange?.(pairing)
-    return () => onPairingActiveChange?.(false)
-  }, [pairing, onPairingActiveChange])
   const [draft, setDraft] = useState<ServerProfileDraftValues | null>(() => initialServerProfileDraft(initialMode, profiles, activeProfileId))
   const [busy, setBusy] = useState<string | null>(null)
-  useEffect(() => { if (pairingLink && !busy) setPairing(true) }, [pairingLink, busy])
   const [tested, setTested] = useState<ServerConnectionTestResult | null>(null)
   const [feedback, setFeedback] = useState<{ tone: 'error' | 'success' | 'neutral'; message: string } | null>(null)
   const testLease = useRef(0)
@@ -399,11 +392,6 @@ export function ServerProfilesManager({
     )
   }
 
-  if (pairing) return <ServerPairing initialLink={pairingLink} profiles={profiles}
-    onTestConnection={onTestConnection} onCreateProfile={onCreateProfile} onUpdateProfile={onUpdateProfile}
-    onSwitchProfile={onSwitchProfile} onClose={() => { setPairing(false); onPairingConsumed?.() }}
-    onConnected={() => { setPairing(false); onPairingConsumed?.(); setDraft(null) }} />
-
   return <ScrollView
     style={styles.manager}
     contentContainerStyle={styles.managerContent}
@@ -418,7 +406,6 @@ export function ServerProfilesManager({
       </View>
       <SecondaryButton icon={Plus} label="Add server" disabled={Boolean(busy)} onPress={openAdd} />
     </View>
-    <SecondaryButton icon={QrCode} label="Scan connection QR" disabled={Boolean(busy) || Boolean(switchingProfileId)} onPress={() => setPairing(true)} />
 
     <View style={[styles.profileList, { borderColor: colors.border }]}>
       {profiles.length ? profiles.map((profile, index) => {
@@ -693,6 +680,7 @@ function normalizeComparableURL(value?: string): string {
 }
 
 const styles = StyleSheet.create({
+  selectorContainer: { alignSelf: 'stretch', minWidth: 0 },
   selectorMenu: { minWidth: 0 },
   selector: { minHeight: 48, minWidth: 0, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
   selectorCopy: { flex: 1, minWidth: 0, gap: 1 },

@@ -87,10 +87,6 @@ function AppShellContent() {
   const [setupDismissed, setSetupDismissed] = useState(true)
   const setupNextMode = useRef<'edit-active' | null>(null)
   const [servers, setServers] = useState<'manage' | 'add' | 'edit-active' | null>(null)
-  const [incomingPairingLink, setIncomingPairingLink] = useState<string | null>(null)
-  const [pairingLink, setPairingLink] = useState<string | null>(null)
-  const pairingActive = useRef(false)
-  const pairingActiveChanged = useCallback((active: boolean) => { pairingActive.current = active }, [])
   const initialDeepLink = useRef<Promise<string | null> | null>(null)
   const initialDeepLinkHandled = useRef(false)
   const quickChatInFlight = useRef(false)
@@ -123,7 +119,6 @@ function AppShellContent() {
     serverVersion: profile.serverVersion,
   })), [profiles])
   const showServerSetup = shouldPresentServerSetup({ initialized, connected, serverConfigured, serverURL, setupDismissed })
-    && !incomingPairingLink && !pairingLink
   const canCancelPendingServerUpdate = pendingServerUpdate?.profileId === activeProfileId
     && pendingServerUpdate.profileGeneration === profileGeneration
     && pendingServerUpdate.canCancel
@@ -264,12 +259,7 @@ function AppShellContent() {
   useEffect(() => {
     let disposed = false
     const openDeepLink = ({ url }: { url: string }) => {
-      if (/^agentsdock:\/\/connect(?:[/?#]|$)/i.test(url)) {
-        if (pairingActive.current) return
-        setIncomingPairingLink(url)
-        return
-      }
-      if (/:\/\/terminal(?:[/?#]|$)/i.test(url)) openInspectorAction('terminal')
+      if (/^[a-z][a-z0-9+.-]*:\/\/terminal(?:[/?#]|$)/i.test(url)) openInspectorAction('terminal')
     }
     const subscription = Linking.addEventListener('url', event => {
       initialDeepLinkHandled.current = true
@@ -287,22 +277,6 @@ function AppShellContent() {
     }
     return () => { disposed = true; subscription.remove() }
   }, [openInspectorAction])
-  useEffect(() => {
-    if (!initialized || !incomingPairingLink) return
-    // Keep an in-progress editor/inspector intact; present after it closes.
-    if (teamNetwork || options || search || digest || jobEditor || processes || tmux || mcpSessionId || terminal || reviewRun) return
-    // Never replace an in-progress scan/confirmation with an unsolicited link.
-    if (pairingLink) { setIncomingPairingLink(null); return }
-    setSetupDismissed(true)
-    setSettings(false)
-    const timer = setTimeout(() => {
-      setSetupDismissed(true)
-      setPairingLink(incomingPairingLink)
-      setIncomingPairingLink(null)
-      setServers(current => current ?? 'manage')
-    }, Platform.OS === 'ios' ? IOS_INSPECTOR_HANDOFF_FALLBACK_MS : 0)
-    return () => clearTimeout(timer)
-  }, [initialized, incomingPairingLink, pairingLink, teamNetwork, options, search, digest, jobEditor, processes, tmux, mcpSessionId, terminal, reviewRun])
   const finishSetupDismissal = useCallback(() => {
     const nextMode = setupNextMode.current
     setupNextMode.current = null
@@ -384,7 +358,7 @@ function AppShellContent() {
   if (!initialized) return <View style={[styles.fill, { backgroundColor: colors.background }]}><Loading label="Starting AgentsDock" /></View>
 
   const connectionKey = `${activeProfileId ?? 'none'}:${profileGeneration}`
-  const sidebar = <Sidebar key={`sidebar:${connectionKey}`} profiles={serverProfileItems} activeProfileId={activeProfileId} switchingProfileId={switchingProfileId} onSwitchServer={switchServer} onAddServer={() => openServers('add')} onManageServers={() => openServers('manage')} onSettings={openSettings} onTeamNetwork={openTeamNetwork} onNewChat={() => void quickNewChat()} onOpenChat={() => { trackEvent('chat_opened'); openMobileChat() }} />
+  const sidebar = <Sidebar key={`sidebar:${connectionKey}`} profiles={serverProfileItems} activeProfileId={activeProfileId} switchingProfileId={switchingProfileId} onSwitchServer={switchServer} onAddServer={() => openServers('add')} onManageServers={() => openServers('manage')} onSettings={openSettings} onNewChat={() => void quickNewChat()} onOpenChat={() => { trackEvent('chat_opened'); openMobileChat() }} />
   const chat = selected
     ? <ChatScreen key={`${connectionKey}:${selected.id}`} sessionId={selected.id} compact={compact} inlineInspectorAvailable={chatLayout.inlineInspectorAvailable} onBack={closeMobileChat} onOptions={openOptions} onSearch={openSearch} onToggleInspector={() => setInspectorVisible(value => !value)} onReview={openReview} onSetupServer={() => openServers('add')} onOpenMcp={() => openClaudeMcp(selected.id)} />
     : <NoChat connecting={connecting} onSettings={() => openServers('manage')} />
@@ -410,14 +384,11 @@ function AppShellContent() {
     <ServerProfilesSheet
       key={`servers:${servers ?? 'closed'}`}
       visible={servers != null}
-      pairingLink={pairingLink}
-      onPairingConsumed={() => setPairingLink(null)}
-      onPairingActiveChange={pairingActiveChanged}
       initialMode={servers ?? 'manage'}
       profiles={serverProfileItems}
       activeProfileId={activeProfileId}
       switchingProfileId={switchingProfileId}
-      onClose={() => { setPairingLink(null); closeServers() }}
+      onClose={closeServers}
       onSwitchProfile={switchServer}
       onTestConnection={async input => {
         try {

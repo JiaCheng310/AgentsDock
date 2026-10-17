@@ -58,12 +58,10 @@ export function nextCredentialVersion(currentValue: unknown): number {
   return current + 1
 }
 
-export function defaultProfileName(serverURL: string, serverIdentity?: string | null): string {
-  const identity = cleanServerIdentity(serverIdentity)
-  if (identity) return identity
+export function defaultProfileName(serverURL: string): string {
   try {
     const url = new URL(normalizeServerURL(serverURL))
-    return url.hostname || url.host || 'AgentsServer'
+    return url.host || 'AgentsServer'
   } catch {
     return 'AgentsServer'
   }
@@ -108,7 +106,7 @@ export function createStoredServerProfile(
   const serverIdentity = cleanServerIdentity(input.serverIdentity)
   return {
     id: requireProfileId(profileId),
-    name: cleanProfileName(input.name) || defaultProfileName(serverURL, serverIdentity),
+    name: cleanProfileName(input.name) || defaultProfileName(serverURL),
     serverURL,
     serverIdentity,
     serverConfigured: input.serverConfigured ?? Boolean(serverIdentity || inferServerConfigured(serverURL, undefined)),
@@ -171,7 +169,7 @@ export function migrateLegacyProfileSettings(
   const serverIdentity = cleanServerIdentity(typeof legacy.serverIdentity === 'string' ? legacy.serverIdentity : null)
   const profile: StoredServerProfile = {
     id: requireProfileId(profileId),
-    name: defaultProfileName(serverURL, serverIdentity),
+    name: defaultProfileName(serverURL),
     serverURL,
     serverIdentity,
     serverConfigured: Boolean(serverIdentity) || inferServerConfigured(serverURL, legacy.serverConfigured),
@@ -261,10 +259,12 @@ function normalizeStoredServerProfile(value: unknown, timestamp: string, index: 
   const id = requireProfileId(typeof value.id === 'string' ? value.id : '')
   const serverURL = normalizeServerURL(typeof value.serverURL === 'string' ? value.serverURL : DEFAULT_SERVER_URL)
   const serverIdentity = cleanServerIdentity(typeof value.serverIdentity === 'string' ? value.serverIdentity : null)
+  const name = cleanProfileName(typeof value.name === 'string' ? value.name : undefined)
   const createdAt = cleanTimestamp(value.createdAt) || timestamp
   return {
     id,
-    name: cleanProfileName(typeof value.name === 'string' ? value.name : undefined) || defaultProfileName(serverURL, serverIdentity),
+    // Earlier versions used the internal identity as the generated display name.
+    name: !name || name === serverIdentity ? defaultProfileName(serverURL) : name,
     serverURL,
     serverIdentity,
     serverConfigured: typeof value.serverConfigured === 'boolean'

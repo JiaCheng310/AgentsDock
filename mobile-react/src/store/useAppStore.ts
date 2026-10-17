@@ -1230,16 +1230,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const sessionRead = sessionMutations.captureRead()
       const existingAtStart = get().snapshots[sessionId]
       const eventIdsAtStart = new Set(existingAtStart?.events.map(event => event.id) ?? [])
-      // Trusted cached snapshots can reconcile through the server's fast
-      // append-only delta path. Full tails are reserved for cold/manual loads.
-      const fullTail = reason === 'manual' || !existingAtStart
       const supportsSemanticPaging = (get().health?.api_contract_version ?? 0) >= SEMANTIC_PAGING_API_CONTRACT
       const streamIsLive = get().liveConnected && hasSelectedStream(sessionId)
-      const exposeProgress = !streamIsLive && (fullTail || get().syncStatus !== 'live')
-      if (exposeProgress) set({ syncSessionId: sessionId, syncStatus: 'syncing', syncError: null })
+      // Open/recover at the latest page, not at a potentially ancient cached
+      // cursor. Keep bounded deltas only for an already healthy live window.
+      const fullTail = ['selection', 'foreground', 'manual'].includes(reason) || !existingAtStart || !streamIsLive
       try {
         let fullTailSemanticPaging: boolean | null = existingAtStart?.semanticPaging ?? null
         const fetchFullTail = async (): Promise<TimelinePage> => {
+          stopSelectedStream()
+          set({ liveConnected: false, syncSessionId: sessionId, syncStatus: 'syncing', syncError: null })
           if (supportsSemanticPaging) {
             const semanticPage = await scope.client.sessionPage(sessionId, {
               limit: SEMANTIC_TAIL_LIMIT,
@@ -1247,7 +1247,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               visible: true,
               pageMode: 'semantic',
             })
-            if (NativeAppState.currentState !== 'active') return semanticPage
+            if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope) || epoch !== selectionEpoch || get().selectedSessionId !== sessionId) return semanticPage
             if (semanticPage.semantic_paging === true) {
               fullTailSemanticPaging = true
               return semanticPage
@@ -1270,7 +1270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         let page = fullTail
           ? await fetchFullTail()
           : await scope.client.sessionPage(sessionId, { after, limit: TAIL_LIMIT, tail: false, visible: true })
-        if (NativeAppState.currentState !== 'active') return
+        if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope) || epoch !== selectionEpoch || get().selectedSessionId !== sessionId) return
         let fetchedFullTail = fullTail
         if (!fullTail && ((page.events_omitted_after ?? 0) > 0 || (page.latest_seq ?? after) < after)) {
           page = await fetchFullTail()
@@ -1285,12 +1285,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         const replaceEvents = (fetchedFullTail && fullTailSemanticPaging === true)
           || shouldReplaceCachedTimeline(current, incomingEvents, page.latest_seq, page.has_more, fetchedFullTail)
         const now = Date.now()
-        // If the live stream appended while a full-tail request was pending,
-        // keep only those genuinely concurrent additions when replacing the
-        // cached window. Old disconnected cache entries must not leak back in.
+        // A send response can arrive while the tail request is pending. Keep
+        // only new events beyond that page's boundary, not old stream replay.
         const incomingIds = new Set(incomingEvents.map(event => event.id))
+        const pageLatestSeq = page.latest_seq ?? incomingEvents.at(-1)?.seq ?? 0
         const concurrentEvents = replaceEvents
-          ? (current?.events ?? []).filter(event => !eventIdsAtStart.has(event.id) && !incomingIds.has(event.id))
+          ? (current?.events ?? []).filter(event => event.seq > pageLatestSeq && !eventIdsAtStart.has(event.id) && !incomingIds.has(event.id))
           : []
         const reconciledEvents = replaceEvents
           ? mergeEvents(incomingEvents, concurrentEvents)
@@ -1304,11 +1304,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           ?? current?.session
           ?? page.session
         const reconciledSession = sessionMutations.reconcileIncoming(currentSession, page.session, sessionRead)
+        const queuedTurns = concurrentEvents.reduce((queue, event) => updateQueuedTurns(queue, event), page.queued_turns)
         const next: Snapshot = {
           cacheVersion: SNAPSHOT_CACHE_VERSION,
           session: reconciledSession,
           events: mergedEvents,
-          queuedTurns: page.queued_turns,
+          queuedTurns,
           files: mergeFiles(current?.files ?? [], filesFromEvents(incomingEvents)),
           filesTotal: current?.filesTotal ?? 0,
           hasMore: (fetchedFullTail ? page.has_more : current?.hasMore ?? page.has_more) || eventsWereTrimmed,
@@ -1326,7 +1327,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         set(state => ({
           snapshots: snapshotMapWith(state.snapshots, sessionId, next),
-          queuedRunStatus: reconcileQueuedRunStatus(state.queuedRunStatus, sessionId, page.queued_turns),
+          queuedRunStatus: reconcileQueuedRunStatus(state.queuedRunStatus, sessionId, queuedTurns),
           sessions: state.sessions.map(value => value.id === sessionId ? reconciledSession : value),
           loadingSessionId: null,
           syncSessionId: sessionId,
@@ -1340,7 +1341,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           void get().refreshFiles(sessionId)
         }
 
-        if (!hasSelectedStream(sessionId)) startSelectedStream(sessionId, next.latestSeq ?? snapshotLatestSeq(next), epoch, set, get)
+        // Concurrent send results can be ahead of unseen events. Subscribe at
+        // the HTTP boundary, even if those results raised the displayed cursor.
+        if (!hasSelectedStream(sessionId)) startSelectedStream(sessionId, fetchedFullTail ? pageLatestSeq : next.latestSeq ?? snapshotLatestSeq(next), epoch, set, get)
         else if (get().liveConnected) set({ syncStatus: 'live' })
         void get().markRead(sessionId)
       } catch (error) {

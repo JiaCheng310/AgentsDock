@@ -14,6 +14,7 @@ const mocks = {
   'react-native-svg': `export const SvgXml = 'SvgXml';`,
   'react-native-markdown-display': `export default 'Markdown'; export class MarkdownIt {}`,
   '../lib/math-markdown': `export const installMathMarkdown = value => value;`,
+  '../lib/markdown-ast': `export const stableMarkdownAst = value => value;`,
   '../lib/tex-svg': `export const texToSvg = () => null;`,
   '../lib/timeline-inline-references': `export const prepareInlineRouteMarkdown = text => ({ text, markers: [] }); export const restoreInlineRouteMarkerText = text => text; export const splitInlineRouteMarkerText = text => [{ text }]; export const timelineChatReferenceIsRemote = () => false; export const inlineRouteReferenceIsInteractive = () => false;`,
   '../theme': `const colors = { text: '#eeeeee', blue: '#2f8cff', muted: '#999999', raised: '#202225', border: '#2b2d31', surface: '#18191b' }; export const usePalette = () => colors;`,
