@@ -2401,6 +2401,7 @@ export interface LocalSessionCandidate {
   cwd: string | null
 }
 export interface BulkImportSessionItem {
+  provider_connection?: 'custom'
   provider_session_id: string
   backend: Backend
   cwd?: string | null
@@ -2416,6 +2417,7 @@ export interface BulkImportSessionResult {
   error?: string
 }
 export interface UpdateSessionInput {
+  gemini_connect_api?: boolean
   title?: string
   folder?: string
   cwd?: string

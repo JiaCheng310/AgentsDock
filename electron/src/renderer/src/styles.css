@@ -1976,6 +1976,8 @@ button.tool-event-toggle:hover { background: #242424; }
 .import-chats-resume-controls .primary-button { min-width: 82px; }
 .import-chats-resume-details { display: grid; grid-template-columns: minmax(120px, .6fr) minmax(0, 1.4fr); gap: var(--space-4); }
 .import-chats-resume-details > small { grid-column: 1 / -1; }
+.gemini-import-connection-choice { grid-template-columns: minmax(0, 1fr); }
+.gemini-import-connection-choice small { overflow-wrap: anywhere; }
 .import-chats-resume-details label { display: flex; flex-direction: column; gap: var(--space-2); color: var(--field-label); font-size: var(--font-size-sm); }
 .import-chats-resume-matches { display: flex; flex-direction: column; gap: var(--space-2); }
 .import-chats-resume-matches > button { min-height: var(--control-height-lg); display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); color: var(--text); background: transparent; border-radius: var(--radius-control); text-align: left; }

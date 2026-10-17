@@ -128,6 +128,7 @@ import { openCodeProviderCommandsAvailable } from '@shared/opencode'
 import { opencodeBackendAvailable, opencodeBackendUnavailableReason } from '@shared/runtime-catalog'
 import { awaitAllOpenCodePermissionUpdates, awaitOpenCodePermissionUpdates } from '../lib/opencode-permission-updates'
 import { RuntimeHealthNotice } from './RuntimeHealth'
+import { GeminiImportConnection } from './GeminiImportConnection'
 import { ShortcutTooltip } from './ShortcutTooltip'
 import { WorkingDirectoryInput } from './WorkingDirectoryInput'
 import { WorkingDirectoryPopover } from './WorkingDirectoryPopover'
@@ -755,6 +756,10 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   const referencesSupported = chatReferencesSupported && composerTeamReferencesSupported
   const sendContext = `${activeProfileId}:${profileGeneration}:${selectedId}`
   const selectedRuntimeError = sessionRuntimeAdmissionError(session, health, catalog)
+  const geminiImportRecovery = session?.backend === 'gemini' && Boolean(session.session_id)
+    && session.provider_connection !== 'custom' && !session.archived && !window.agentsDock.sharedChat
+    && health?.capabilities?.gemini_backend?.features?.native_import_api === true
+    && selectedRuntimeError === t('gemini.apiOnlyError')
   const [sendFailure, setSendFailure] = useState<{ context: string; message: string } | null>(null)
   const currentCustomConnection = session && catalog?.backends[session.backend]?.custom_provider
   const connectionIdentity = JSON.stringify([currentCustomConnection?.configured ?? null,
@@ -1899,7 +1904,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       />
         </fieldset>
       {(uploads.length > 0 || uploadPaths.length > 0) && <AttachmentShelf sessionId={session.id} profileId={activeProfileId} profileGeneration={profileGeneration} files={uploads} pending={uploadPaths} />}
-      <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || selectedRuntimeError || undefined} />
+      <GeminiImportConnection key={`${activeProfileId}:${profileGeneration}:${session.id}`} session={session} />
+      <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || (geminiImportRecovery ? undefined : selectedRuntimeError) || undefined} />
       {activeInboundDeliveryKind && <span className={activeInboundDeliveryKind === 'unknown' ? 'composer-sync-status' : 'chat-reference-warning'} role="status">{activeInboundDeliveryKind === 'unknown'
         ? t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")
         : activeInboundDeliveryKind === 'secure_peer'

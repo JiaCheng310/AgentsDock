@@ -89,9 +89,13 @@ export function parseBulkImportSessionItems(value: unknown, maxItems = LOCAL_SES
     seen.add(key)
     const cwd = optionalNullableString(entry.cwd, MAX_PATH_CHARS, `item ${index + 1} working directory`)
     const title = optionalNullableString(entry.title, MAX_TITLE_CHARS, `item ${index + 1} title`)
+    if (entry.provider_connection !== undefined && (backend !== 'gemini' || entry.provider_connection !== 'custom')) {
+      throw invalidInput(`item ${index + 1} API connection`)
+    }
     return {
       provider_session_id: providerSessionId,
       backend,
+      ...(entry.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
       ...(cwd !== undefined ? { cwd } : {}),
       ...(title !== undefined ? { title } : {})
     }

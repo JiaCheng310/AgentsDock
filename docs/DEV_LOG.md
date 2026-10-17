@@ -1,5 +1,28 @@
 # Public development log
 
+## 2026-10-17 — Explicit API continuation for native Gemini imports
+
+- Import Chat can explicitly bind Gemini history to its saved API; existing
+  history-only imports gain a localized Connect Gemini API action. The API
+  destination is disclosed before selection. Other providers' import and
+  account-switch restrictions remain unchanged.
+- Preserve the original native UUID, workspace and transcript location. Pinned
+  CLI process-only API auth does not modify the terminal's saved login, copy
+  history or start a replacement session. Busy/queued work, missing history,
+  revoked bindings and managed auth conflicts fail closed; failed persistence
+  rolls back the binding. Forget cannot fall back to Google login.
+- Verification: focused server and desktop regressions, TypeScript and
+  production compilation pass. Six native CLI/HTTP contracts cover import,
+  continuation, Stop/retry, Forget, title compatibility and retained history.
+  Actual offscreen Electron through production IPC/HTTP and Google Developer
+  API verifies both connection entry points, original contextual recall,
+  repeated turns, unchanged native identity and reopen. Light/dark, narrow and
+  Chinese presentation were inspected. The native fixture confirms exact API
+  key headers and unchanged terminal settings; no copied transcript is created.
+- Prepared on the Gemini preview branch for the authorized local desktop/test
+  server update. No public release or merge. External native-history syncing,
+  broader organization policies and platform acceptance remain separate.
+
 ## 2026-10-17 — Gemini first-turn summarized titles
 
 - Prefer the native summary; if absent after a successful ordinary turn, make

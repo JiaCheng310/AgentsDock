@@ -31,6 +31,12 @@ function supportedHealth(overrides: Partial<Health> = {}): Health {
 }
 
 describe('local session import contract', () => {
+  it('preserves explicit API selection only for Gemini imports', () => {
+    const item = { provider_session_id: 'native', backend: 'gemini', provider_connection: 'custom' }
+    expect(parseBulkImportSessionItems([item])).toEqual([item])
+    expect(() => parseBulkImportSessionItems([{ ...item, backend: 'claude' }])).toThrow()
+    expect(() => parseBulkImportSessionItems([{ ...item, provider_connection: 'other' }])).toThrow()
+  })
   it('negotiates Gemini initial text imports without enabling them on older servers', () => {
     const base = supportedHealth()
     expect(geminiLocalSessionImportSupported(base)).toBe(false)

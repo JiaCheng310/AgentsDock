@@ -261,7 +261,7 @@ interface AppState {
   requestNewChat(): Promise<void>
   updateSession(
     sessionId: string,
-    patch: Partial<Session>,
+    patch: Partial<Session> & { gemini_connect_api?: boolean },
     options?: { allowDuringWorkspaceFlush?: boolean }
   ): Promise<void>
   deleteFolder(folder: string): Promise<void>
@@ -4985,7 +4985,8 @@ function eventMayRenderInTimeline(event: Event): boolean {
   return event.type === 'error' || event.type.endsWith('_error') || event.is_error === true || Boolean(event.error)
 }
 
-function normalizeSessionPatch(patch: Partial<Session>) { return {
+function normalizeSessionPatch(patch: Partial<Session> & { gemini_connect_api?: boolean }) { return {
+  ...(patch.gemini_connect_api === true ? { gemini_connect_api: true } : {}),
   title: patch.title,
   folder: patch.folder ?? undefined,
   cwd: patch.cwd ?? undefined,

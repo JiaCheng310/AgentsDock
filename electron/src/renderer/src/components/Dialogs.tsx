@@ -3131,6 +3131,10 @@ export function ImportChatsDialog() {
   useLocale()
   const open = useAppStore(state => state.modals.importChats)
   const health = useAppStore(state => state.health)
+  const geminiAPI = useAppStore(state => state.runtimeCatalog?.backends.gemini?.custom_provider)
+  const [geminiImportAPI, setGeminiImportAPI] = useState(false)
+  const canBindGemini = health?.capabilities?.gemini_backend?.features?.native_import_api === true
+  const useGeminiAPI = canBindGemini && geminiAPI?.available === true && geminiImportAPI
   const sessions = useAppStore(state => state.sessions)
   const selectedSessionId = useAppStore(state => state.selectedSessionId)
   const activeProfileId = useAppStore(state => state.activeProfileId)
@@ -3170,6 +3174,7 @@ export function ImportChatsDialog() {
     setResults([])
     setLoadError(null)
     setCandidates([])
+    setGeminiImportAPI(false)
     setImporting(false)
     setLoading(false)
     setCollapsed(new Set())
@@ -3288,7 +3293,8 @@ export function ImportChatsDialog() {
     if (activeOperationEpoch.current !== null) return
     const items: BulkImportSessionItem[] = candidates
       .filter(candidate => selected.has(localSessionImportKey(candidate.backend, candidate.provider_session_id)))
-      .map(candidate => ({ provider_session_id: candidate.provider_session_id, backend: candidate.backend, cwd: candidate.cwd }))
+      .map(candidate => ({ provider_session_id: candidate.provider_session_id, backend: candidate.backend, cwd: candidate.cwd,
+        ...(candidate.backend === 'gemini' && useGeminiAPI ? { provider_connection: 'custom' as const } : {}) }))
     if (!items.length) return
     const epoch = ++requestEpoch.current
     const origin = dialogScope
@@ -3353,6 +3359,7 @@ export function ImportChatsDialog() {
       const outcome = await window.agentsDock.sessions.bulkImport([{
         provider_session_id: match.providerId,
         backend: match.backend,
+        ...(match.backend === 'gemini' && useGeminiAPI ? { provider_connection: 'custom' as const } : {}),
         cwd: match.cwd
       }])
       if (!currentImportDialogScope(origin, epoch, requestEpoch.current)) return
@@ -3466,6 +3473,15 @@ export function ImportChatsDialog() {
         {resumeError && <small className="import-chats-resume-error" role="alert">{resumeError}</small>}
       </form>
       <div className="import-chats-resume-heading"><Import size={15} aria-hidden="true" /><strong>{t('ui.import.localHistory')}</strong></div>
+      {canBindGemini && candidates.some(candidate => candidate.backend === 'gemini') && <div className="import-chats-resume-details gemini-import-connection-choice">
+        <label><span>{t('gemini.import.choice')}</span><select aria-label={t('gemini.import.choice')} disabled={operationBusy}
+          value={useGeminiAPI ? 'custom' : 'default'} onChange={event => setGeminiImportAPI(event.target.value === 'custom')}>
+          <option value="default">{t('gemini.import.historyOnly')}</option>
+          {geminiAPI?.available && <option value="custom">{t('gemini.import.useAPI')}</option>}
+        </select></label>
+        {useGeminiAPI ? <small>{t('gemini.import.help', { url: geminiAPI?.base_url ?? '' })}</small>
+          : !geminiAPI?.available && <button type="button" className="quiet-button" onClick={() => openAIProviderSettings('gemini')}>{t('connections.configure')}</button>}
+      </div>}
       {loading && <p className="import-chats-status"><LoaderCircle className="spin" size={14} />{" "}{t("ui.Dialogs.ImportChatsDialog.scanning_local_chat_history_9b94771")}</p>}
       {!loading && loadError && <p className="import-chats-status" role="alert">{loadError}</p>}
       {!loading && !loadError && candidates.length === 0 && <p className="import-chats-status">{t("ui.Dialogs.ImportChatsDialog.no_un_imported_local_chats_found_93e16e7")}</p>}
