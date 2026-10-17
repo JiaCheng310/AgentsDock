@@ -1,5 +1,28 @@
 # Public development log
 
+## 2026-10-17 — Make Gemini a built-in provider
+
+- Remove the Gemini preview environment gate from provider registration,
+  capabilities, native import discovery, skills and cross-chat discovery.
+  Compatible desktop clients now show Gemini in My Agents without an opt-in
+  flag. Installation of Gemini CLI 0.64.0 and a configured API connection remain
+  required for sending; Google/CLI sign-in is not offered. Old-client checks
+  and unsupported-feature capabilities remain unchanged.
+- Update setup documentation and preserve the Gemini icon attribution in the
+  standalone server export. Repair integration-test fixtures for the current
+  update-session wrapper, archive rejection helper and per-chat queue recovery;
+  no unrelated production behavior is changed by those fixture corrections.
+- Verification: 169 targeted server tests and 18 native CLI/HTTP tests pass.
+  Desktop TypeScript, 5,246 tests (five skips), eight build/license checks and
+  production compilation pass. A fresh real HTTP server without any feature
+  flag exposes Gemini while correctly rejecting missing runtime/API readiness.
+  Actual offscreen Electron through production IPC/HTTP and the pinned CLI
+  verifies the unconfigured settings card, API setup without an initial model
+  ID, model discovery/default selection, new chat, two turns and reload.
+  Screens inspected; this rerun uses a loopback model, not Google inference.
+  Full server regression and hosted CI remain separate gates. No installed
+  server restart, public release or package publication performed.
+
 ## 2026-10-17 — Prepare the Gemini preview for review against current main
 
 - Integrate main's history-responsiveness and desktop recovery updates while

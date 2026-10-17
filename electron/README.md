@@ -4,6 +4,15 @@ This directory contains the cross-platform AgentsDock desktop client for
 macOS, Linux, and Windows. The Swift macOS, iOS, and iPadOS applications remain
 in the repository and are not overwritten by the Electron development build.
 
+## Gemini
+
+Gemini is a built-in desktop/server provider; no development flag is required.
+Install `@google/gemini-cli@0.64.0` on the server machine and configure its API in
+**Settings → My Agents → Gemini**. Google/CLI login is not offered. A matching
+server must advertise Gemini support; the card's presence does not mean the CLI
+or API is ready. Mobile support is separate. See
+[setup, supported features and validation](../server/docs/GEMINI_PROVIDER_PREVIEW.md).
+
 ## Local build
 
 From the repository root:

@@ -38,11 +38,11 @@ beforeEach(() => {
 
 afterEach(() => { cleanup(); setLocale('en'); vi.restoreAllMocks() })
 
-it('shows the Gemini preview with API only, not a Google CLI login card', () => {
+it('shows supported Gemini with API only, not a Google CLI login card', () => {
   bridge()
   setLocale('zh-CN')
   useAppStore.setState(state => ({ health: { ...state.health!, capabilities: {
-    gemini_backend: { available: true, required: false, message: 'Preview', action: null, version: 1, transport: 'acp' }
+    gemini_backend: { available: true, required: false, message: 'Configure Gemini API in My Agents.', action: null, version: 1, transport: 'acp' }
   } } }))
   render(<AppSettingsDialog />)
   fireEvent.click(screen.getByRole('button', { name: '我的 Agent' }))
