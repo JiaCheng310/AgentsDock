@@ -18,6 +18,12 @@
   Stop and subsequent sending, navigation, and large synthetic history views.
   Eight concurrent retries after discarding a real send response joined one
   durable admission; retry after server restart retained that receipt.
+- Full CI exposed incomplete isolated-test dependencies and regressions in
+  native-title refresh, partial-record migration proof and empty session-list
+  metadata. Restore the title lookup outside admission locks, require a fully
+  scanned journal for migration and keep never-started maintenance sparse.
+  Known maintenance failures and their cleared state remain visible. All 230
+  targeted history, title, mailbox, provider and session-summary checks pass.
 - Availability: local source integration and development app only; no public
   release or installed production update. Large fixtures validate display and
   storage behavior, not provider memory. Cold indexing still depends on
