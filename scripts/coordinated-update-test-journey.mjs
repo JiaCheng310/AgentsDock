@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { createWriteStream, existsSync, readFileSync } from 'node:fs'
 import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { execFileSync, spawn } from 'node:child_process'
+import { request } from 'node:http'
 import { join, relative, resolve } from 'node:path'
 import { appVersion, connect, freePort, hashFile, openMigrationUpdateSettings,
   processesFor, stopOwned, until, verifyApp } from './verify_electron_migration.mjs'
@@ -73,7 +74,10 @@ const safeSnapshot = async () => {
     server: status ? { phase: status.phase, currentVersion: status.current_version,
       targetVersion: status.target_version, preparationPhase: status.preparation_phase,
       whenIdle: status.when_idle === true, blockerCounts: status.blocker_counts,
-      errorCode: status.error_code, message: safeMessage(status.message) } : null,
+      errorCode: status.error_code, message: safeMessage(status.message),
+      preparationLogPresent: /^[0-9a-f]{32}$/.test(status.preparation_id ?? '')
+        && existsSync(join(process.env.HOME, '.local/share/agents-server/.update-preparations',
+          status.preparation_id, 'prepare.log')) } : null,
     health: health ? { version: health.server_version,
       update: health.server_update ? { phase: health.server_update.phase,
         targetVersion: health.server_update.target_version } : null,
@@ -120,8 +124,27 @@ try {
     assert(response.ok, 'Authenticated test server health failed.')
     return response.json()
   }
+  const nativeAdminStatus = () => new Promise((resolve, reject) => {
+    const call = request('http://127.0.0.1:7851/api/admin/update', {
+      method: 'GET', headers: { 'X-AgentsDock-Token': token }, timeout: 5_000
+    }, response => {
+      let body = ''
+      response.setEncoding('utf8')
+      response.on('data', chunk => {
+        body += chunk
+        if (body.length > 16_384) call.destroy(new Error('Update status exceeded its diagnostic bound.'))
+      })
+      response.on('end', () => {
+        if (response.statusCode !== 200) reject(new Error(`Update status HTTP ${response.statusCode}`))
+        else { try { resolve(JSON.parse(body)) } catch (error) { reject(error) } }
+      })
+    })
+    call.on('timeout', () => call.destroy(new Error('Update status timed out.')))
+    call.on('error', reject)
+    call.end()
+  })
   readServerDiagnostics = async () => ({
-    status: await api('GET', '/api/admin/update').catch(() => null),
+    status: await nativeAdminStatus().catch(() => null),
     health: await health().catch(() => null)
   })
   const beforeHealth = await until('Candidate A server healthy', async () => {
