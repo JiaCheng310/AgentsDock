@@ -51,6 +51,11 @@ let client = null
 let launched = null
 let keychainCreated = false
 let readServerDiagnostics = null
+const safeMessage = value => typeof value === 'string' ? value.slice(0, 240)
+  .replace(/https?:\/\/\S+/gi, '[url]')
+  .replace(/\b[A-Za-z0-9_-]{28,}\b/g, '[opaque]')
+  .replace(/(?:\/Users|\/home|\/Volumes|\/tmp)\/[^\s,;:)]+/g, '[path]')
+  .replace(/[A-Za-z]:\\[^\s,;:)]+/g, '[path]') : undefined
 const safeSnapshot = async () => {
   const appStatus = await client?.evaluate('window.agentsDock.updates.status()').catch(() => null)
   const server = await readServerDiagnostics?.().catch(() => null)
@@ -59,13 +64,15 @@ const safeSnapshot = async () => {
   return {
     app: appStatus ? { state: appStatus.state, currentVersion: appStatus.currentVersion,
       availableVersion: appStatus.availableVersion,
+      message: safeMessage(appStatus.message),
       servers: (appStatus.serverUpdates ?? []).map(item => ({ phase: item.phase,
         targetVersion: item.targetVersion, operationTargetVersion: item.operationTargetVersion,
-        paused: item.paused === true, operationOwned: item.operationOwned === true })) } : null,
+        paused: item.paused === true, operationOwned: item.operationOwned === true,
+        message: safeMessage(item.message) })) } : null,
     server: status ? { phase: status.phase, currentVersion: status.current_version,
       targetVersion: status.target_version, preparationPhase: status.preparation_phase,
       whenIdle: status.when_idle === true, blockerCounts: status.blocker_counts,
-      errorCode: status.error_code } : null,
+      errorCode: status.error_code, message: safeMessage(status.message) } : null,
     health: health ? { version: health.server_version,
       update: health.server_update ? { phase: health.server_update.phase,
         targetVersion: health.server_update.target_version } : null,
