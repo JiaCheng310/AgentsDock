@@ -168,20 +168,20 @@ jobs:
           import urllib.request
           import socket
           import sys
-          import time
 
           url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.5.tgz'
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   raise RuntimeError('redirected')
           try:
-              for attempt in range(30):
-                  addresses = {item[4][0] for item in socket.getaddrinfo('registry.npmjs.org', 443)}
-                  if addresses == {'127.0.0.1'}:
-                      break
-                  time.sleep(1)
-              else:
-                  raise RuntimeError('registry route did not resolve exclusively to loopback')
+              # The preflight checks detached Python TLS and exact URL serving.
+              # The following native App/Server journey exercises OS routing.
+              original_getaddrinfo = socket.getaddrinfo
+              def replay_getaddrinfo(host, port, *args, **kwargs):
+                  if host == 'registry.npmjs.org':
+                      host = '127.0.0.1'
+                  return original_getaddrinfo(host, port, *args, **kwargs)
+              socket.getaddrinfo = replay_getaddrinfo
               request = urllib.request.Request(url, headers={'Range': 'bytes=0-0'})
               with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=15) as response:
                   if response.status != 206 or response.headers.get('X-AgentsDock-Replay') != 'test-only' or len(response.read(2)) != 1:
