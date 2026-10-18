@@ -12,7 +12,9 @@
 - Show actionable Send now failures and deferred outcomes without Electron's
   IPC wrapper. If input was accepted but chat access subsequently disappeared,
   explain that outcome without replaying the message.
-- Validation on main base `126c74f7`: 280 targeted server tests, 516 desktop
+- Exclude promptless goal-control starts from native history matching so a
+  later sync does not import the accepted follow-up and reply a second time.
+- Validation on main base `126c74f7`: 434 targeted server tests, 516 desktop
   tests, Python compilation, TypeScript and production Electron compilation.
   Native offscreen Electron acceptance used disposable state and real Codex:
   selected a skill and a local chat through the actual pickers, queued each
@@ -20,7 +22,8 @@
   Both goals received the input and completed without changing their thread
   or interrupting work. The chat case reused a thread with prior conversation,
   verified the selected route through the real provider tool, and returned to
-  idle. Team/remote mentions and legacy/internal deliveries remain separate-turn
+  idle. History was checked again after switching away and reopening the chat.
+  Team/remote mentions and legacy/internal deliveries remain separate-turn
   operations. Live mailbox sends, cross-device and custom-endpoint provider
   acceptance are outside these checks. Source only; no release or deployment.
 
