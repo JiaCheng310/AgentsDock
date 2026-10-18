@@ -76,12 +76,14 @@ import {
   isCompactComposerToolbar,
   isDenseComposerToolbar,
 } from '../lib/composer-toolbar-layout'
-import { cursorBackendUnavailableReason, isBackendLocked, selectableChatBackends } from '../lib/runtime-catalog'
+import { isBackendLocked } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendLabel, chatBackendSelection, selectableChatBackendChoices, type ChatBackendChoice } from '../lib/provider-selection'
 import { radius, spacing, typography, usePalette } from '../theme'
 import type { AgentCrossChatRoute, AgentFile, Backend, ChatReference, ChatReferenceAction, FailedUpload, QueuedTurn, Session, TeamReference, UploadRef } from '../types'
 import { appendWelcomeExchange, isWelcomeSession } from '../lib/welcome-session'
 import { Text, TextInput } from './AppText'
 import { BackendMark } from './BackendMark'
+import { AgentPicker } from './AgentPicker'
 import { CodexPermissionMenu } from './CodexPermissionMenu'
 import { useCodexRuntime } from './CodexRuntimeContext'
 import { CodexGoalBar } from './CodexGoalBar'
@@ -129,6 +131,8 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     const session = state.sessions.find(value => value.id === sessionId)
     return session ? {
       backend: session.backend,
+      codex_provider: session.codex_provider,
+      provider_connection: session.provider_connection,
       model: session.model,
       effort: session.effort,
       backend_locked: session.backend_locked,
@@ -772,7 +776,8 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
       pendingCaretRef.current = null
     })
   }
-  const providerName = backend ? backendLabel(backend) : 'Claude'
+  const providerChoice = sourceSession ? chatBackendChoice(sourceSession) : null
+  const providerName = providerChoice ? chatBackendLabel(providerChoice) : 'Claude'
   const reloadChatAgent = async () => {
     if (providerReloadDisabled || !backend || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
     setProviderReloading(true)
@@ -792,26 +797,17 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
       if (composerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) setProviderReloading(false)
     }
   }
-  const switchChatBackend = async (next: Backend) => {
-    if (!backendSwitchable || next === backend || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
+  const switchChatBackend = async (next: ChatBackendChoice) => {
+    if (!backendSwitchable || next === providerChoice || !selectableChatBackendChoices(health, runtime).includes(next) || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
     // Clear model and effort: they are catalogued per backend, so the new agent
     // falls back to its server default rather than inheriting an invalid pick.
-    const changed = await updateSession(sessionId, { backend: next, model: null, effort: null }, profileGeneration)
+    const changed = await updateSession(sessionId, { ...chatBackendSelection(next), model: null, effort: null }, profileGeneration)
     if (!changed && composerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) {
       Alert.alert('Could not change chat agent', useAppStore.getState().error || 'The server did not change this chat agent.')
     }
   }
-  const cursorUnavailableReason = cursorBackendUnavailableReason(health, runtime)
-  const backendActions: MenuAction[] = backendSwitchable ? selectableChatBackends(health).map(value => ({
-    id: `switch-backend:${value}`,
-    title: backendLabel(value),
-    state: value === backend ? 'on' : 'off',
-    attributes: value === 'cursor' && Boolean(cursorUnavailableReason) ? { disabled: true } : undefined,
-  })) : []
-  const runtimeActions: MenuAction[] = []
-  if (backendActions.length) runtimeActions.push({ id: 'switch-backend', title: 'Coding agent', displayInline: true, subactions: backendActions })
-  if (!providerReloadDisabled) runtimeActions.push({ id: 'reload-provider', title: `Reload ${providerName}`, image: 'arrow.clockwise' })
-  const runtimeInteractive = runtimeActions.length > 0
+  const backendChoices = backendSwitchable ? selectableChatBackendChoices(health, runtime) : []
+  const runtimeInteractive = backendChoices.length > 0 || !providerReloadDisabled
   const runtimeTrigger = welcome ? <View
     testID="chat-runtime-menu"
     accessible
@@ -822,8 +818,8 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     <Image source={require('../../assets/icon.png')} contentFit="contain" style={{ width: 21, height: 21, borderRadius: radius.md }} />
     {!compactToolbar ? <Text style={[styles.backend, { color: colors.text }]}>AgentsDock</Text> : null}
   </View> : backend ? <View
-    testID="chat-runtime-menu"
-    accessible
+    testID={runtimeInteractive ? undefined : 'chat-runtime-menu'}
+    accessible={!runtimeInteractive}
     accessibilityRole="button"
     accessibilityLabel={`Chat agent options for ${providerName}`}
     accessibilityState={{ disabled: !runtimeInteractive, busy: providerReloading }}
@@ -832,18 +828,18 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     {providerReloading ? <ActivityIndicator size="small" color={colors.muted} /> : <BackendMark backend={backend} size={21} />}
     {!compactToolbar ? <><Text style={[styles.backend, { color: colors.text }]}>{providerName}</Text><Pill tone="neutral">{model || 'Server model'}{effort ? ` · ${effort}` : ''}</Pill></> : null}
   </View> : null
-  const runtimeControl = welcome || !runtimeTrigger || !runtimeInteractive ? runtimeTrigger : <MenuView
-    title={`${providerName} agent`}
-    actions={runtimeActions}
-    onPressAction={event => {
-      const action = event.nativeEvent.event
-      if (action === 'reload-provider') void reloadChatAgent()
-      else if (action.startsWith('switch-backend:')) void switchChatBackend(action.slice('switch-backend:'.length) as Backend)
-    }}
+  const runtimeControl = welcome || !runtimeTrigger || !runtimeInteractive || !providerChoice ? runtimeTrigger : <AgentPicker
+    key={`${activeProfileId}:${profileGeneration}:${sessionId}`}
+    testID="chat-runtime-menu"
+    label={`Chat agent options for ${providerName}`}
+    value={providerChoice}
+    choices={backendChoices}
+    onChange={next => void switchChatBackend(next)}
+    onReload={providerReloadDisabled ? undefined : () => void reloadChatAgent()}
     style={[styles.runtimeMenu, compactToolbar && styles.runtimeMenuCompact, denseToolbar && styles.runtimeMenuDense]}
   >
     {runtimeTrigger}
-  </MenuView>
+  </AgentPicker>
 
   return (
     <View testID="chat-composer" style={[styles.shell, { backgroundColor: colors.background }]}>

@@ -66,7 +66,8 @@ import { awaitAllClaudePermissionUpdates, awaitClaudePermissionUpdates } from '.
 import { awaitAllCursorPermissionUpdates } from '../lib/cursor-permission-updates'
 import { DEFAULT_SERVER_URL } from '../lib/server-setup'
 import { serverSearchQuery } from '../lib/server-search'
-import { runtimeSelectionError, selectableChatBackends } from '../lib/runtime-catalog'
+import { isBackendLocked, runtimeSelectionError } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendSelection, isCustomProvider, providerSelectionError, selectableChatBackendChoices } from '../lib/provider-selection'
 import { clearCodeReviewFallbacks } from '../lib/code-review'
 import { SessionMutationReconciler, type SessionReadToken } from '../lib/session-mutation-reconciler'
 import { APP_FONT_SCALE_DEFAULT, clampAppFontScale } from '../lib/typography'
@@ -505,7 +506,7 @@ interface AppState {
   attachFiles(files: UploadRef[], expectedGeneration?: number, expectedSessionId?: string): Promise<void>
   removeUpload(fileId: string, expectedGeneration?: number, expectedSessionId?: string): void
   removeFailedUpload(fileUri: string, expectedGeneration?: number, expectedSessionId?: string): void
-  updateSession(sessionId: string, patch: Partial<Pick<Session, 'title' | 'folder' | 'cwd' | 'backend' | 'model' | 'effort' | 'system_prompt' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer' | 'claude_permission_mode' | 'cursor_permission_mode' | 'provider_jobs_access' | 'pinned' | 'archived'>>, expectedGeneration?: number): Promise<boolean>
+  updateSession(sessionId: string, patch: Partial<Pick<Session, 'title' | 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort' | 'system_prompt' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer' | 'claude_permission_mode' | 'cursor_permission_mode' | 'provider_jobs_access' | 'pinned' | 'archived'>>, expectedGeneration?: number): Promise<boolean>
   reloadProvider(sessionId: string, expectedGeneration?: number): Promise<ProviderReloadResult | null>
   createSession(input: CreateSessionInput, expectedGeneration?: number): Promise<boolean>
   quickCreateSession(expectedGeneration?: number): Promise<boolean>
@@ -2082,7 +2083,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!prompt && !files.length) return false
     const session = get().sessions.find(value => value.id === sessionId)
     if (!session) return false
-    const selectionError = runtimeSelectionError(get().health, get().runtime, session.backend, session.model)
+    const selectionError = providerSelectionError(get().health, get().runtime, session)
     if (selectionError) {
       set({ error: selectionError })
       return false
@@ -2444,8 +2445,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const before = get().sessions.find(value => value.id === sessionId)
     const nextBackend = patch.backend ?? before?.backend
     const nextModel = patch.model !== undefined ? patch.model : before?.model
-    if (nextBackend && (patch.backend !== undefined || patch.model !== undefined)) {
-      const selectionError = runtimeSelectionError(get().health, get().runtime, nextBackend, nextModel)
+    const providerChanged = Boolean(before && chatBackendChoice({ ...before, ...patch }) !== chatBackendChoice(before))
+    if (nextBackend && (patch.backend !== undefined || patch.model !== undefined || providerChanged)) {
+      const selection = { ...before, ...patch, backend: nextBackend, model: nextModel }
+      const selectionError = providerSelectionError(get().health, get().runtime, selection, providerChanged)
       if (selectionError) {
         set({ error: selectionError })
         return false
@@ -2453,17 +2456,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if (
       before
-      && patch.backend != null
-      && patch.backend !== before.backend
+      && providerChanged
       && (
-        before.backend_locked === true
+        isBackendLocked(before)
         || get().activeSessionIds.has(sessionId)
         || Boolean(get().turnAdmissionTokens[sessionId])
         || get().sendingSessionIds.has(sessionId)
       )
     ) {
-      set({ error: before.backend_locked === true
-        ? 'This chat backend is fixed because its provider session has already started.'
+      set({ error: isBackendLocked(before)
+        ? 'This chat agent and connection are fixed because its provider session has already started.'
         : 'Wait for the current message or active turn to finish before changing its backend.' })
       return false
     }
@@ -2474,6 +2476,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!connectionIsCurrent(scope)) {
         if (mutation) sessionMutations.abandon(mutation)
         return false
+      }
+      if (providerChanged && before && chatBackendChoice(updated) !== chatBackendChoice({ ...before, ...patch })) {
+        throw new Error('The server did not preserve the selected agent connection. Update AgentsServer before using this mode.')
       }
       set(state => ({ sessions: state.sessions.map(value => {
         if (value.id !== sessionId) return value
@@ -2543,7 +2548,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   async createSession(input, expectedGeneration) {
-    const selectionError = runtimeSelectionError(get().health, get().runtime, input.backend, input.model)
+    const selectionError = providerSelectionError(get().health, get().runtime, input, true)
     if (selectionError) {
       set({ error: selectionError })
       return false
@@ -2553,10 +2558,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const session = await scope.client.createSession(input)
       if (!connectionIsCurrent(scope)) return false
+      if (isCustomProvider(input) && chatBackendChoice(session) !== chatBackendChoice(input)) {
+        set({ error: 'The server did not preserve the Custom API selection. Update AgentsServer before using this mode.' })
+        return false
+      }
       set(state => ({
         sessions: [...state.sessions, session],
         chatDefaults: {
           backend: input.backend,
+          ...(input.codex_provider === 'custom' ? { codex_provider: 'custom' as const } : {}),
+          ...(input.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
           model: input.model ?? '',
           effort: input.effort ?? '',
           folder: input.folder.trim() || 'General',
@@ -2587,11 +2598,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     const selected = state.sessions.find(session => session.id === state.selectedSessionId
       && !session.archived && !isWelcomeSession(session.id))
     const defaultCwd = state.health?.default_cwd?.trim() || ''
-    const backends = selectableChatBackends(state.health)
-    const backend: Backend = backends.includes(state.chatDefaults.backend) ? state.chatDefaults.backend : (backends[0] ?? 'codex')
+    const choices = selectableChatBackendChoices(state.health, state.runtime)
+    const preferred = chatBackendChoice(state.chatDefaults)
+    if (isCustomProvider(state.chatDefaults) && !choices.includes(preferred)) {
+      set({ error: 'The selected Custom API is unavailable. Choose another agent in Settings or check the server configuration.' })
+      return Promise.resolve(false)
+    }
+    const choice = choices.includes(preferred) ? preferred : choices[0]
+    if (!choice) {
+      set({ error: 'No available agent. Check My agents or configure an account on the server machine.' })
+      return Promise.resolve(false)
+    }
+    const selection = chatBackendSelection(choice)
     let model = state.chatDefaults.model
     let effort = state.chatDefaults.effort
-    if (runtimeSelectionError(state.health, state.runtime, backend, model || null)) {
+    if (choice !== preferred || providerSelectionError(state.health, state.runtime, { ...selection, model: model || null })) {
       model = ''
       effort = ''
     }
@@ -2599,7 +2620,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       title: 'New chat',
       folder: selected ? selected.folder?.trim() || 'General' : state.chatDefaults.folder.trim() || 'General',
       cwd: selected ? selected.cwd?.trim() || defaultCwd : state.chatDefaults.cwd.trim() || defaultCwd,
-      backend,
+      ...(isCustomProvider(selection) ? selection : { backend: selection.backend }),
       model,
       effort,
     }, scope.generation).finally(() => {

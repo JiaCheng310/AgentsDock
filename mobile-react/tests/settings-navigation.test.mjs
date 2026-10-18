@@ -19,7 +19,7 @@ fixture.app = create(set => ({
   setChatDefaults: patch => { fixture.changes.push(patch); set(state => ({ chatDefaults: { ...state.chatDefaults, ...patch } })) },
 }))
 fixture.appearance = create(set => ({ preference: 'system', error: null, setPreference: preference => set({ preference }) }))
-const icons = ['ArrowLeft', 'Calendar', 'Check', 'ChevronDown', 'ChevronRight', 'Clock', 'Copy', 'Download', 'ExternalLink', 'KeyRound', 'MessageSquare', 'Minus', 'Monitor', 'Moon', 'Network', 'Plus', 'Search', 'Server', 'ShieldCheck', 'SquareTerminal', 'Sun', 'SunMoon']
+const icons = ['ArrowLeft', 'Calendar', 'Check', 'ChevronDown', 'ChevronRight', 'Clock', 'Copy', 'Download', 'ExternalLink', 'KeyRound', 'MessageSquare', 'Minus', 'Monitor', 'Moon', 'Network', 'Plus', 'RefreshCw', 'Search', 'Server', 'ShieldCheck', 'SquareTerminal', 'Sun', 'SunMoon']
 const mocks = {
   'react-native': `export const ActivityIndicator='Spinner',Modal='Modal',Pressable='Button',ScrollView='Scroll',Switch='Switch',View='View'; export const Linking={openURL:async url=>{globalThis.__settingsFixture.links.push(url)}}; export const Platform={get OS(){return globalThis.__settingsFixture.platform}}; export const StyleSheet={create:x=>x,hairlineWidth:1}; export const useWindowDimensions=()=>({width:402,height:874}); export const useColorScheme=()=> 'light';`,
   'react-native-safe-area-context': `export const SafeAreaView='SafeArea';`,
@@ -41,7 +41,7 @@ const mocks = {
 const outfile = path.resolve('build/tmp', `settings-navigation-${process.pid}.mjs`)
 await fs.mkdir(path.dirname(outfile), { recursive: true })
 await build({
-  stdin: { contents: `export {SettingsDialog} from './src/components/Dialogs'`, resolveDir: process.cwd() },
+  stdin: { contents: `export {SettingsDialog} from './src/components/Dialogs'; export {AgentPicker} from './src/components/AgentPicker'`, resolveDir: process.cwd() },
   outfile, bundle: true, format: 'esm', platform: 'node', jsx: 'automatic',
   external: ['react', 'react/jsx-runtime'], logLevel: 'silent',
   plugins: [{ name: 'settings-native-hosts', setup(context) {
@@ -50,9 +50,50 @@ await build({
   } }],
 })
 after(() => fs.unlink(outfile))
-const { SettingsDialog } = await import(pathToFileURL(outfile).href)
+const { SettingsDialog, AgentPicker } = await import(pathToFileURL(outfile).href)
 const byId = (tree, id) => tree.root.findByProps({ testID: id })
-const press = (tree, id) => act(async () => byId(tree, id).props.onPress())
+const press = (tree, id) => act(async () => tree.root.findAll(node => node.props.testID === id && typeof node.props.onPress === 'function')[0].props.onPress())
+
+for (const platform of ['ios', 'android']) test(`${platform} agent picker keeps logos, concise labels and selection through repeated opens`, async () => {
+  fixture.platform = platform
+  const choices = ['claude', 'claude-custom', 'codex', 'codex-custom', 'cursor', 'cursor-custom']
+  const changes = []
+  let tree, reloads = 0
+  const props = { value: 'claude', choices, label: 'Choose agent', testID: 'agent-picker', onChange: value => changes.push(value), onReload: () => { reloads++ }, children: 'Agent' }
+  await act(async () => { tree = TestRenderer.create(React.createElement(AgentPicker, props)) })
+  try {
+    for (let round = 0; round < 10; round++) {
+      for (const choice of choices) {
+        await press(tree, 'agent-picker')
+        assert.equal(tree.root.findByType('Modal').props.visible, true)
+        const row = tree.root.findAll(node => node.type === 'Button' && node.props.testID === `agent-choice-${choice}`)[0]
+        assert.equal(row.findByType('BackendMark').props.backend, choice.replace('-custom', ''))
+        assert.doesNotMatch(row.props.accessibilityLabel, /Native/)
+        assert.equal(row.props.accessibilityLabel.includes('Custom API'), choice.endsWith('-custom'))
+        await act(async () => row.props.onPress())
+        assert.equal(tree.root.findByType('Modal').props.visible, false)
+        if (platform === 'ios') await act(async () => tree.root.findByType('Modal').props.onDismiss())
+        assert.equal(changes.at(-1), choice)
+        await act(async () => tree.update(React.createElement(AgentPicker, { ...props, value: choice })))
+        assert.equal(tree.root.findAll(node => node.type === 'Button' && node.props.testID === `agent-choice-${choice}`)[0].props.accessibilityState.selected, true)
+      }
+    }
+    assert.equal(changes.length, 60)
+    await press(tree, 'agent-picker')
+    await act(async () => tree.root.findByType('Modal').props.onRequestClose())
+    await act(async () => tree.root.findByType('Modal').props.onDismiss())
+    assert.equal(changes.length, 60, 'dismissal must not choose an agent')
+    await press(tree, 'agent-picker')
+    await press(tree, 'agent-reload')
+    if (platform === 'ios') {
+      assert.equal(reloads, 0, 'reload waits until the modal can no longer obstruct alerts')
+      await act(async () => tree.root.findByType('Modal').props.onDismiss())
+    }
+    assert.equal(reloads, 1)
+    await act(async () => tree.root.findByType('Modal').props.onDismiss())
+    assert.equal(reloads, 1, 'a repeated dismissal cannot dispatch twice')
+  } finally { await act(async () => tree.unmount()); fixture.platform = 'ios' }
+})
 
 test('settings starts with categories, preserves every section and omits duplicate connection fields', async () => {
   let tree

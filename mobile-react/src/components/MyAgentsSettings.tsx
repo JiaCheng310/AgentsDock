@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { Circle, CircleCheck, Code2, RefreshCw } from 'lucide-react-native'
 import { SETTINGS_AGENTS, settingsAgentAvailable } from '../lib/settings-agents'
+import { customProviderAvailable, customProviderSupported } from '../lib/provider-selection'
 import { useAppStore } from '../store/useAppStore'
 import { fontWeight, radius, spacing, typography, usePalette } from '../theme'
 import { Text } from './AppText'
@@ -53,14 +54,28 @@ function ScopedMyAgentsSettings() {
     </View>
     <View>{SETTINGS_AGENTS.map(agent => {
       const available = connected && !failed && settingsAgentAvailable(health, runtime, agent.id)
-      return <View key={agent.id} testID={`settings-agent-${agent.id}`} accessible accessibilityLabel={`${agent.name}, ${available ? 'available' : 'not available'}`} style={[styles.row, { borderColor: colors.border }]}>
-        <View style={[styles.mark, !available && { opacity: 0.4 }]}>{agent.id === 'opencode' ? <Code2 size={22} color={colors.text} /> : <BackendMark backend={agent.id} size={22} />}</View>
-        <Text style={[styles.name, { color: available ? colors.text : colors.muted }]}>{agent.name}</Text>
-        {available ? <CircleCheck size={21} color={colors.green} /> : <Circle size={21} color={colors.muted} />}
+      const configured = runtime?.backends[agent.id]?.custom_provider?.configured === true
+      const apiAvailable = connected && !failed && customProviderAvailable(health, runtime, agent.id)
+      return <View key={agent.id} testID={`settings-agent-${agent.id}`} style={[styles.row, { borderColor: colors.border }]}>
+        <View style={styles.agentHeader}>
+          <View style={[styles.mark, !available && !apiAvailable && { opacity: 0.4 }]}>{agent.id === 'opencode' ? <Code2 size={22} color={colors.text} /> : <BackendMark backend={agent.id} size={22} />}</View>
+          <Text style={[styles.name, { color: available || apiAvailable ? colors.text : colors.muted }]}>{agent.name}</Text>
+        </View>
+        <ConnectionStatus testID={`settings-agent-${agent.id}-native`} name="Native" available={available} />
+        {configured ? <ConnectionStatus testID={`settings-agent-${agent.id}-custom`} name="Custom API" available={apiAvailable} /> : null}
       </View>
     })}</View>
     {!connected || failed ? <Text accessibilityRole="text" style={[typography.caption, { color: colors.muted }]}>{!connected ? 'Server offline' : 'Could not check agents. Try again.'}</Text> : null}
-    <Text style={[typography.caption, { color: colors.muted }]}>Sign in on your server machine, not on mobile.</Text>
+    {connected && !customProviderSupported(health, 'codex') && !customProviderSupported(health, 'claude') ? <Text style={[typography.caption, { color: colors.muted }]}>Update AgentsServer to see Custom API connections.</Text> : null}
+    <Text style={[typography.caption, { color: colors.muted }]}>Manage accounts and APIs on your server machine.</Text>
+  </View>
+}
+
+function ConnectionStatus({ testID, name, available }: { testID: string; name: string; available: boolean }) {
+  const colors = usePalette()
+  return <View testID={testID} accessible accessibilityLabel={`${name}, ${available ? 'available' : 'not available'}`} style={styles.connection}>
+    <Text style={[typography.label, styles.name, { color: available ? colors.text : colors.muted }]}>{name}</Text>
+    {available ? <CircleCheck size={18} color={colors.green} /> : <Circle size={18} color={colors.muted} />}
   </View>
 }
 
@@ -69,7 +84,9 @@ const styles = StyleSheet.create({
   header: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   serverName: { ...typography.label, fontWeight: fontWeight.medium, flex: 1 },
   recheck: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  row: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md },
+  row: { gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md },
+  agentHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  connection: { minHeight: 28, paddingLeft: 36, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   mark: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   name: { ...typography.body, flex: 1 },
 })

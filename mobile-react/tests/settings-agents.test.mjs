@@ -111,6 +111,21 @@ test('Recheck deduplicates taps, shows loading and applies all four returned sta
   })
 })
 
+test('API-only and dual-mode agents show independent native and API status without configuration controls', async () => {
+  store.setState({ health: { capabilities: { codex_provider_v1: { per_chat: true, per_chat_models: true } } }, runtime: { backends: {
+    codex: { native_credentials_present: false, available: true, custom_provider: { configured: true, available: true } },
+  } } })
+  await render(async tree => {
+    const status = mode => tree.root.findAll(node => node.type === 'View' && node.props.testID === `settings-agent-codex-${mode}`)[0]
+    assert.equal(status('native').findAllByType('CircleCheck').length, 0)
+    assert.equal(status('custom').findAllByType('CircleCheck').length, 1)
+    await act(async () => store.setState({ runtime: { backends: { codex: { ...store.getState().runtime.backends.codex, native_credentials_present: true } } } }))
+    assert.equal(status('native').findAllByType('CircleCheck').length, 1)
+    assert.equal(status('custom').findAllByType('CircleCheck').length, 1)
+    assert.doesNotMatch(JSON.stringify(tree.toJSON()), /api_key|Configure API|Access token/)
+  })
+})
+
 test('transport failure is a short retry hint, while switching servers discards pending UI state', async () => {
   store.setState({ health: { runtimes: { codex: diagnostic() } }, refreshRuntime: async () => { store.setState({ error: 'transport detail' }) } })
   await render(async tree => {

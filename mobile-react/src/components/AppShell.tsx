@@ -9,7 +9,7 @@ import { AlertCircle, Settings, X } from 'lucide-react-native'
 import { trackEvent } from '../lib/analytics'
 import { dismissAppKeyboard, useAppKeyboardLifecycle } from '../lib/app-keyboard'
 import { chatWorkspaceLayout } from '../lib/chat-layout'
-import { isServerSetupRequired, shouldPresentServerSetup } from '../lib/first-launch'
+import { shouldPresentServerSetup } from '../lib/first-launch'
 import { fullscreenModalTopPadding } from '../lib/fullscreen-modal-layout'
 import { profileNamespace } from '../lib/server-profiles'
 import { useAppStore } from '../store/useAppStore'
@@ -364,8 +364,8 @@ function AppShellContent() {
 
   useEffect(() => {
     if (!initialized) return
-    const needsSetup = isServerSetupRequired({ serverConfigured, serverURL })
-    const patch = welcomeWorkspacePatch(useAppStore.getState(), needsSetup)
+    // Clear legacy local welcome chats; onboarding is now an ordinary empty state.
+    const patch = welcomeWorkspacePatch(useAppStore.getState(), false)
     if (patch) useAppStore.setState(patch)
   }, [initialized, serverConfigured, serverURL])
 

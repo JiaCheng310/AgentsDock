@@ -1,5 +1,75 @@
 # Public development log
 
+## 2026-10-17 - Validate the mobile UI review candidate
+
+- Update rendering-test host mocks for the appearance preference and shared
+  corner tokens. Keep permission and model-selection assertions aligned with
+  provider-aware routing without weakening admission or catalog-isolation checks.
+  This resolves the seven test failures recorded in the preceding UI pass; no
+  additional product UI changes were needed.
+- All 371 mobile UI/source tests and TypeScript passed. Focused provider-mode,
+  client transport, session creation, multi-server store, latest-first sync,
+  preference migration, optimistic mutation, date formatting, runtime-catalog
+  and smart-group regressions passed. Production-mode Hermes bundles and assets
+  exported successfully for both iOS and Android; this is not a signed native
+  release or store submission.
+- Installed iPhone simulator checks cover settings navigation, agent marks and
+  API selection, search/keyboard dismissal, and the server drawer. Earlier
+  repeated light/dark and enlarged-text checks remain applicable. Actual server
+  selection was verified without sending model requests. Live provider inference,
+  Android-device and tablet acceptance remain unverified. Review candidate only;
+  no TestFlight upload, deployment or merge is authorized by this validation.
+
+## 2026-10-17 - Show agent marks in mobile chat selection
+
+- Native chat choices now use the agent name without a Native suffix; Custom
+  API choices retain their explicit label. Share a bounded, scrollable picker
+  between the composer and new-chat defaults, with existing agent marks before
+  each name and a trailing selection check. The iOS native menu cannot render
+  these bitmap marks. Preserve provider guards, model reset and reload behavior;
+  dismiss the picker before an action can show an iOS alert.
+- TypeScript and focused regressions passed, including 120 picker interactions
+  across iOS/Android host fixtures, explicit API routing, stale-scope rejection
+  and locked-chat behavior. The installed iPhone simulator passed five rounds of
+  settings, theme, agent-choice and server-drawer navigation, plus search/keyboard
+  dismissal and unsaved server-editor back navigation. Light and dark screenshots,
+  including enlarged text, were reviewed. A disposable chat selected an existing
+  API connection through the real server and was deleted without sending a message.
+  Test preferences were restored; no server credentials were edited.
+- Broader UI regression testing still has seven failures: three host mocks lack
+  Appearance, two theme mocks lack radius, and two source contracts still assume
+  the pre-provider-mode expressions. These are recorded for follow-up, not treated
+  as passing tests. No new interaction failure reproduced in the exercised iOS
+  flows. Physical-device, Android device and tablet acceptance remain unverified.
+  No PR, release build, upload or additional UI fixes in this test pass.
+
+## 2026-10-17 - Distinguish mobile account modes and center server onboarding
+
+- My agents now separates native credentials from configured Custom API
+  connections using the selected server's safe runtime metadata. Mobile does
+  not edit endpoint addresses or keys. Old servers retain native behavior and
+  show an upgrade hint for custom connections.
+- Add native/API choices to new-chat defaults and the existing pre-first-turn
+  agent menu for the mobile client's Codex, Claude and Cursor backends. Send
+  explicit per-chat routing, persist the selected default, isolate API model
+  choices from native catalogs, and keep started chats bound to their original
+  connection. Reject unavailable custom defaults or ignored routing responses
+  rather than silently switching to native. OpenCode remains status-only on
+  mobile; this does not implement another chat backend.
+- Replace the synthetic welcome-chat entry with a centered welcome surface and
+  setup action that opens the existing half-height Add Server drawer. Clear old
+  ephemeral welcome state without deleting real chats or server configuration.
+- Basic validation: TypeScript, focused UI, provider-selection, client transport,
+  session creation, mutation and preference regressions passed. The installed
+  Debug iPhone simulator exercised My agents, the default agent picker, creating
+  a disposable chat and switching it to an already-configured Cursor API through
+  the actual server. Confirmed the returned custom binding and removed only that
+  test chat; no messages, model requests or credential changes were made.
+  A reversible empty-workspace fixture exercised centered onboarding and the
+  real native Add Server drawer; no connection was saved. Light-mode screenshots
+  were reviewed. Live Codex/Claude API runs, Android, tablet and physical-device
+  acceptance remain unverified. Local preview only; no build release or upload.
+
 ## 2026-10-17 - Contain mobile server setup badge backgrounds
 
 - Clip the translucent fill of each numbered connection step to its fixed

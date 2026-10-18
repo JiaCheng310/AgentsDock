@@ -164,7 +164,8 @@ export function backendLabel(backend: Backend): string {
 export function runtimeSummary(session: Session): string {
   const model = session.model?.trim() || 'Server model'
   const effort = session.effort?.trim()
-  return [backendLabel(session.backend), model, effort].filter(Boolean).join(' · ')
+  const custom = (session.backend === 'codex' ? session.codex_provider : session.provider_connection) === 'custom'
+  return [backendLabel(session.backend), custom ? 'Custom API' : null, model, effort].filter(Boolean).join(' · ')
 }
 
 export function mergeEvents(current: Event[], incoming: Event[]): Event[] {

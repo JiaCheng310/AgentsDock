@@ -100,7 +100,7 @@ test('home floats two circular actions without a full-width footer surface', () 
   assert.equal((footer.match(/borderColor: colors\.controlBorder/g) ?? []).length, 2)
   assert.equal((footer.match(/backgroundColor: pressed \? colors\.raised : colors\.controlSurface/g) ?? []).length, 2)
   assert.match(source, /testID="sidebar-chat-list"\s+style=\{styles\.chatList\}/)
-  assert.match(source, /contentContainerStyle=\{\[styles\.list, \{ paddingBottom: compact && searchVisible \? spacing\.xl : HOME_ACTION_SIZE \+ spacing\.lg \+ spacing\.sm \+ spacing\.xl \+ insets\.bottom/)
+  assert.match(source, /contentContainerStyle=\{\[styles\.list, needsServerSetup && styles\.welcomeList, \{ paddingBottom: compact && searchVisible \? spacing\.xl : HOME_ACTION_SIZE \+ spacing\.lg \+ spacing\.sm \+ spacing\.xl \+ insets\.bottom/)
   assert.doesNotMatch(source.match(/chatList: \{([^}]+)\}/)?.[1] ?? '', /marginBottom|paddingBottom/)
   const topActions = source.match(/<View style=\{styles\.actions\}>([\s\S]*?)<\/View>/)?.[1] ?? ''
   assert.doesNotMatch(topActions, /sidebar-new-chat|icon=\{Plus\}/)

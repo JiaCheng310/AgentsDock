@@ -170,6 +170,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
   }, [dismissSearchKeyboard, needsServerSetup, profileScope, refreshSessions, refreshingScope])
 
   const rows = useMemo(() => {
+    if (needsServerSetup) return []
     const contentResults = new Map<string, TimelineSearchResult>()
     if (serverSearchQuery(query)) {
       for (const result of searchResults) {
@@ -179,9 +180,9 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
     const matchedByContent = new Set(contentResults.keys())
     const clean = query.trim().toLowerCase()
     const filtered = clean
-      ? sessions.filter(session => session.title.toLowerCase().includes(clean) || matchedByContent.has(session.id))
+      ? sessions.filter(session => !isWelcomeSession(session.id) && (session.title.toLowerCase().includes(clean) || matchedByContent.has(session.id)))
           .sort((a, b) => Number(b.title.toLowerCase().includes(clean)) - Number(a.title.toLowerCase().includes(clean)))
-      : sessions
+      : sessions.filter(session => !isWelcomeSession(session.id))
     return sidebarSessionSections(filtered, active, folderOrder, !clean).flatMap<Row>(section => {
       const folder = section.id
       const values = section.sessions
@@ -201,7 +202,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
         })))),
       ]
     })
-  }, [active, collapsed, collapsedStatuses, folderOrder, query, searchResults, sessions])
+  }, [active, collapsed, collapsedStatuses, folderOrder, needsServerSetup, query, searchResults, sessions])
   const openSessionRow = useCallback((session: Session, result?: TimelineSearchResult) => {
     if (!sessionScopeIsCurrent(profileScope, session.id) || openingSearchResult.current) return
     dismissSearchKeyboard()
@@ -391,16 +392,6 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
           </Pressable>
         </View>
       </View>
-      {needsServerSetup ? <Pressable
-        testID="sidebar-setup-server"
-        accessibilityRole="button"
-        accessibilityLabel="Set up your server"
-        onPress={() => { if (profileScopeCanNavigate(profileScope)) onAddServer() }}
-        style={({ pressed }) => [styles.setupBanner, { backgroundColor: colors.blue, opacity: pressed ? 0.85 : 1 }]}
-      >
-        <Server size={16} color={colors.onAccent} />
-        <Text style={[styles.setupBannerText, { color: colors.onAccent }]}>Set up your server</Text>
-      </Pressable> : null}
       {!compact ? searchField : null}
       {!needsServerSetup && searchError && serverSearchQuery(query) ? <View accessibilityRole="alert" style={styles.searchError}>
         <Text style={[styles.searchErrorText, { color: colors.red }]}>History search failed.</Text>
@@ -426,8 +417,15 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
         refreshing={refreshingScope === profileScope}
         onRefresh={workspaceAdopting || needsServerSetup || switchingProfileId ? undefined : refreshChats}
         onScrollBeginDrag={dismissSearchKeyboard}
-        contentContainerStyle={[styles.list, { paddingBottom: compact && searchVisible ? spacing.xl : HOME_ACTION_SIZE + spacing.lg + spacing.sm + spacing.xl + insets.bottom }]}
-        ListEmptyComponent={query.trim() ? <Text style={[styles.emptySearch, { color: colors.muted }]}>{searchBusy ? 'Searching history…' : 'No matching chats'}</Text> : null}
+        contentContainerStyle={[styles.list, needsServerSetup && styles.welcomeList, { paddingBottom: compact && searchVisible ? spacing.xl : HOME_ACTION_SIZE + spacing.lg + spacing.sm + spacing.xl + insets.bottom }]}
+        ListEmptyComponent={needsServerSetup ? <View testID="sidebar-welcome" style={styles.welcome}>
+          <Image source={require('../../assets/icon.png')} style={styles.welcomeIcon} />
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to AgentsDock</Text>
+          <Pressable testID="sidebar-setup-server" accessibilityRole="button" accessibilityLabel="Set up your server" onPress={() => { if (profileScopeCanNavigate(profileScope)) onAddServer() }} style={({ pressed }) => [styles.setupBanner, { backgroundColor: colors.blue, opacity: pressed ? 0.85 : 1 }]}>
+            <Server size={16} color={colors.onAccent} />
+            <Text style={[styles.setupBannerText, { color: colors.onAccent }]}>Set up your server</Text>
+          </Pressable>
+        </View> : query.trim() ? <Text style={[styles.emptySearch, { color: colors.muted }]}>{searchBusy ? 'Searching history…' : 'No matching chats'}</Text> : null}
         renderItem={({ item }) => item.kind === 'header' ? <FolderHeader
           item={item}
           profileScope={profileScope}
@@ -783,7 +781,11 @@ const styles = StyleSheet.create({
   topRow: { minHeight: 44, marginHorizontal: spacing.lg, marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   serverSelector: { flex: 1, maxWidth: '50%', minWidth: 0 },
   searchButton: { width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  setupBanner: { minHeight: 44, borderRadius: radius.md, marginHorizontal: spacing.md, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  welcomeList: { flexGrow: 1 },
+  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
+  welcomeIcon: { width: 56, height: 56, borderRadius: radius.md },
+  welcomeTitle: { ...typography.heading, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  setupBanner: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   setupBannerText: { ...typography.label, fontWeight: fontWeight.semibold },
   searchDock: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   search: { minHeight: 48, borderRadius: radius.md, paddingLeft: spacing.md, paddingRight: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

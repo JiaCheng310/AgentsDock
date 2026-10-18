@@ -1,5 +1,5 @@
 import type { Health, RuntimeCatalog } from '../types'
-import { runtimeDiagnosticFor } from './runtime'
+import { nativeProviderAvailable } from './provider-selection'
 
 // Keep this display inventory aligned with desktop My Agents. Chat creation has
 // its own supported-backend gate; this list must also show unavailable agents.
@@ -12,9 +12,7 @@ export const SETTINGS_AGENTS = [
 export type SettingsAgent = typeof SETTINGS_AGENTS[number]['id']
 
 export function settingsAgentAvailable(health: Health | null, catalog: RuntimeCatalog | null, agent: SettingsAgent): boolean {
-  const diagnostic = runtimeDiagnosticFor(health, catalog, agent)
-  return diagnostic ? diagnostic.status === 'ready' && diagnostic.available === true
-    : catalog?.backends?.[agent]?.available === true
+  return nativeProviderAvailable(health, catalog, agent)
 }
 
 // This identifies a configured server hostname, not the phone's VPN app/status.

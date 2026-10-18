@@ -15,6 +15,7 @@ import { APP_FONT_SCALE_MAX, APP_FONT_SCALE_MIN, APP_FONT_SCALE_STEP } from '../
 import { tailscaleServerHost } from '../lib/settings-agents'
 import { orderedSessionSections } from '../lib/session-order'
 import { runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeSelectionError, selectableChatBackends } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendLabel, chatBackendSelection, isCustomProvider, providerRuntimeCatalog, selectableChatBackendChoices } from '../lib/provider-selection'
 import { chatMentionTrigger, insertChatReference, parseStoredChatReferences, reconcileChatReferences, supportedCrossChatTargetBackends, type ChatMentionTrigger } from '../lib/chat-references'
 import { MAX_SCHEDULED_CHAT_REFERENCES, normalizeScheduledJobChatReferences, scheduledJobChatReferencesForWrite, scheduledJobRouteHintsAvailable } from '../lib/scheduled-job-chat-references'
 import { client, useAppStore } from '../store/useAppStore'
@@ -23,6 +24,7 @@ import { radius, spacing, typography, usePalette } from '../theme'
 import type { Backend, ChatReference, CreateJobInput, JobContextMode, JobScheduleKind, RuntimeOption, Session, TimelineSearchResult, UpdateJobInput } from '../types'
 import { Text, TextInput } from './AppText'
 import { BackendMark } from './BackendMark'
+import { AgentPicker } from './AgentPicker'
 import { IconButton, SheetCloseButton } from './ui'
 import { MyAgentsSettings } from './MyAgentsSettings'
 import appConfig from '../../app.json'
@@ -109,8 +111,10 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
   const back = () => { leavePage(); setPage('home') }
   const close = () => { leavePage(); onClose() }
   const defaultServerCwd = health?.default_cwd?.trim() ?? ''
-  const chatDefaultBackendOptions = selectableChatBackends(health)
-  const chatDefaultModelOptions = runtimeCatalogOptions(runtime, chatDefaults.backend, 'models', chatDefaults.model)
+  const chatDefaultBackendOptions = selectableChatBackendChoices(health, runtime)
+  const defaultChoice = chatBackendChoice(chatDefaults)
+  const defaultCatalog = providerRuntimeCatalog(runtime, chatDefaults)
+  const chatDefaultModelOptions = runtimeCatalogOptions(defaultCatalog, chatDefaults.backend, 'models', chatDefaults.model)
   const tailscaleHost = connected ? tailscaleServerHost(serverURL) : null
   return <Sheet visible={visible} title={settingsTitles[page]} onClose={close} onDidDismiss={onDidDismiss} onBack={page === 'home' ? undefined : back}>
     {page === 'home' ? <View testID="settings-categories" style={styles.settingsCategories}>
@@ -161,8 +165,14 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
     </> : null}
     {page === 'chats' ? <>
     <Label text="New chat defaults" />
-    <View style={styles.segment}>{chatDefaultBackendOptions.map(value => { const unavailable = value === 'cursor' && Boolean(runtimeSelectionError(health, runtime, value)); return <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${backendLabel(value)}${unavailable ? ', unavailable' : ''}`} accessibilityState={{ selected: chatDefaults.backend === value, disabled: unavailable }} disabled={unavailable} onPress={() => setChatDefaults({ backend: value, model: '', effort: '' })} style={[styles.segmentButton, { backgroundColor: chatDefaults.backend === value ? colors.blue : colors.raised, opacity: unavailable ? 0.4 : 1 }]}><BackendMark backend={value} size={20} /><Text style={{ color: chatDefaults.backend === value ? 'white' : colors.text, fontWeight: '700' }}>{backendLabel(value)}</Text></Pressable> })}</View>
-    <Label text="Model" /><Select testID="settings-default-model" title="Choose model" value={chatDefaults.model} options={chatDefaultModelOptions} onChange={next => setChatDefaults({ model: next, effort: runtimeEffortAfterModelChange(runtime, chatDefaults.backend, next, chatDefaults.effort) ?? '' })} />
+    <AgentPicker testID="settings-default-agent" label={chatBackendLabel(defaultChoice)} value={defaultChoice} choices={chatDefaultBackendOptions} onChange={value => { if (chatDefaultBackendOptions.includes(value)) setChatDefaults({ ...chatBackendSelection(value), model: '', effort: '' }) }} style={[styles.select, { gap: spacing.sm, backgroundColor: colors.raised, borderColor: colors.border }]}>
+      <BackendMark backend={chatDefaults.backend} size={22} />
+      <Text style={[typography.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>{chatBackendLabel(defaultChoice)}</Text>
+      <ChevronDown size={15} color={colors.muted} />
+    </AgentPicker>
+    {!chatDefaultBackendOptions.includes(defaultChoice) ? <Text style={[styles.help, { color: colors.muted }]}>This agent is unavailable. Check My agents.</Text> : null}
+    <Label text="Model" /><Select testID="settings-default-model" title="Choose model" value={chatDefaults.model} options={chatDefaultModelOptions} onChange={next => setChatDefaults({ model: next, effort: runtimeEffortAfterModelChange(defaultCatalog, chatDefaults.backend, next, chatDefaults.effort) ?? '' })} />
+    {isCustomProvider(chatDefaults) ? <><Label text="Model ID (optional)" /><TextInput testID="settings-default-api-model" value={chatDefaults.model} onChangeText={model => setChatDefaults({ model, effort: '' })} autoCapitalize="none" autoCorrect={false} placeholder="Server default" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} /></> : null}
     <Label text="Folder" /><TextInput testID="settings-default-folder" accessibilityLabel="Default folder" value={defaultFolder} onChangeText={setDefaultFolder} onBlur={() => setChatDefaults({ folder: defaultFolder.trim() || 'General' })} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} />
     <Label text="Working directory" /><TextInput
       testID="settings-default-cwd"
@@ -950,12 +960,12 @@ function ModeButton({ label, selected, onPress, testID }: { label: string; selec
 function SearchResult({ title, subtitle, disabled = false, onPress }: { title: string; subtitle: string; disabled?: boolean; onPress: () => void }) { const colors = usePalette(); return <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} disabled={disabled} onPress={onPress} style={[styles.result, { borderColor: colors.border, opacity: disabled ? 0.55 : 1 }]}><Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{title}</Text><Text style={{ color: colors.muted, fontSize: 11, marginTop: 4 }} numberOfLines={3}>{subtitle}</Text></Pressable> }
 function ConnectionUnavailable() { const colors = usePalette(); return <View style={styles.connectionUnavailable}><Text style={[styles.connectionUnavailableText, { color: colors.muted }]}>This server must finish connecting and verifying its identity first.</Text></View> }
 
-function Select({ title = 'Choose option', value, options, onChange, testID }: { title?: string; value: string; options: RuntimeOption[]; onChange: (value: string) => void; testID?: string }) {
+function Select({ title = 'Choose option', value, valueLabel, options, onChange, testID }: { title?: string; value: string; valueLabel?: string; options: RuntimeOption[]; onChange: (value: string) => void; testID?: string }) {
   const colors = usePalette()
   const { width, height } = useWindowDimensions()
   const [open, setOpen] = useState(false)
   const deduped = options.filter((option, index) => options.findIndex(value => value.value === option.value) === index)
-  const selected = deduped.find(option => option.value === value) ?? deduped[0]
+  const selected = deduped.find(option => option.value === value) ?? (valueLabel ? { label: valueLabel } : deduped[0])
   const compact = width < 600
   const close = () => setOpen(false)
   return <>
