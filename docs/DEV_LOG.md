@@ -1,5 +1,34 @@
 # Public development log
 
+## 2026-10-18 — Accept the 1.0.11-beta.2 candidate
+
+- Freeze product source `853dcd285ef442176370632149deba21ef732eda`, native
+  build 1261. [Desktop preparation](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39100809951)
+  passes all four native platforms, including Developer ID signing, Apple
+  notarization and the exact asset-set verification. The separate orchestration
+  commit `197f07b9ca949c1a81441d18b46a048764d6dd2d` does not change product code.
+  The sealed asset-manifest digest is
+  `bff0ef6024feb840c7b8e9d1a8c84817b775fc1c23711aa3f29132c96e71ec8c`.
+- Exercise the unmodified signed macOS app and exact packaged server through
+  real UI, IPC, HTTP and Gemini CLI 0.64.0 against Google inference: connected
+  API settings, direct new chat, a long first prompt, automatic short title,
+  two turns with the same native session, and retained replies/title on reload.
+  Title generation inserts no extra user turn. Temporary credentials and
+  disposable server state are removed afterward; existing installations remain
+  unchanged. Test cleanup required force-closing the owned app, so this is not
+  clean-quit acceptance.
+- Pass 5,392 desktop tests (six skipped), the full hosted server suite, 18 native
+  Gemini CLI/HTTP cases and a 40-turn, four-chat streaming/reconnect stress check.
+  [Native npm acceptance](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39099183063)
+  passes on macOS and Linux, including first setup, exact runtime inventory,
+  default/named lifecycle, repeat installation and preserved state on removal.
+- [Paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
+  has accepted the runtime upload; public registry availability and the short
+  CLI upload are still pending. Desktop and legacy bridge remain private drafts.
+  This is candidate acceptance, not a completed public release. Mobile Gemini,
+  unsigned Windows warnings, native Windows/Linux UI, populated-history/busy
+  upgrades and logout/reboot remain the disclosed boundaries.
+
 ## 2026-10-18 — Bound macOS release ticket-download recovery
 
 - Keep product source and signed server/npm candidates frozen independently of

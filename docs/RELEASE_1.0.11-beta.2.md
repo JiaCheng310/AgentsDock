@@ -13,6 +13,8 @@ beta release; stable `1.0.10` and npm `latest` remain unchanged.
 
 ## Limits
 
+- The isolated macOS acceptance app required force-closing during test cleanup;
+  clean quit remains unvalidated.
 - Windows installers are unsigned and may show security warnings.
 - Gemini uses API connections only, with the installed CLI as its runtime.
   Native Fork, managed child-agent controls, Goal, `/btw`, explicit compaction,

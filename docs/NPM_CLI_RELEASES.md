@@ -6,6 +6,25 @@ committed source snapshot and one public version; the CLI dependency must be
 `"@agentsdock/server": "VERSION"`, never a range or floating tag. The desktop
 continues to pin the signed runtime descriptor, not a floating npm channel.
 
+## 1.0.11-beta.2 accepted candidate, publication pending
+
+Product source `853dcd285ef442176370632149deba21ef732eda` is frozen. The reviewed
+orchestrator `197f07b9ca949c1a81441d18b46a048764d6dd2d` changes only release
+orchestration/docs, not the packaged application or runtime. Native CLI
+[acceptance 39099183063](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39099183063)
+passes on macOS and Linux; the signed macOS app also passes real Gemini
+API/CLI conversation, automatic-title and reload acceptance against the exact
+packaged server. See the [development log](DEV_LOG.md) for scope and limits.
+
+[Paired publication 39103091104](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
+has accepted the runtime upload through OIDC, but the exact runtime is not yet
+publicly installable. The short CLI has not been uploaded. Both public `beta`
+tags remain `1.0.11-beta.1`, and both `latest` tags remain `1.0.10` at this check.
+Never re-upload the pending version or change its accepted bytes. Once it is
+public, continue with unchanged pins; the verifier skips the existing runtime
+and publishes the matching CLI. Desktop and the legacy bridge stay private
+until the paired registry verification succeeds.
+
 ## 1.0.11-beta.1 public completion
 
 On 2026-10-13 UTC, [paired publication 38370285507](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/38370285507)
