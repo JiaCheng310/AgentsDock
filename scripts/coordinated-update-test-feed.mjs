@@ -19,9 +19,9 @@ const runner = realpathSync(process.env.RUNNER_TEMP)
 const root = realpathSync(rootArgument)
 assert(relative(runner, root).startsWith('..') === false && root !== runner,
   'Candidate files must remain inside the disposable runner.')
-const VERSIONS = Object.freeze({ a: '1.0.11-beta.4', b: '1.0.11-beta.5' })
-const SOURCES = Object.freeze({ a: 'a98c862cb1cfd6ef60100109f0b7e41c8fd64ca8',
-  b: 'c683676b1464685e23e05663a70bd1ab119270bd' })
+const VERSIONS = Object.freeze({ a: '1.0.11-beta.6', b: '1.0.11-beta.7' })
+const SOURCES = Object.freeze({ a: 'f880acf10ac109dac8442caea55782b38b6b3172',
+  b: 'cbcace9eb9004ecf1fd8763b48daec3d5e3c87c2' })
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const publicKey = createPublicKey(readFileSync(join(process.cwd(), 'server/release-public-key.pem')))
 const pins = JSON.parse(readFileSync(join(process.cwd(), 'scripts/coordinated-update-test-pins.json'), 'utf8'))

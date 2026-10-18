@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/candidates/a" "$RUNNER_TEMP/candidates/b"
-          for entry in a:1.0.11-beta.4:39096770741:39092938078 b:1.0.11-beta.5:39097133968:39092939518; do
+          for entry in a:1.0.11-beta.6:39102843474:39101171767 b:1.0.11-beta.7:39102874702:39101173280; do
             IFS=: read -r letter version desktop_run signing_run <<< "$entry"
             destination="$RUNNER_TEMP/candidates/$letter"
             desktop_artifact="AgentsDock-$version-macos-replay-zip"
@@ -176,7 +176,7 @@ jobs:
           import socket
           import sys
 
-          url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.5.tgz'
+          url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.7.tgz'
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   raise RuntimeError('redirected')

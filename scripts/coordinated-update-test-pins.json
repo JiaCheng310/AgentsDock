@@ -1,30 +1,30 @@
 {
   "a": {
-    "version": "1.0.11-beta.4",
-    "source": "a98c862cb1cfd6ef60100109f0b7e41c8fd64ca8",
-    "desktopRun": 39096770741,
-    "signingRun": 39092938078,
+    "version": "1.0.11-beta.6",
+    "source": "f880acf10ac109dac8442caea55782b38b6b3172",
+    "desktopRun": 39102843474,
+    "signingRun": 39101171767,
     "sha256": {
-      "AgentsDock-1.0.11-beta.4-mac-universal.zip": "3e512c197f8bf162477115e31357f0eae0f47f738c92b23a34f4251e0d5019a2",
-      "AgentsDock-1.0.11-beta.4-mac-universal.zip.blockmap": "976249de5ab676e6efd093234b1193397a9a148f7350bb44f75dfda0c944336e",
-      "beta-mac.yml": "fa36e050ab8cd33364f3d5815521699f7bec19d027b54d5e3d2daca10984699d",
-      "agents-server-npm-manifest.json": "c995397e7c06ae42cd49064ba23d48d9550c2b5e10d9c7048eabf031a08a58c3",
-      "agents-server-npm-manifest.sig": "768dafd8186770999c68ff287de0a78447cb87e298879d8bdcefe11f99f1a9b4",
-      "server-1.0.11-beta.4.tgz": "a2ebfa1252eb6a58658ec132b395383c35e738c8b382d97876c232a6585550fd"
+      "AgentsDock-1.0.11-beta.6-mac-universal.zip": "5ac71eb9d54bb383eda8178300cb2c64c0ff475fd0c95f7ce3df4bc47b3dec49",
+      "AgentsDock-1.0.11-beta.6-mac-universal.zip.blockmap": "88f9176b556b17f9b3d37aad072995228cb7925fd73af82f3913cea72a3d33db",
+      "beta-mac.yml": "6e23ddb761f9bf144c91ff21301e68ca3248ade99f632125d76b06117e58e881",
+      "agents-server-npm-manifest.json": "122737c6896a86f32f6c779caec5d5d3c1616814bbf940255a9ed29c0a5f97e7",
+      "agents-server-npm-manifest.sig": "284a0228bd16da3e54ddf0b16bbe71f0ba164d829e13f319f836f6d685fd3a67",
+      "server-1.0.11-beta.6.tgz": "1c3f56d0e8bfd6a239fd8410f7298c841b8c7c82a0c6f74ea106d1736496c9ae"
     }
   },
   "b": {
-    "version": "1.0.11-beta.5",
-    "source": "c683676b1464685e23e05663a70bd1ab119270bd",
-    "desktopRun": 39097133968,
-    "signingRun": 39092939518,
+    "version": "1.0.11-beta.7",
+    "source": "cbcace9eb9004ecf1fd8763b48daec3d5e3c87c2",
+    "desktopRun": 39102874702,
+    "signingRun": 39101173280,
     "sha256": {
-      "AgentsDock-1.0.11-beta.5-mac-universal.zip": "43fb7087761830eb8f8cf7c99f8394c9f295604de5c0502da83ba4d4c0b8890c",
-      "AgentsDock-1.0.11-beta.5-mac-universal.zip.blockmap": "713e853708e469c7147b0563279cdf328346709fa02541ecb1fc05b7456877e2",
-      "beta-mac.yml": "0ad2a49a8fe5b7356b275cdc3cfacd572c6ad4acf04cabb9829099fad4ef064e",
-      "agents-server-npm-manifest.json": "6fc44e83cda8bc8c8de9e0c6f071e13a9fccaba97f271be5a1e408d40543b69c",
-      "agents-server-npm-manifest.sig": "9f65143bd524d3785444b0d53f3f62314a49229a91d01b11295725e6d8f9cc8e",
-      "server-1.0.11-beta.5.tgz": "0181725c2c898cb63891ce8b7bcaefa4b0f9e1b841ca4c8866b0f2e1d2915ae9"
+      "AgentsDock-1.0.11-beta.7-mac-universal.zip": "683b42d6c56c2a8c61025071f60063e473c3369ea9367cbef4921704e0db6f3b",
+      "AgentsDock-1.0.11-beta.7-mac-universal.zip.blockmap": "80bf23810bda582995a88a6888915b6d7c22cdea81c1989f37118f11ebc23fa0",
+      "beta-mac.yml": "6285037b4a6d48fb361702fb51c0632ff382fc312bd865309b1fd5d7081eef34",
+      "agents-server-npm-manifest.json": "04f2de371253f86124ad2023dde296e14c2e59d9afa4e43d932a04f0c14e7b0b",
+      "agents-server-npm-manifest.sig": "7310d9de4418731f22384245c608ad40306da140e3deaa70d004a10b2a4c9076",
+      "server-1.0.11-beta.7.tgz": "81a1cdad8cdff5219c1dcd9ab93be63725de516c4249b86350cd84d1f725c7b5"
     }
   }
 }

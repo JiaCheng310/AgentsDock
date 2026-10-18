@@ -10,10 +10,10 @@ import { join, relative, resolve } from 'node:path'
 import { appVersion, connect, freePort, hashFile, openMigrationUpdateSettings,
   processesFor, stopOwned, until, verifyApp } from './verify_electron_migration.mjs'
 
-const VERSION_A = '1.0.11-beta.4'
-const VERSION_B = '1.0.11-beta.5'
-const BUILD_A = '1258'
-const BUILD_B = '1259'
+const VERSION_A = '1.0.11-beta.6'
+const VERSION_B = '1.0.11-beta.7'
+const BUILD_A = '1265'
+const BUILD_B = '1266'
 const PROFILE = 'coordinated-update-replay'
 const SERVICE = 'com.zhengyiluo.AgentsDock'
 const ACCOUNT = `agent-access-token:${PROFILE}`
@@ -35,8 +35,8 @@ const logs = createWriteStream(join(work, 'private-native.log'), { flags: 'wx', 
 const childEnv = { ...process.env, AGENTSDOCK_DISABLE_ANALYTICS: '1',
   npm_config_cache: join(work, 'npm-cache'), UV_CACHE_DIR: join(work, 'uv-cache') }
 const report = { kind: 'unpublished-native-update-replay', from: VERSION_A, to: VERSION_B,
-  sourceA: 'a98c862cb1cfd6ef60100109f0b7e41c8fd64ca8',
-  sourceB: 'c683676b1464685e23e05663a70bd1ab119270bd',
+  sourceA: 'f880acf10ac109dac8442caea55782b38b6b3172',
+  sourceB: 'cbcace9eb9004ecf1fd8763b48daec3d5e3c87c2',
   testSurface: 'GitHub-hosted macOS native app and managed server',
   providerChat: 'not exercised', phases: [] }
 const phase = name => { report.phases.push(name); process.stdout.write(`${name}\n`) }
