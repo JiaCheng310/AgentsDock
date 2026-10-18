@@ -78,6 +78,7 @@ describe('signed coordinated release contract', () => {
     expect(compareReleaseVersions('1.2.0', '1.2.0-beta.999')).toBe(1)
     expect(compareReleaseVersions('1.1.9', '1.2.0-beta.1')).toBe(-1)
     expect(() => compareReleaseVersions('development', '1.2.0')).toThrow()
+    expect(() => compareReleaseVersions('1.2.0-beta.2.local-test', '1.2.0-beta.2')).toThrow('not recognized')
   })
 
 })
@@ -325,6 +326,23 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     expect(f.manager.status()[0].phase).toBe('current')
     expect(f.clients.a.ensureServerUpdate).not.toHaveBeenCalled()
     expect(f.clients.a.startServerUpdate).not.toHaveBeenCalled()
+  })
+  it('does not replace a compatible same-version server with the public release bytes', async () => {
+    const f = fixture()
+    f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2' }))
+    await f.manager.prepareForInstall(signed(), '1.2.0-beta.2')
+    expect(f.manager.status()[0]).toMatchObject({ phase: 'current', message: 'Server is up to date.' })
+    expect(f.clients.a.ensureServerUpdate).not.toHaveBeenCalled()
+    expect(f.clients.a.startServerUpdate).not.toHaveBeenCalled()
+    expect(f.clients.a.restartServer).not.toHaveBeenCalled()
+  })
+  it('does not replace a local-suffix server during public update preflight', async () => {
+    const f = fixture()
+    f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2.local-test' }))
+    await expect(f.manager.prepareForInstall(signed(), '1.2.0-beta.2')).rejects.toThrow('not recognized')
+    expect(f.clients.a.ensureServerUpdate).not.toHaveBeenCalled()
+    expect(f.clients.a.startServerUpdate).not.toHaveBeenCalled()
+    expect(f.clients.a.restartServer).not.toHaveBeenCalled()
   })
   it.each([7, 29])('reports a newer server outside the supported API range without replacing it (%s)', async api => {
     const f = fixture()
