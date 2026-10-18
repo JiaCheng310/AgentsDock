@@ -1469,7 +1469,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
         if (message) setSendFailure({ context: sendContext, message })
       }
       if (sent) {
-        trackEvent('message_sent')
+        trackEvent('message_sent', { backend: session.backend })
         if (boundProviderCommand) {
           trackEvent(boundProviderCommand.kind.toLowerCase() === 'skill' ? 'slash_skill_used' : 'slash_command_used')
         }
@@ -1746,7 +1746,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       }
       void window.agentsDock.native.issueReportEnvironment()
         .then(environment => window.agentsDock.native.openExternal(issueReportURL(environment, context)))
-        .catch(reportActionError)
+        .then(() => trackEvent('issue_report_opened', { success: true }))
+        .catch(error => { trackEvent('issue_report_opened', { success: false }); reportActionError(error) })
     } else if (command.id === 'goal') {
       openGoalControls()
     } else if (command.id === 'import') {

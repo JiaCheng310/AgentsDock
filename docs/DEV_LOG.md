@@ -1,5 +1,81 @@
 # Public development log
 
+## 2026-10-17 — Refresh privacy-limited desktop and sharing metrics
+
+- Integrate current main into the existing sharing-analytics work, preserving
+  Gemini support, native report forms, and updated server packaging. Retain the
+  two share-mode selection events and three narrowly scoped shared-web events.
+- Add confirmed Agent/model/permission changes, imported Gemini API binding,
+  archive/restore, Files-panel entry, native file-open outcomes, explicit server
+  restart request/reconnection, language/font changes, and diagnostic-copy and
+  issue-form request outcomes. Existing provider usage/configuration events can
+  carry only a fixed built-in provider family, never a model/endpoint/name.
+- Keep Team Network instrumentation unchanged. Do not count initialization,
+  restored settings, automatic model migration, stale profile responses, or
+  rejected session patches as successful user changes. Document accepted
+  messages separately from completed provider work and restart requests
+  separately from verified reconnection. Update the catalog and privacy source.
+- Validation base: main `4ef55959`; development Electron build, not a release
+  package. Type checking and desktop/shared-web builds pass. Targeted Electron
+  regression suites: 939 passed; sharing and packaging Python suites: 116 passed.
+- Hands-on surface: isolated native offscreen Electron, actual authenticated
+  local AgentsServer routes, separate browser partition. Exercised new chat,
+  Agent selection, Codex/Claude permission changes, model selection,
+  archive/restore, Files opening, unavailable-file feedback, language selection,
+  error copying, blocked external issue navigation, and both share modes.
+  Redeemed tokens in the browser and verified reload/reconnection deduplication,
+  no shared-browser install identifier, and an interactive Codex prompt/reply.
+  Captured event envelopes locally; production analytics delivery was blocked.
+- Remaining acceptance: actual Mixpanel ingestion, Gemini API-binding with
+  credentials, managed restart success, native font-menu input, and successful
+  external-file/application launch were not exercised end-to-end. Provider
+  resume across sharing modes is not an acceptance claim of this change.
+  These are source changes only: no deployment, release, or privacy-site publish.
+
+## 2026-10-03 — Point issue reporting to the maintained repository
+
+- Correct the server README's issue-report link to ZhengyiLuo/AgentsDock.
+  The desktop `/feedback` command already opens that repository's new-issue
+  form; preserve its existing behavior and add focused coverage for finding
+  it with `/feedback`, `/issue`, and `/bug` without sending a chat message.
+- All three component cases, TypeScript and the production build pass; the
+  component cases mock the external-browser bridge.
+  Actual app-to-browser interaction remains unverified because computer use
+  is disabled. This documentation/test change does not require a server update.
+  No release or deployment.
+
+## 2026-09-30 — Share selection and recipient usage events
+
+- Distinguish choosing View only/Interactive from successful share creation.
+  Preserve the existing share-dialog opening, creation and revocation events.
+  Add three narrowly scoped shared-browser events: authenticated read-only and
+  interactive activation, and server-accepted interactive message submission.
+  See `docs/ANALYTICS_EVENTS.md` for exact event names and counting semantics.
+- Keep generic desktop analytics disabled in shared pages, including when the
+  restricted bridge is installed after imports. Remove a legacy web install ID
+  on initialization. Web events have no persistent viewer identifier, content,
+  URLs, tokens, names, resource IDs or arbitrary event properties. Respect
+  DNT/GPC and existing same-origin opt-out; deduplicate refresh/reconnect and
+  receipt replay with local-only sessionStorage markers. Counts do not identify
+  unique viewers or form a cross-device per-user funnel.
+- Generate both server-served web artifacts from the shared tracker, retain
+  dependency license notices and include the snapshot artifact in installation
+  manifests. Successful snapshot GETs permit only the exact analytics script
+  hash and Mixpanel destination; token forms, errors and HEADs stay scriptless.
+- Exercised the actual native macOS Electron share menu through IPC/HTTP into
+  a disposable AgentsServer. Separate isolated offscreen browser windows opened
+  both token forms, rejected an invalid token, authenticated and showed the
+  transcript. Read-only reload did not recount activation. Interactive browser
+  submissions completed real Codex replies; after correcting the initialization
+  boundary only shared-browser send events were emitted and no install ID
+  remained. Refresh and simulated network interruption/recovery did not recount
+  activation. Revocation disabled sending and returned the token entry screen
+  on reload. Captured requests locally and blocked production Mixpanel delivery.
+- Focused client/server tests, type checking and production desktop/shared-web
+  builds pass. Actual Mixpanel ingestion, other browser engines, and live
+  queued acceptance are not validated here (queued/refused receipt semantics
+  are covered by targeted bridge tests). No release or server deployment.
+
 ## 2026-10-17 — Make Gemini a built-in provider
 
 - Remove the Gemini preview environment gate from provider registration,

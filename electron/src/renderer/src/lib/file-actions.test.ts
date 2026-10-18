@@ -4,6 +4,9 @@ import type { AgentFile } from '@shared/types'
 import { useAppStore } from '../store/app-store'
 import { openAgentFile, openLinkedFile, saveAgentFile } from './file-actions'
 import { setLocale } from '@shared/i18n'
+import { trackOperation } from './analytics'
+
+vi.mock('./analytics', () => ({ trackOperation: vi.fn(async (_name, action) => action()) }))
 
 describe('file link feedback', () => {
   const open = vi.fn()
@@ -12,6 +15,7 @@ describe('file link feedback', () => {
     setLocale('en')
     open.mockReset().mockResolvedValue(undefined)
     openLinked.mockReset().mockResolvedValue(undefined)
+    vi.mocked(trackOperation).mockClear()
     useAppStore.setState({ error: null, activeProfileId: 'server-a', profileGeneration: 1, selectedSessionId: 'chat-a', switchingProfileId: null })
     Object.defineProperty(window, 'agentsDock', { configurable: true, value: { files: { open, openLinked } } })
   })
@@ -24,6 +28,8 @@ describe('file link feedback', () => {
     await expect(openAgentFile('chat-a', file)).resolves.toBe(true)
     expect(open).toHaveBeenCalledExactlyOnceWith('chat-a', file)
     expect(useAppStore.getState().error).toBeNull()
+    expect(trackOperation).toHaveBeenCalledTimes(2)
+    expect(trackOperation).toHaveBeenCalledWith('file_open_requested', expect.any(Function))
   })
 
   it('translates missing-attachment feedback into Chinese', async () => {

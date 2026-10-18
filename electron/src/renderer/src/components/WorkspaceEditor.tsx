@@ -20,6 +20,7 @@ import {
   useState
 } from 'react'
 import { createPortal } from 'react-dom'
+import { requestNativeFileOpen } from '../lib/file-actions'
 import { useWorkspaceFilesHost, workspaceFilesKey } from './WorkspaceFilesContext'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import {
@@ -3596,7 +3597,7 @@ export function WorkspaceEditor({
                 type="button"
                 className="workspace-editor-expand-button"
                 onClick={() => {
-                  void window.agentsDock.files.open(session.id, file.artifact as AgentFile).catch(error => {
+                  void requestNativeFileOpen(session.id, file.artifact as AgentFile).catch(error => {
                     updateFile(file.path, current => ({ ...current, error: errorMessage(error) }))
                   })
                 }}

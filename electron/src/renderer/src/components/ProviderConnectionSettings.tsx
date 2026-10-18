@@ -95,7 +95,7 @@ export function ProviderConnectionSettings({ backend, ...props }: Props & { back
       api_key: key.current?.value ?? '', expected_revision: saved.revision } : { expected_revision: saved.revision }
     try {
       const reply = await trackOperation(action === 'save' ? 'provider_connection_saved' : action === 'check' ? 'provider_connection_tested' : 'provider_connection_forgotten',
-        () => request(scope, backend, action, input), value => value.ok !== false)
+        () => request(scope, backend, action, input), value => value.ok !== false, { backend })
       if (!owns(n, scope)) return
       if (reply.configuration) setSaved(reply.configuration)
       if (reply.status === 'model_required' && reply.configuration?.configured) setOpen(false)

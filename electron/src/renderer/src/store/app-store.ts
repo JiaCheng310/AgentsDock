@@ -18,6 +18,7 @@ import { agentFileBelongsToSession, isolateSessionEvent, isolateSessionSnapshot 
 import { isImportedClaudeControlCompanion, isImportedCodexRuntimeContext, isImportedHistoryRecord, isImportedProviderControlMetadata, isImportedProviderInterruption, mergeProviderInterruptionEvent } from '@shared/provider-origin'
 import { isReasoningSummaryStream } from '@shared/reasoning-stream'
 import { trackEvent } from '../lib/analytics'
+import { isImportedAPIConnection, trackConfirmedSessionChange } from '../lib/session-analytics'
 import { secureRandomUUID } from '../lib/browser-crypto'
 import { nudgeChatFontSize, setChatFontFamily, setChatFontSize } from '../lib/chat-font'
 import { activeEmergencyAlert } from '../lib/emergency-alert'
@@ -1217,6 +1218,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const requestEpoch = ++profileSwitchEpoch
+    trackEvent('server_restart_requested')
     try {
       const payload = forceConfirmation
         ? await window.agentsDock.servers.restart(scope, expectedServerInstanceId, forceConfirmation)
@@ -1234,9 +1236,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       updateBadge(payload.sessions)
       workspaceTransition.follow(refreshProfileAfterBootstrap(payload.activeProfileId, payload.profileGeneration, get, set))
       await hydrateVisibleChatPanes(get)
+      if (intent === profileSwitchIntent && requestEpoch === profileSwitchEpoch) trackEvent('server_restart_reconnected', { success: true })
       return true
     } catch (error) {
       if (intent === profileSwitchIntent && requestEpoch === profileSwitchEpoch) {
+        trackEvent('server_restart_reconnected', { success: false })
         set({ switchingProfileId: null, mailHints: consumeBufferedMailHints({ ...get(), switchingProfileId: null }, get().mailHints), error: errorMessage(error) })
         throw error
       }
@@ -1952,8 +1956,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const responseQueued = Boolean(response.queued || response.queued_id || response.event?.type === 'turn_queued')
       // Use the server receipt, not the optimistic busy state. A queue request
       // can start immediately and steering can require a second admission.
-      if (responseQueued) trackEvent('message_queued')
-      else if (steer) trackEvent('message_steered')
+      if (responseQueued) trackEvent('message_queued', { backend: session?.backend })
+      else if (steer) trackEvent('message_steered', { backend: session?.backend })
       set(state => {
         const snapshot = state.snapshots[sessionId]
         const authoritativeQueuedReceipt = Boolean(
@@ -2003,7 +2007,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const turns = await steerQueuedTurn(steeringScope, queuedId, options?.confirmSteer)
           if (!profileScopeMatches(scope, get())) return false
           get().applyQueuedTurnsResponse(sessionId, request, turns)
-          trackEvent('message_steered')
+          trackEvent('message_steered', { backend: session?.backend })
         } catch (error) {
           if (!isSteeringCancellation(error) && profileScopeMatches(scope, get())) set({ error: errorMessage(error) })
         }
@@ -2208,7 +2212,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       const session = await window.agentsDock.sessions.create(input)
       if (!workspaceScopeMatches(preferenceScope, get()) || !profileScopeMatches(profileScope, get())) return
-      trackEvent('chat_created')
+      trackEvent('chat_created', { backend: session.backend })
       await Promise.all([
         saveNewChatDefaults(preferenceScope, input),
         markNewChatPlaceholder(preferenceScope, session)
@@ -2250,8 +2254,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         const updatedCwd = updated.cwd?.trim() || ''
         if (previousCwd !== updatedCwd) trackEvent('working_directory_changed')
       }
+      if (previousSession) trackConfirmedSessionChange(previousSession, patch, updated)
+      if (isImportedAPIConnection(previousSession, patch)) trackEvent('imported_chat_api_connected', {
+        backend: 'gemini', success: updated.provider_connection === 'custom'
+      })
     } catch (error) {
       if (!profileScopeMatches(scope, get())) return
+      if (isImportedAPIConnection(previousSession, patch)) trackEvent('imported_chat_api_connected', { backend: 'gemini', success: false })
       const pending = pendingSessionPatches.get(sessionId)
       if (pending?.version === version) {
         pendingSessionPatches.delete(sessionId)
