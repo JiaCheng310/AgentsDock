@@ -158,6 +158,45 @@ jobs:
           tmux set-environment -g NO_PROXY "$NO_PROXY"
           tmux set-environment -g no_proxy "$NO_PROXY"
           test "$(tmux show-environment -g SSL_CERT_FILE)" = "SSL_CERT_FILE=$network/trust-bundle.pem"
+      - name: Probe the exact npm route from detached Python
+        run: |
+          set -euo pipefail
+          network="$RUNNER_TEMP/coordinated-network"
+          cat > "$network/registry-probe.py" <<'PY'
+          import urllib.request
+          import sys
+
+          url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.3.tgz'
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  raise RuntimeError('redirected')
+          try:
+              request = urllib.request.Request(url, headers={'Range': 'bytes=0-0'})
+              with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
+                  if response.status != 206 or len(response.read(2)) != 1:
+                      raise RuntimeError('unexpected response shape')
+              print('detached-registry-probe-ok')
+          except Exception as error:
+              reason = getattr(error, 'reason', None)
+              print('detached-registry-probe-failed', type(error).__name__,
+                    'http=', getattr(error, 'code', None),
+                    'reason=', type(reason).__name__,
+                    'errno=', getattr(reason, 'errno', None),
+                    'verify=', getattr(reason, 'verify_code', None))
+              sys.exit(1)
+          PY
+          python_bin="$(uv python find 3.13)"
+          printf -v probe_command '%q %q > %q 2>&1; printf %%s $? > %q' \
+            "$python_bin" "$network/registry-probe.py" \
+            "$network/registry-probe.result" "$network/registry-probe.exit"
+          tmux new-session -d -s agentsdock-update-replay-probe "$probe_command"
+          for attempt in {1..30}; do
+            if [[ -f "$network/registry-probe.exit" ]]; then break; fi
+            sleep 1
+          done
+          test -f "$network/registry-probe.exit"
+          cat "$network/registry-probe.result"
+          test "$(cat "$network/registry-probe.exit")" = 0
       - name: Click real Update AgentsDock and verify Server first, App second
         run: node scripts/coordinated-update-test-journey.mjs "$RUNNER_TEMP/candidates"
       - name: Remove only this runner's owned routing and trust
