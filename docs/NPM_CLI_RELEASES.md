@@ -6,7 +6,7 @@ committed source snapshot and one public version; the CLI dependency must be
 `"@agentsdock/server": "VERSION"`, never a range or floating tag. The desktop
 continues to pin the signed runtime descriptor, not a floating npm channel.
 
-## 1.0.11-beta.2 accepted candidate, publication pending
+## 1.0.11-beta.2 public completion
 
 Product source `853dcd285ef442176370632149deba21ef732eda` is frozen. The reviewed
 orchestrator `197f07b9ca949c1a81441d18b46a048764d6dd2d` changes only release
@@ -16,15 +16,22 @@ passes on macOS and Linux; the signed macOS app also passes real Gemini
 API/CLI conversation, automatic-title and reload acceptance against the exact
 packaged server. See the [development log](DEV_LOG.md) for scope and limits.
 
-[Paired publication 39103091104](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
+Attempt 1 of [paired publication 39103091104](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
 accepted the runtime upload through OIDC, then exhausted 61 read-only registry
-checks without finding the exact public runtime. The short CLI has not been
-uploaded. Both public `beta`
-tags remain `1.0.11-beta.1`, and both `latest` tags remain `1.0.10` at this check.
-Never re-upload the pending version or change its accepted bytes. Once it is
-public, continue with unchanged pins; the verifier skips the existing runtime
-and publishes the matching CLI. Desktop and the legacy bridge stay private
-until the paired registry verification succeeds.
+checks before it became public. On 2026-10-18 UTC, attempt 2 verified and skipped
+that unchanged runtime, published the accepted short CLI through its own
+Trusted Publisher, and verified both exact public archives. Both `beta` tags
+now resolve to `1.0.11-beta.2`; both stable `latest` tags remain `1.0.10`.
+A fresh isolated scripts-disabled registry installation verifies the matched
+versions, exact runtime dependency and CLI help without operating any service.
+
+The signed legacy server bridge, canonical desktop and compatibility mirror
+are public. [Desktop publication 39177990728](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39177990728)
+reverified all four native platforms before publishing the unchanged build 1261.
+The original product source, accepted archives and checksum manifest remain
+frozen; later documentation commits are not new artifact sources. Keep the
+documented native UI, clean-quit and upgrade acceptance limits distinct from
+successful publication. See the [development log](DEV_LOG.md).
 
 ## 1.0.11-beta.1 public completion
 

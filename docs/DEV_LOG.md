@@ -1,5 +1,30 @@
 # Public development log
 
+## 2026-10-18 — Publish 1.0.11-beta.2
+
+- Complete [paired npm publication, attempt 2](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
+  after the accepted runtime becomes publicly available. Verify and skip that
+  unchanged runtime, publish the exact matching CLI through its separate Trusted
+  Publisher, and verify both public archives. Both `beta` tags now resolve to
+  `1.0.11-beta.2`; both stable `latest` tags remain `1.0.10`.
+- A fresh isolated registry installation with setup scripts disabled resolves
+  the matched CLI/runtime pair and exact dependency, and exercises command help
+  without operating existing services. Native first-install and lifecycle
+  acceptance remains the separately recorded candidate check below.
+- [Desktop publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39177990728)
+  passes all four native platform verifiers and publishes the
+  [canonical beta](https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.11-beta.2)
+  and [compatibility mirror](https://github.com/ZhengyiLuo/AgentsDock-Releases/releases/tag/v1.0.11-beta.2).
+  The signed [legacy server bridge](https://github.com/ZhengyiLuo/AgentsServer/releases/tag/v1.0.11-beta.2)
+  is public as well. Preserve product source
+  `853dcd285ef442176370632149deba21ef732eda`, native build 1261 and asset-manifest
+  digest `bff0ef6024feb840c7b8e9d1a8c84817b775fc1c23711aa3f29132c96e71ec8c`.
+  No accepted artifact was rebuilt, repacked or replaced.
+- Keep stable releases, mobile builds and existing installations unchanged.
+  Retain the disclosed clean-quit, unsigned Windows, native Windows/Linux UI,
+  populated-history/busy-upgrade and logout/reboot limits. Gemini is included
+  for desktop/server API connections, not mobile or Google/CLI sign-in.
+
 ## 2026-10-18 — Accept the 1.0.11-beta.2 candidate
 
 - Freeze product source `853dcd285ef442176370632149deba21ef732eda`, native
@@ -23,10 +48,10 @@
   passes on macOS and Linux, including first setup, exact runtime inventory,
   default/named lifecycle, repeat installation and preserved state on removal.
 - [Paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
-  accepted the runtime upload, then exhausted 61 read-only visibility checks.
-  Public registry availability and the short CLI upload are still pending.
-  Desktop and legacy bridge remain private drafts.
-  This is candidate acceptance, not a completed public release. Mobile Gemini,
+  initially accepted the runtime upload, then exhausted 61 read-only visibility
+  checks. At candidate acceptance, the CLI upload and public desktop/bridge
+  release remained pending; the completion receipt above supersedes that state.
+  Candidate acceptance alone was not a completed public release. Mobile Gemini,
   unsigned Windows warnings, native Windows/Linux UI, populated-history/busy
   upgrades and logout/reboot remain the disclosed boundaries.
 
