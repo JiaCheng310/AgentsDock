@@ -43,11 +43,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/candidates/a" "$RUNNER_TEMP/candidates/b"
-          for entry in a:1.0.11-beta.2:39086604218:39086491615 b:1.0.11-beta.3:39086616600:39086563673; do
+          for entry in a:1.0.11-beta.4:39096770741:39092938078 b:1.0.11-beta.5:39097133968:39092939518; do
             IFS=: read -r letter version desktop_run signing_run <<< "$entry"
             destination="$RUNNER_TEMP/candidates/$letter"
+            desktop_artifact="AgentsDock-$version-macos-replay-zip"
             gh run download "$desktop_run" --repo ZhengyiLuo/AgentsDock \
-              --name "AgentsDock-$version-macos-verified" --dir "$destination"
+              --name "$desktop_artifact" --dir "$destination"
             gh run download "$signing_run" --repo ZhengyiLuo/AgentsServer \
               --dir "$RUNNER_TEMP/signer-$letter"
             signed=("$RUNNER_TEMP/signer-$letter"/signed-npm-server-*)
@@ -166,7 +167,7 @@ jobs:
           import urllib.request
           import sys
 
-          url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.3.tgz'
+          url = 'https://registry.npmjs.org/@agentsdock/server/-/server-1.0.11-beta.5.tgz'
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   raise RuntimeError('redirected')

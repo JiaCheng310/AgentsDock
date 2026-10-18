@@ -10,8 +10,10 @@ import { join, relative, resolve } from 'node:path'
 import { appVersion, connect, freePort, hashFile, openMigrationUpdateSettings,
   processesFor, stopOwned, until, verifyApp } from './verify_electron_migration.mjs'
 
-const VERSION_A = '1.0.11-beta.2'
-const VERSION_B = '1.0.11-beta.3'
+const VERSION_A = '1.0.11-beta.4'
+const VERSION_B = '1.0.11-beta.5'
+const BUILD_A = '1258'
+const BUILD_B = '1259'
 const PROFILE = 'coordinated-update-replay'
 const SERVICE = 'com.zhengyiluo.AgentsDock'
 const ACCOUNT = `agent-access-token:${PROFILE}`
@@ -33,8 +35,8 @@ const logs = createWriteStream(join(work, 'private-native.log'), { flags: 'wx', 
 const childEnv = { ...process.env, AGENTSDOCK_DISABLE_ANALYTICS: '1',
   npm_config_cache: join(work, 'npm-cache'), UV_CACHE_DIR: join(work, 'uv-cache') }
 const report = { kind: 'unpublished-native-update-replay', from: VERSION_A, to: VERSION_B,
-  sourceA: 'a5cadf72c125f1bd0a2c8c2ab2409ed4cfd5d8cd',
-  sourceB: '9ef456a8613b019fd30b4bd5d2aee61b69538b73',
+  sourceA: 'a98c862cb1cfd6ef60100109f0b7e41c8fd64ca8',
+  sourceB: 'c683676b1464685e23e05663a70bd1ab119270bd',
   testSurface: 'GitHub-hosted macOS native app and managed server',
   providerChat: 'not exercised', phases: [] }
 const phase = name => { report.phases.push(name); process.stdout.write(`${name}\n`) }
@@ -91,6 +93,9 @@ try {
     executePrivate('/usr/bin/ditto', ['-x', '-k', join(root, letter, `AgentsDock-${version}-mac-universal.zip`), destination])
     const app = join(destination, 'AgentsDock.app')
     verifyApp(app, version)
+    const build = execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleVersion',
+      join(app, 'Contents/Info.plist')], { encoding: 'utf8', timeout: 5_000 }).trim()
+    assert(build === (letter === 'a' ? BUILD_A : BUILD_B), 'Native build reservation differs from the frozen replay pair.')
     for (const name of ['agents-server-npm-manifest.json', 'agents-server-npm-manifest.sig']) {
       assert(readFileSync(join(app, 'Contents/Resources/coordinated-release', name))
         .equals(readFileSync(join(root, letter, name))),
