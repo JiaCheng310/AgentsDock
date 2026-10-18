@@ -40,14 +40,15 @@ function clearLegacyMixpanelPersistence(): void {
 }
 
 export function getAnalyticsConsentDecision(): AnalyticsConsentDecision {
+  // Shared web installs its restricted bridge after module imports. Recheck
+  // this boundary on every event, even if an early import cached "granted".
+  // CI's disposable packaged-app smoke profiles use the same disabled flag.
+  if (window.agentsDock?.native?.analyticsDisabled) {
+    if (runtimeDecision !== 'denied') clearAnalyticsIdentifier()
+    runtimeDecision = 'denied'
+    return 'denied'
+  }
   if (!runtimeDecision) {
-    // CI's packaged-app smoke-test launches run the real binary with a
-    // fresh, disposable user-data directory on every run, so they would
-    // otherwise mint and report a brand-new anonymous install id each time.
-    if (window.agentsDock?.native?.analyticsDisabled) {
-      runtimeDecision = 'denied'
-      return runtimeDecision
-    }
     try {
       const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY)
       // Anonymous aggregate analytics is enabled by default. Preserve an
@@ -127,6 +128,8 @@ export const ANALYTICS_EVENTS = [
   'chat_resumed',
   'chat_opened',
   'chat_share_opened',
+  'chat_share_snapshot_selected',
+  'chat_share_interactive_selected',
   'chat_share_snapshot_created',
   'chat_share_interactive_created',
   'chat_share_revoked',

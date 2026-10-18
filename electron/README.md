@@ -4,6 +4,24 @@ This directory contains the cross-platform AgentsDock desktop client for
 macOS, Linux, and Windows. The Swift macOS, iOS, and iPadOS applications remain
 in the repository and are not overwritten by the Electron development build.
 
+## Shared-chat analytics bundles
+
+The shared browser keeps generic desktop analytics disabled. Three narrowly
+scoped browser events are documented in `docs/ANALYTICS_EVENTS.md`. Regenerate
+both served artifacts after changing the shared tracker/bridge (from repo root):
+
+```bash
+cd electron
+pnpm exec vite build --config vite.shared-chat.config.ts
+pnpm exec vite build --config vite.share-analytics.config.ts
+cd ..
+node scripts/package_shared_chat_web.mjs electron/out/shared-chat server/interactive_chat_share_web.py
+node scripts/package_shared_chat_analytics.mjs electron/out/share-analytics/snapshot-analytics.js server/shared_chat_analytics_web.py
+```
+
+These generate source artifacts only; server deployment requires separate
+authorization. Read-only pages authorize only the exact bundled script hash.
+
 ## Local build
 
 From the repository root:

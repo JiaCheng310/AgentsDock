@@ -1,6 +1,7 @@
 import type { AgentsDockAPI } from '@shared/ipc'
 import { secureRandomUUID } from '../lib/browser-crypto'
 import { copySharedChatText } from './clipboard'
+import { trackSharedChatEvent } from './analytics'
 import { isSharedFileId, isSharedVideoId, projectSharedVideoEvents } from './videos'
 import type { AgentFile, AppEventMap, ClaudeRuntimeSnapshot, CodexGoalSnapshot, CodexRuntimeSnapshot, Event, Health, Job, LanguageSettingsSnapshot, NativeFileRef, QueuedTurn, RuntimeCatalog, Session, SessionSnapshot, TimelinePage, TimelineTracePage, ViewState } from '@shared/types'
 
@@ -147,6 +148,7 @@ export function createSharedChatBridge(
     }
     state = discoveredCatalog ? { ...next, runtime_catalog: discoveredCatalog } : next
     receive(state)
+    trackSharedChatEvent('shared_chat_interactive_activated', prefix)
     emit('server:sessions', { profileId: 'shared-chat', profileGeneration: 1, serverIdentity: prefix, sessions: [next.session] })
     if (next.session.backend === 'codex' || next.session.backend === 'claude') emit('server:provider-runtime', {
       profileId: 'shared-chat', profileGeneration: 1, serverIdentity: prefix,
@@ -279,6 +281,9 @@ export function createSharedChatBridge(
       const result = await write('/prompts', { method: 'POST', body: JSON.stringify({ prompt: input.prompt, upload_ids: input.fileIds, request_id: requestId }) }, value =>
         value?.accepted === true && value.request_id === requestId && typeof value.queued === 'boolean'
         && (value.queued ? typeof value.queued_id === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(value.queued_id) : value.queued_id === undefined))
+      // Count only a validated server acceptance, before optional refresh can
+      // fail. The tab-local receipt marker also excludes replayed acknowledgments.
+      trackSharedChatEvent('shared_chat_message_sent', prefix, requestId)
       await reconcileAccepted()
       return { ...result, session: current().session }
     }, stop: async (id: string) => { exact(id); return action('turn.stop') } },

@@ -1,10 +1,10 @@
-# Electron usage analytics
+# Desktop and shared-chat usage analytics
 
-This catalog documents every product-usage event emitted by the Electron app. Events measure whether a feature was used; they must not describe the user's content or identity.
+This catalog documents product-usage events emitted by the Electron app and the limited shared-chat browser tracker. Events measure whether a feature was used; they must not describe the user's content or identity.
 
 ## Privacy contract
 
-Every event has the same small app-owned envelope:
+Every desktop event has the same small app-owned envelope:
 
 - a random per-install identifier used for aggregate unique-install and retention counts;
 - a coarse platform value: `mac`, `windows`, `linux`, or `desktop`;
@@ -27,6 +27,8 @@ Never add message or prompt text, chat/job/agent/folder names, skill or command 
 | `split_view_opened` | The chat layout transitions from one visible chat to two distinct visible chats. Replacing a chat in an already-open split does not count. | None |
 | `chat_forked` | Creating a fork of an existing chat succeeds. | None |
 | `chat_share_opened` | The sharing dialog opens for a valid chat in the active server workspace. | None |
+| `chat_share_snapshot_selected` | The user chooses View only, before creation/address validation. A failed creation still counts as a selection. Disabled/re-entrant clicks do not count. | None |
+| `chat_share_interactive_selected` | The user chooses Interactive, before creation/address validation. A failed creation still counts as a selection. Disabled/re-entrant clicks do not count. | None |
 | `chat_share_snapshot_created` | Creating a view-only chat snapshot succeeds. Clipboard or browser-opening failures after creation do not change this outcome. | None |
 | `chat_share_interactive_created` | Creating an interactive shared-chat session succeeds. Clipboard or browser-opening failures after creation do not change this outcome. | None |
 | `chat_share_revoked` | Revoking an existing snapshot or interactive share succeeds. | None |
@@ -121,7 +123,7 @@ Never add message or prompt text, chat/job/agent/folder names, skill or command 
 | `server_update_cancelled` | A user's explicit queued-update cancellation request settles. | `success` |
 | `server_update_retry_requested` | The user requests retry for a coordinated server update. | None |
 
-Shared-chat browser views and iOS/iPadOS intentionally send no analytics. This desktop addition does not enable them, add Team Network events, or infer agent-to-agent delivery/read/reply from reference submission. No background snapshots, replayed history, streamed tokens, or typing are counted by the new events.
+iOS/iPadOS analytics remain disabled. Team Network instrumentation is unchanged. Chat-reference submission is not proof of agent-to-agent delivery/read/reply. No background history, streamed tokens, or typing are counted.
 
 ### Server connections
 
@@ -130,6 +132,22 @@ Shared-chat browser views and iOS/iPadOS intentionally send no analytics. This d
 | `connection_tested` | A server connection test finishes. | `success` |
 | `server_added` | Adding a server profile finishes. | `success` |
 | `server_switched` | Explicitly switching to a server from Settings or the sidebar finishes. Automatic and superseded switches do not count. | `success` |
+
+## Shared-browser events
+
+The shared page keeps generic desktop analytics disabled. A separate fixed allowlist emits only these three events; no caller-supplied properties are accepted.
+
+| Event | Emitted when | Event-specific properties |
+| --- | --- | --- |
+| `shared_chat_snapshot_activated` | A valid read-only transcript is rendered after access is authenticated. Not the token form, HEAD requests, redirects, errors or link previews without authentication. | None |
+| `shared_chat_interactive_activated` | An authenticated interactive state is accepted and applied to the page. Not the empty app shell or token redemption alone. | None |
+| `shared_chat_message_sent` | The interactive prompt endpoint returns a validated acceptance receipt, including accepted queued messages. Refused or unconfirmed submissions do not count; agent completion is not implied. | None |
+
+The browser payload contains only the event name, project token, timestamp, `platform: shared_web`, and an empty `distinct_id`. It creates no persistent visitor identifier and does not send share/session/request IDs, their hashes, URLs, access tokens, titles, message text, files or identities. Requests omit credentials and referrers and use `ip=0` to disable IP geolocation. Normal network metadata such as IP and Origin is still visible to the receiving service; this is not a promise of network anonymity. There is no SDK, autocapture or session replay.
+
+One-way deduplication markers stay in tab-scoped sessionStorage. Reloading, pagination, reconnecting and accepted-receipt replay in the same tab do not count again. A new tab/browser can count again: activation does not prove a different person, and these unlinked events cannot form a per-user cross-device funnel. Read-only legacy token links and separate-token links have separate local markers. Browser privacy controls (DNT/GPC), an existing same-origin opt-out, or unavailable storage suppress tracking. Best-effort delivery has no retry and can undercount; after 4,096 tab markers, further events are skipped instead of evicting and recounting earlier ones.
+
+The snapshot page allows only its exact compiled analytics script via a CSP hash and the Mixpanel connection destination. Other scripts remain blocked; unlock forms and error pages remain scriptless. Interactive pages retain their restricted bridge. Deploying source alone is not enough: the served shared-web bundle and snapshot script must be regenerated and included in the server release.
 
 ## Cleanup notes
 

@@ -4645,6 +4645,29 @@ describe('Composer', () => {
     confirm.mockRestore()
   })
 
+  it.each(['feedback', 'issue', 'bug'])('opens the public AgentsDock issue form from /%s without sending a chat message', async query => {
+    const openExternal = vi.fn().mockResolvedValue(undefined)
+    const send = vi.fn()
+    Object.defineProperty(window, 'agentsDock', {
+      configurable: true,
+      value: {
+        preferences: { get: vi.fn().mockResolvedValue(''), set: vi.fn().mockResolvedValue(undefined) },
+        native: { openExternal },
+        turns: { send }
+      } as unknown as AgentsDockAPI
+    })
+    const user = userEvent.setup()
+    render(<Composer />)
+    const editor = screen.getByPlaceholderText('Message')
+
+    await user.type(editor, `/${query}`)
+    await user.click(screen.getByRole('option', { name: /^Send feedback/ }))
+
+    expect(openExternal).toHaveBeenCalledExactlyOnceWith('https://github.com/ZhengyiLuo/AgentsDock/issues/new')
+    expect(send).not.toHaveBeenCalled()
+    expect(editor).toHaveValue('')
+  })
+
   it('exposes an accessible slash palette and filters commands by provider and server capability', async () => {
     Object.defineProperty(window, 'agentsDock', {
       configurable: true,
