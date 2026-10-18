@@ -1,10 +1,12 @@
 # Public development log
 
-## 2026-10-18 — Steer running Codex goals with skills and local chat mentions
+## 2026-10-18 — Allow ordinary chat mentions while steering Codex goals
 
 - Send selected native skills and local `@Chat` follow-ups into the current
   Codex goal turn. Preserve its native thread, running tools, goal and original
   chat access; add only the explicitly selected live chat routes after delivery.
+  Ordinary text with a local chat mention is a supported follow-up; it does not
+  need a skill or command. Saved chat routes also remain compatible with steering.
 - Bind provider tools from native goal activation to their exact live owner
   when Codex omits client metadata. Keep ordinary-turn proofs and rejection of
   stale, partial or ambiguous ownership. Preserve selected skills in durable
@@ -26,6 +28,11 @@
   Team/remote mentions and legacy/internal deliveries remain separate-turn
   operations. Live mailbox sends, cross-device and custom-endpoint provider
   acceptance are outside these checks. Source only; no release or deployment.
+- Additional regression: an ordinary local mention with five saved routes and
+  no skill or special-purpose metadata fails the old admission guard and passes
+  the updated guard. Plain-text controls pass both. The full admission suite
+  passes 35 tests; native-turn projection passes 14 tests after completing its
+  isolated cleanup fixture dependency and asserting capability revocation.
 
 ## 2026-10-17 — Refresh privacy-limited desktop and sharing metrics
 
