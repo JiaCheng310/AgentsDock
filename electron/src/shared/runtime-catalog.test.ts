@@ -17,8 +17,33 @@ import {
   runtimeDiagnosticNeedsAttention,
   runtimeModelLockReason,
   runtimeSelectionError,
+  runtimeSendAdmissionError,
   selectableChatBackends,
 } from './runtime-catalog'
+
+it('offers only Gemini API even when the server advertises cached Google login', () => {
+  const health: Health = { ok: true, capabilities: {
+    gemini_backend: { available: true, version: 1, required: false, message: 'Gemini API', action: null }, provider_connections_v1: { per_chat: true }
+  } }
+  const catalog: RuntimeCatalog = { backends: { gemini: {
+    models: [{ value: 'auto', label: 'Auto' }], efforts: [], native_credentials_present: true,
+    custom_provider: { configured: true, available: true, model: 'auto', base_url: 'https://example.test', models: [], efforts: [] }
+  } } }
+  expect(selectableChatBackendChoices(health, catalog)).toEqual(['gemini-custom'])
+  expect(runtimeSendAdmissionError(health, 'gemini', 'default')).toMatch(/API connections only/)
+  expect(runtimeSendAdmissionError(health, 'gemini', 'custom')).toBeNull()
+  // Existing native identity remains distinct; history is not silently rebound.
+  expect(chatBackendChoice({ backend: 'gemini', provider_connection: 'default' })).toBe('gemini')
+  expect(selectableChatBackendChoices({ ok: true }, catalog)).not.toContain('gemini-custom')
+  for (const custom_provider of [
+    { configured: false, available: false, model: null, base_url: null },
+    { configured: true, available: false, model: 'auto', base_url: 'https://example.test' },
+  ]) {
+    expect(selectableChatBackendChoices(health, { backends: { gemini: {
+      ...catalog.backends.gemini, custom_provider,
+    } } })).not.toContain('gemini-custom')
+  }
+})
 
 const validCatalog: RuntimeCatalog = {
   backends: {
@@ -477,5 +502,32 @@ describe('runtime diagnostics', () => {
     expect(runtimeDiagnosticNeedsAttention(diagnostic)).toBe(false)
     expect(runtimeDiagnosticLabel(diagnostic)).toBe('Ready')
     expect(runtimeDiagnosticCurrentError(diagnostic)).toBe('')
+  })
+})
+
+describe('auth-scoped retired model selections', () => {
+  const retired: RuntimeCatalog = { backends: { codex: {
+    models: [{ value: '', label: 'Server default' }, { value: 'gpt-5.5', label: 'GPT-5.5' }, { value: 'gpt-6-luna', label: 'GPT-6-Luna' }],
+    efforts: [{ value: 'high', label: 'High' }],
+    model_replacements: { 'gpt-5.5': 'gpt-6-luna' },
+    custom_provider: { configured: true, available: true, model: 'gpt-5.5', base_url: 'https://api.example/v1',
+      models: [{ value: 'gpt-5.5', label: 'GPT-5.5' }] }
+  } } }
+
+  it('does not reinsert a historical selection or trust a stale model option', () => {
+    const before = JSON.stringify(retired)
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'gpt-5.5').map(o => o.value)).toEqual(['', 'gpt-6-luna'])
+    expect(JSON.stringify(retired)).toBe(before)
+    expect(runtimeCatalogOptions(retired, 'codex', 'efforts', 'high')).toContainEqual({ value: 'high', label: 'High' })
+  })
+
+  it('keeps unknown models and native API-key models unless the server explicitly retires them', () => {
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'other-model').map(o => o.value)).toContain('other-model')
+    const api: RuntimeCatalog = { backends: { codex: { ...retired.backends.codex!, model_replacements: {} } } }
+    expect(runtimeCatalogOptions(api, 'codex', 'models', 'gpt-5.5').map(o => o.value)).toContain('gpt-5.5')
+  })
+
+  it('does not apply native ChatGPT retirement to custom endpoints', () => {
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'gpt-5.5', 'custom').map(o => o.value)).toContain('gpt-5.5')
   })
 })

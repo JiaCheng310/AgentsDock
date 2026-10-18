@@ -7,11 +7,13 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { AppTypographyProvider } from './src/components/AppText'
 import { AppShell } from './src/components/AppShell'
 import { trackEvent } from './src/lib/analytics'
+import { useAppearanceStore } from './src/store/useAppearanceStore'
 import { usePalette } from './src/theme'
 
 export default function App() {
   const colors = usePalette()
   useEffect(() => {
+    void useAppearanceStore.getState().hydrate()
     trackEvent('app_launched')
   }, [])
   return (

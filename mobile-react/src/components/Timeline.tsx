@@ -8,7 +8,7 @@ import { liveTimelineAdvanced, shouldShowTimelineLatest, timelineMaintainVisible
 import { mergeHistoryWithLiveSnapshot } from '../lib/timeline-memory'
 import { reuseStableTimelineRows } from '../lib/timeline-row-reuse'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { Loading } from './ui'
 import { TimelineRowView } from './TimelineRows'
@@ -456,12 +456,12 @@ function timelineRowType(row: TimelineRow): string {
 function Separator() { return <View style={{ height: 10 }} /> }
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  older: { minHeight: 44, marginHorizontal: 14, marginBottom: 10, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  older: { minHeight: 44, marginHorizontal: 14, marginBottom: 10, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   empty: { minHeight: 220, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 15, fontWeight: '800', marginBottom: 7 },
   emptyDetail: { fontSize: 12, lineHeight: 17, textAlign: 'center', maxWidth: 360 },
-  retry: { marginTop: 14, minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  bottom: { position: 'absolute', right: 17, minWidth: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  retry: { marginTop: 14, minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  bottom: { position: 'absolute', right: 17, minWidth: 44, height: 44, borderRadius: radius.round, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   bottomIcon: { width: 44 },
   bottomLatest: { paddingHorizontal: 13, flexDirection: 'row', gap: 6 },
   bottomLabel: { fontSize: 12, fontWeight: '800' },

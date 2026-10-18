@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { DateTimePicker } from '@expo/ui/community/datetime-picker'
 import * as Clipboard from 'expo-clipboard'
-import { Calendar, Check, ChevronDown, Clock, Copy, ExternalLink, KeyRound, Minus, Network, Plus, Search, Server, SquareTerminal, type LucideIcon } from 'lucide-react-native'
+import { ArrowLeft, Calendar, Check, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, KeyRound, MessageSquare, Minus, Monitor, Moon, Network, Plus, Search, Server, ShieldCheck, SquareTerminal, Sun, SunMoon, type LucideIcon } from 'lucide-react-native'
 import type { AgentServerClient } from '../api/AgentServerClient'
 import { defaultScheduleWallTime, effectiveScheduleKind, formatScheduleWallTime, JOB_INTERVAL_PRESETS_SECONDS, jobLoopsForever, jobNextRunUpdatePatch, jobScheduleFields, jobScheduleUpdatePatch, mergeScheduleWallTimePickerValue, parseScheduleWallTime, scheduleWallTimeAndroidDatePickerDate, scheduleWallTimePickerDate, type JobStartMode, validateJobNextRun, validateJobSchedule } from '../lib/job-schedule'
 import { AGENTS_SERVER_REPOSITORY_URL } from '../lib/server-setup'
@@ -12,18 +12,21 @@ import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { backendLabel } from '../lib/format'
 import { serverSearchQuery } from '../lib/server-search'
 import { APP_FONT_SCALE_MAX, APP_FONT_SCALE_MIN, APP_FONT_SCALE_STEP } from '../lib/typography'
+import { tailscaleServerHost } from '../lib/settings-agents'
 import { orderedSessionSections } from '../lib/session-order'
 import { runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeSelectionError, selectableChatBackends } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendLabel, chatBackendSelection, isCustomProvider, providerRuntimeCatalog, selectableChatBackendChoices } from '../lib/provider-selection'
 import { chatMentionTrigger, insertChatReference, parseStoredChatReferences, reconcileChatReferences, supportedCrossChatTargetBackends, type ChatMentionTrigger } from '../lib/chat-references'
 import { MAX_SCHEDULED_CHAT_REFERENCES, normalizeScheduledJobChatReferences, scheduledJobChatReferencesForWrite, scheduledJobRouteHintsAvailable } from '../lib/scheduled-job-chat-references'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { useAppearanceStore, type ThemePreference } from '../store/useAppearanceStore'
+import { radius, spacing, typography, usePalette } from '../theme'
 import type { Backend, ChatReference, CreateJobInput, JobContextMode, JobScheduleKind, RuntimeOption, Session, TimelineSearchResult, UpdateJobInput } from '../types'
 import { Text, TextInput } from './AppText'
 import { BackendMark } from './BackendMark'
+import { AgentPicker } from './AgentPicker'
 import { IconButton, SheetCloseButton } from './ui'
-import { RuntimeHealthPanel } from './RuntimeHealth'
-import { CodexServerSettings } from './CodexServerSettings'
+import { MyAgentsSettings } from './MyAgentsSettings'
 import appConfig from '../../app.json'
 import { AndroidUpdateSettings } from './AndroidUpdater'
 import { AnalyticsSettings } from './AnalyticsSettings'
@@ -52,8 +55,8 @@ export function ServerSetupDialog({
     </View>
     <View style={styles.setupSteps}>
       <SetupStep icon={SquareTerminal} text="Install AgentsServer on a Mac or Linux host with the Codex or Claude Code CLI." />
-      <SetupStep icon={Network} text="Make port 7850 reachable over your private LAN or Tailscale network." />
-      <SetupStep icon={KeyRound} text="Enter its address and access token in connection settings." />
+      <SetupStep icon={Network} text="Make your server reachable over the same Wi-Fi or private Tailscale network." />
+      <SetupStep icon={KeyRound} text="Enter the server address and access token in connection settings." />
     </View>
     <Pressable
       testID="server-setup-guide"
@@ -78,52 +81,98 @@ function openPrivacyPolicy(): void {
   void Linking.openURL(PRIVACY_POLICY_URL).catch(() => undefined)
 }
 
-export function SettingsDialog({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }: { visible: boolean; onClose: () => void; onOpenServers: () => void; onDidDismiss?: () => void }) {
   const colors = usePalette()
-  const currentURL = useAppStore(state => state.serverURL)
-  const currentToken = useAppStore(state => state.token)
-  const connecting = useAppStore(state => state.connecting)
   const fontScale = useAppStore(state => state.fontScale)
-  const apply = useAppStore(state => state.applySettings)
   const setFontScale = useAppStore(state => state.setFontScale)
   const health = useAppStore(state => state.health)
   const runtime = useAppStore(state => state.runtime)
+  const serverName = useAppStore(state => state.profiles.find(profile => profile.id === state.activeProfileId)?.name)
+  const serverURL = useAppStore(state => state.serverURL)
+  const connected = useAppStore(state => state.connected && !state.connecting && !state.switchingProfileId && !state.workspaceAdopting)
   const chatDefaults = useAppStore(state => state.chatDefaults)
   const setChatDefaults = useAppStore(state => state.setChatDefaults)
-  const [url, setURL] = useState(currentURL)
-  const [token, setToken] = useState(currentToken)
+  const themePreference = useAppearanceStore(state => state.preference)
+  const setThemePreference = useAppearanceStore(state => state.setPreference)
+  const themeError = useAppearanceStore(state => state.error)
+  const [page, setPage] = useState<SettingsPage>('home')
   const [defaultFolder, setDefaultFolder] = useState(chatDefaults.folder)
   const [defaultCwd, setDefaultCwd] = useState(chatDefaults.cwd)
+  useEffect(() => { if (!visible) setPage('home') }, [visible])
   useEffect(() => {
     if (!visible) return
-    setURL(currentURL)
-    setToken(currentToken)
     setDefaultFolder(chatDefaults.folder)
     setDefaultCwd(chatDefaults.cwd)
-  }, [chatDefaults.cwd, chatDefaults.folder, currentToken, currentURL, visible])
+  }, [chatDefaults.cwd, chatDefaults.folder, visible])
+  const leavePage = () => {
+    if (page === 'chats') setChatDefaults({ folder: defaultFolder.trim() || 'General', cwd: defaultCwd.trim() })
+    dismissAppKeyboard()
+  }
+  const back = () => { leavePage(); setPage('home') }
+  const close = () => { leavePage(); onClose() }
   const defaultServerCwd = health?.default_cwd?.trim() ?? ''
-  const chatDefaultBackendOptions = selectableChatBackends(health)
-  const chatDefaultModelOptions = runtimeCatalogOptions(runtime, chatDefaults.backend, 'models', chatDefaults.model)
-  return <Sheet visible={visible} title="Settings" onClose={onClose}>
-    <AndroidUpdateSettings />
-    <RuntimeHealthPanel />
-    <CodexServerSettings visible={visible} />
-    <Label text="Server address" /><TextInput testID="settings-server-url" accessibilityLabel="Server address" value={url} onChangeText={setURL} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="100.x.y.z:7850" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} />
-    <Label text="Access token" /><TextInput testID="settings-access-token" accessibilityLabel="Access token" value={token} onChangeText={setToken} autoCapitalize="none" autoCorrect={false} secureTextEntry placeholder="Server token" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} />
-    <Text style={[styles.help, { color: colors.muted }]}>The address stays exactly as typed while editing. It is normalized only after Apply. HTTP is allowed for private LAN and Tailscale servers.</Text>
+  const chatDefaultBackendOptions = selectableChatBackendChoices(health, runtime)
+  const defaultChoice = chatBackendChoice(chatDefaults)
+  const defaultCatalog = providerRuntimeCatalog(runtime, chatDefaults)
+  const chatDefaultModelOptions = runtimeCatalogOptions(defaultCatalog, chatDefaults.backend, 'models', chatDefaults.model)
+  const tailscaleHost = connected ? tailscaleServerHost(serverURL) : null
+  return <Sheet visible={visible} title={settingsTitles[page]} onClose={close} onDidDismiss={onDidDismiss} onBack={page === 'home' ? undefined : back}>
+    {page === 'home' ? <View testID="settings-categories" style={styles.settingsCategories}>
+      <View>
+        <SettingsHeading title="App" />
+        <SettingsRow testID="settings-open-appearance" icon={SunMoon} title="Appearance" value={themeLabels[themePreference]} onPress={() => setPage('appearance')} />
+        <SettingsRow testID="settings-open-chats" icon={MessageSquare} title="New chat defaults" onPress={() => setPage('chats')} />
+      </View>
+      <View>
+        <SettingsHeading title="Server" />
+        <SettingsRow testID="settings-open-servers" icon={Server} title="Server" value={serverName} onPress={onOpenServers} />
+        <SettingsRow testID="settings-open-agents" icon={SquareTerminal} title="My agents" onPress={() => setPage('agents')} />
+        {tailscaleHost ? <View testID="settings-tailscale-server" style={[styles.settingsRow, { borderColor: colors.border }]}>
+          <Network size={20} color={colors.muted} />
+          <View style={styles.settingsNetworkCopy}>
+            <Text style={[typography.body, { color: colors.text }]}>Tailscale server</Text>
+            <Text selectable style={[typography.caption, { color: colors.muted }]}>{tailscaleHost}</Text>
+          </View>
+        </View> : null}
+      </View>
+      <View>
+        <SettingsHeading title="About" />
+        <SettingsRow testID="settings-open-privacy" icon={ShieldCheck} title="Privacy" external onPress={openPrivacyPolicy} />
+        {Platform.OS === 'android' ? <SettingsRow testID="settings-open-analytics" icon={ShieldCheck} title="Usage analytics" onPress={() => setPage('analytics')} /> : null}
+        {Platform.OS === 'android' ? <SettingsRow testID="settings-open-updates" icon={Download} title="App updates" onPress={() => setPage('updates')} /> : null}
+      </View>
+      <Text testID="settings-build" style={[styles.build, { color: colors.muted }]}>AgentsDock {appConfig.expo.version} · build {Platform.OS === 'android' ? appConfig.expo.android.versionCode : appConfig.expo.ios.buildNumber}</Text>
+    </View> : null}
+    {page === 'appearance' ? <>
+    <Label text="Theme" />
+    <View accessibilityRole="tablist" style={[styles.themeOptions, { backgroundColor: colors.raised }]}>
+      {themeOptions.map(({ value, icon: Icon }) => <Pressable key={value} testID={`settings-theme-${value}`} accessibilityRole="tab" accessibilityLabel={themeLabels[value]} accessibilityState={{ selected: themePreference === value }} onPress={() => void setThemePreference(value)} style={({ pressed }) => [styles.themeOption, { backgroundColor: themePreference === value ? colors.surface : 'transparent', opacity: pressed ? 0.65 : 1 }]}>
+        <Icon size={20} color={themePreference === value ? colors.blue : colors.muted} />
+        <Text style={[typography.label, styles.themeOptionText, { color: themePreference === value ? colors.text : colors.muted }]}>{themeLabels[value]}</Text>
+      </Pressable>)}
+    </View>
+    {themeError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.red }]}>{themeError}</Text> : null}
     <Label text="App text size" />
     <View style={[styles.fontScale, { backgroundColor: colors.raised, borderColor: colors.border }]}>
       <IconButton icon={Minus} disabled={fontScale <= APP_FONT_SCALE_MIN} label="Decrease app text size" onPress={() => setFontScale(fontScale - APP_FONT_SCALE_STEP)} />
       <View style={styles.fontScalePreview}>
         <Text style={[styles.fontScaleValue, { color: colors.muted }]}>{Math.round(fontScale * 100)}%</Text>
-        <Text style={{ color: colors.text, fontSize: 15.5, lineHeight: 21 }}>Navigation and chats resize immediately.</Text>
+        <Text style={[typography.body, { color: colors.text }]}>Navigation and chats resize immediately.</Text>
       </View>
       <IconButton icon={Plus} disabled={fontScale >= APP_FONT_SCALE_MAX} label="Increase app text size" onPress={() => setFontScale(fontScale + APP_FONT_SCALE_STEP)} />
     </View>
     <Text style={[styles.help, { color: colors.muted }]}>Applies to chats, navigation, settings, server management, and terminal text.</Text>
+    </> : null}
+    {page === 'chats' ? <>
     <Label text="New chat defaults" />
-    <View style={styles.segment}>{chatDefaultBackendOptions.map(value => { const unavailable = value === 'cursor' && Boolean(runtimeSelectionError(health, runtime, value)); return <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${backendLabel(value)}${unavailable ? ', unavailable' : ''}`} accessibilityState={{ selected: chatDefaults.backend === value, disabled: unavailable }} disabled={unavailable} onPress={() => setChatDefaults({ backend: value, model: '', effort: '' })} style={[styles.segmentButton, { backgroundColor: chatDefaults.backend === value ? colors.blue : colors.raised, opacity: unavailable ? 0.4 : 1 }]}><BackendMark backend={value} size={20} /><Text style={{ color: chatDefaults.backend === value ? 'white' : colors.text, fontWeight: '700' }}>{backendLabel(value)}</Text></Pressable> })}</View>
-    <Label text="Model" /><Select testID="settings-default-model" title="Choose model" value={chatDefaults.model} options={chatDefaultModelOptions} onChange={next => setChatDefaults({ model: next, effort: runtimeEffortAfterModelChange(runtime, chatDefaults.backend, next, chatDefaults.effort) ?? '' })} />
+    <AgentPicker testID="settings-default-agent" label={chatBackendLabel(defaultChoice)} value={defaultChoice} choices={chatDefaultBackendOptions} onChange={value => { if (chatDefaultBackendOptions.includes(value)) setChatDefaults({ ...chatBackendSelection(value), model: '', effort: '' }) }} style={[styles.select, { gap: spacing.sm, backgroundColor: colors.raised, borderColor: colors.border }]}>
+      <BackendMark backend={chatDefaults.backend} size={22} />
+      <Text style={[typography.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>{chatBackendLabel(defaultChoice)}</Text>
+      <ChevronDown size={15} color={colors.muted} />
+    </AgentPicker>
+    {!chatDefaultBackendOptions.includes(defaultChoice) ? <Text style={[styles.help, { color: colors.muted }]}>This agent is unavailable. Check My agents.</Text> : null}
+    <Label text="Model" /><Select testID="settings-default-model" title="Choose model" value={chatDefaults.model} options={chatDefaultModelOptions} onChange={next => setChatDefaults({ model: next, effort: runtimeEffortAfterModelChange(defaultCatalog, chatDefaults.backend, next, chatDefaults.effort) ?? '' })} />
+    {isCustomProvider(chatDefaults) ? <><Label text="Model ID (optional)" /><TextInput testID="settings-default-api-model" value={chatDefaults.model} onChangeText={model => setChatDefaults({ model, effort: '' })} autoCapitalize="none" autoCorrect={false} placeholder="Server default" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} /></> : null}
     <Label text="Folder" /><TextInput testID="settings-default-folder" accessibilityLabel="Default folder" value={defaultFolder} onChangeText={setDefaultFolder} onBlur={() => setChatDefaults({ folder: defaultFolder.trim() || 'General' })} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} />
     <Label text="Working directory" /><TextInput
       testID="settings-default-cwd"
@@ -138,14 +187,32 @@ export function SettingsDialog({ visible, onClose }: { visible: boolean; onClose
       style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]}
     />
     <Text style={[styles.help, { color: colors.muted }]}>The + button uses this backend and model with the last-opened chat’s folder and working directory. These location defaults apply when no chat is open.</Text>
-    <Label text="Privacy" />
-    <AnalyticsSettings visible={visible} />
-    <View style={styles.privacySettingsLinks}>
-      <Pressable testID="settings-privacy-policy" accessibilityRole="link" onPress={openPrivacyPolicy} style={({ pressed }) => [styles.privacyLink, { opacity: pressed ? 0.6 : 1 }]}><Text style={[styles.privacyLinkText, { color: colors.blue }]}>Privacy Policy</Text><ExternalLink size={13} color={colors.blue} /></Pressable>
-    </View>
-    <PrimaryButton testID="settings-apply" label={connecting ? 'Connecting…' : 'Apply & reconnect'} disabled={connecting || !url.trim()} onPress={() => void apply(url, token).then(onClose)} />
-    <Text testID="settings-build" style={[styles.build, { color: colors.muted }]}>AgentsDock {appConfig.expo.version} · build {Platform.OS === 'android' ? appConfig.expo.android.versionCode : appConfig.expo.ios.buildNumber}</Text>
+    </> : null}
+    {page === 'agents' ? <MyAgentsSettings /> : null}
+    {page === 'updates' && Platform.OS === 'android' ? <AndroidUpdateSettings /> : null}
+    {page === 'analytics' && Platform.OS === 'android' ? <AnalyticsSettings visible={visible} /> : null}
   </Sheet>
+}
+
+type SettingsPage = 'home' | 'appearance' | 'chats' | 'agents' | 'analytics' | 'updates'
+const settingsTitles: Record<SettingsPage, string> = { home: 'Settings', appearance: 'Appearance', chats: 'New chat defaults', agents: 'My agents', analytics: 'Usage analytics', updates: 'App updates' }
+const themeLabels: Record<ThemePreference, string> = { system: 'System', light: 'Light', dark: 'Dark' }
+const themeOptions: { value: ThemePreference; icon: LucideIcon }[] = [{ value: 'system', icon: Monitor }, { value: 'light', icon: Sun }, { value: 'dark', icon: Moon }]
+
+function SettingsHeading({ title }: { title: string }) {
+  const colors = usePalette()
+  return <Text accessibilityRole="header" style={[styles.settingsHeading, { color: colors.muted }]}>{title}</Text>
+}
+
+function SettingsRow({ icon: Icon, title, value, onPress, testID, external = false }: { icon: LucideIcon; title: string; value?: string; onPress: () => void; testID: string; external?: boolean }) {
+  const colors = usePalette()
+  const TrailingIcon = external ? ExternalLink : ChevronRight
+  return <Pressable testID={testID} accessibilityRole={external ? 'link' : 'button'} accessibilityLabel={title} accessibilityValue={value ? { text: value } : undefined} onPress={onPress} style={({ pressed }) => [styles.settingsRow, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>
+    <Icon size={20} color={colors.text} />
+    <Text style={[styles.settingsRowTitle, { color: colors.text }]}>{title}</Text>
+    {value ? <Text numberOfLines={1} style={[styles.settingsRowValue, { color: colors.muted }]}>{value}</Text> : null}
+    <TrailingIcon size={16} color={colors.muted} />
+  </Pressable>
 }
 
 interface ConnectionBinding {
@@ -847,7 +914,7 @@ function ScopedTmuxDialog({ visible, sessionId, onClose, connection, connectionK
   </Sheet>
 }
 
-function Sheet({ visible, title, onClose, onShow, onDidDismiss, children, wide, form, dismissable = true, keyboardShouldPersistTaps = 'handled' }: { visible: boolean; title: string; onClose: () => void; onShow?: () => void; onDidDismiss?: () => void; children: React.ReactNode; wide?: boolean; form?: boolean; dismissable?: boolean; keyboardShouldPersistTaps?: 'always' | 'handled' | 'never' }) {
+function Sheet({ visible, title, onClose, onBack, onShow, onDidDismiss, children, wide, form, dismissable = true, keyboardShouldPersistTaps = 'handled' }: { visible: boolean; title: string; onClose: () => void; onBack?: () => void; onShow?: () => void; onDidDismiss?: () => void; children: React.ReactNode; wide?: boolean; form?: boolean; dismissable?: boolean; keyboardShouldPersistTaps?: 'always' | 'handled' | 'never' }) {
   const colors = usePalette()
   const titleKey = title.toLowerCase().replaceAll(' ', '-')
   const closing = useRef(false)
@@ -871,8 +938,9 @@ function Sheet({ visible, title, onClose, onShow, onDidDismiss, children, wide, 
   >
     <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
       <View style={styles.sheetGrabber} />
-      <View style={styles.sheetHeader}><Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text>{dismissable ? <SheetCloseButton onPress={close} label={`Close ${title}`} testID={`sheet-close-${titleKey}`} /> : null}</View>
+      <View style={styles.sheetHeader}>{onBack ? <IconButton icon={ArrowLeft} label="Back to Settings" testID="settings-back" onPress={onBack} /> : null}<Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text>{dismissable ? <SheetCloseButton onPress={close} label={`Close ${title}`} testID={`sheet-close-${titleKey}`} /> : null}</View>
       <ScrollView
+        key={titleKey}
         contentContainerStyle={styles.sheetBody}
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
@@ -883,7 +951,7 @@ function Sheet({ visible, title, onClose, onShow, onDidDismiss, children, wide, 
   if (Platform.OS === 'ios') {
     return <Modal visible={visible} animationType="slide" presentationStyle={form ? 'formSheet' : 'pageSheet'} allowSwipeDismissal={dismissable} onShow={onShow} onRequestClose={close} onDismiss={didDismiss}>{panel}</Modal>
   }
-  return <Modal visible={visible} transparent animationType="fade" onShow={onShow} onRequestClose={close} onDismiss={didDismiss}><View style={styles.backdrop}>{dismissable ? <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" style={StyleSheet.absoluteFill} onPress={close} /> : <View style={StyleSheet.absoluteFill} />}{panel}</View></Modal>
+  return <Modal visible={visible} transparent animationType="fade" onShow={onShow} onRequestClose={onBack ?? close} onDismiss={didDismiss}><View style={styles.backdrop}>{dismissable ? <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" style={StyleSheet.absoluteFill} onPress={close} /> : <View style={StyleSheet.absoluteFill} />}{panel}</View></Modal>
 }
 function Label({ text, children }: { text: string; children?: React.ReactNode }) { const colors = usePalette(); return <View style={styles.labelRow}><Text style={[styles.label, { color: colors.muted }]}>{text}</Text>{children}</View> }
 function PrimaryButton({ label, onPress, disabled, testID }: { label: string; onPress: () => void; disabled?: boolean; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.primary, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Text style={styles.primaryText}>{label}</Text></Pressable> }
@@ -892,12 +960,12 @@ function ModeButton({ label, selected, onPress, testID }: { label: string; selec
 function SearchResult({ title, subtitle, disabled = false, onPress }: { title: string; subtitle: string; disabled?: boolean; onPress: () => void }) { const colors = usePalette(); return <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} disabled={disabled} onPress={onPress} style={[styles.result, { borderColor: colors.border, opacity: disabled ? 0.55 : 1 }]}><Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{title}</Text><Text style={{ color: colors.muted, fontSize: 11, marginTop: 4 }} numberOfLines={3}>{subtitle}</Text></Pressable> }
 function ConnectionUnavailable() { const colors = usePalette(); return <View style={styles.connectionUnavailable}><Text style={[styles.connectionUnavailableText, { color: colors.muted }]}>This server must finish connecting and verifying its identity first.</Text></View> }
 
-function Select({ title = 'Choose option', value, options, onChange, testID }: { title?: string; value: string; options: RuntimeOption[]; onChange: (value: string) => void; testID?: string }) {
+function Select({ title = 'Choose option', value, valueLabel, options, onChange, testID }: { title?: string; value: string; valueLabel?: string; options: RuntimeOption[]; onChange: (value: string) => void; testID?: string }) {
   const colors = usePalette()
   const { width, height } = useWindowDimensions()
   const [open, setOpen] = useState(false)
   const deduped = options.filter((option, index) => options.findIndex(value => value.value === option.value) === index)
-  const selected = deduped.find(option => option.value === value) ?? deduped[0]
+  const selected = deduped.find(option => option.value === value) ?? (valueLabel ? { label: valueLabel } : deduped[0])
   const compact = width < 600
   const close = () => setOpen(false)
   return <>
@@ -930,22 +998,25 @@ function connectionIsCurrent(connection: AgentServerClient, profileId: string | 
 }
 function intervalLabel(seconds: number): string { if (seconds % 604800 === 0) return `${seconds / 604800}w`; if (seconds % 86400 === 0) return `${seconds / 86400}d`; if (seconds % 3600 === 0) return `${seconds / 3600}h`; return `${seconds / 60}m` }
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 18 }, sheetPage: { flex: 1 }, sheetSafeArea: { flex: 1 }, sheet: { width: '100%', maxWidth: 520, maxHeight: '88%', borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, sheetWide: { maxWidth: 760 }, sheetGrabber: { alignSelf: 'center', width: 36, height: 5, marginTop: 7, marginBottom: 1, borderRadius: 3, backgroundColor: '#8a8a8a88' },
-  sheetHeader: { minHeight: 64, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4, flexDirection: 'row', alignItems: 'center' }, sheetTitle: { flex: 1, fontSize: 16, fontWeight: '800' }, sheetBody: { paddingHorizontal: 16, paddingBottom: 18, gap: 8 },
-  labelRow: { minHeight: 20, flexDirection: 'row', alignItems: 'center', gap: 8 }, label: { fontSize: 11, fontWeight: '700' }, help: { fontSize: 11, lineHeight: 16 }, build: { paddingTop: 4, fontSize: 10, textAlign: 'center' },
-  input: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 }, textarea: { minHeight: 110, maxHeight: 240, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, padding: 10, fontSize: 14, textAlignVertical: 'top' },
-  segment: { flexDirection: 'row', gap: 6 }, segmentButton: { flex: 1, minHeight: 44, borderRadius: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  primary: { minHeight: 44, borderRadius: 6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }, primaryText: { color: 'white', fontWeight: '800' }, secondary: { minHeight: 44, borderRadius: 6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }, buttonRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 7 }, statusRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  select: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center' }, selectSafeArea: { flex: 1 }, selectBackdrop: { padding: 18 }, selectBackdropCompact: { justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }, menu: { width: '100%', maxWidth: 440, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, menuCompact: { maxWidth: 560, borderRadius: 16 }, menuHeader: { minHeight: 52, paddingLeft: 14, paddingRight: 4, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 8 }, menuTitle: { flex: 1, fontSize: 15, fontWeight: '800' }, menuOptions: { padding: 6 }, option: { minHeight: 44, borderRadius: 7, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  searchBox: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 }, searchFailure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }, searchFailureText: { flex: 1, fontSize: 11.5, lineHeight: 15 }, searchFailureRetry: { minWidth: 64, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }, result: { minHeight: 58, padding: 10, borderBottomWidth: StyleSheet.hairlineWidth }, empty: { padding: 24, textAlign: 'center' },
+  backdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 18 }, sheetPage: { flex: 1 }, sheetSafeArea: { flex: 1 }, sheet: { width: '100%', maxWidth: 520, maxHeight: '88%', borderRadius: radius.sheet, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, sheetWide: { maxWidth: 760 }, sheetGrabber: { alignSelf: 'center', width: 36, height: 5, marginTop: 7, marginBottom: 1, borderRadius: radius.round, backgroundColor: '#8a8a8a88' },
+  sheetHeader: { minHeight: 64, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs, flexDirection: 'row', alignItems: 'center' }, sheetTitle: { ...typography.title, flex: 1, fontWeight: '600' }, sheetBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
+  labelRow: { minHeight: 24, marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, label: { ...typography.label, fontWeight: '600' }, help: { ...typography.caption }, build: { ...typography.caption, paddingTop: spacing.xs, textAlign: 'center' },
+  input: { ...typography.body, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }, textarea: { ...typography.body, minHeight: 110, maxHeight: 240, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: spacing.md, textAlignVertical: 'top' },
+  segment: { flexDirection: 'row', gap: spacing.sm }, segmentButton: { flex: 1, minHeight: 44, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
+  primary: { minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg }, primaryText: { ...typography.body, color: 'white', fontWeight: '600' }, secondary: { minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg }, buttonRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm }, statusRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  select: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center' }, selectSafeArea: { flex: 1 }, selectBackdrop: { padding: 18 }, selectBackdropCompact: { justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }, menu: { width: '100%', maxWidth: 440, borderRadius: radius.sheet, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, menuCompact: { maxWidth: 560, borderRadius: radius.sheet }, menuHeader: { minHeight: 52, paddingLeft: 14, paddingRight: 4, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 8 }, menuTitle: { flex: 1, fontSize: 15, fontWeight: '800' }, menuOptions: { padding: 6 }, option: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  searchBox: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 }, searchFailure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }, searchFailureText: { flex: 1, fontSize: 11.5, lineHeight: 15 }, searchFailureRetry: { minWidth: 64, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }, result: { minHeight: 58, padding: 10, borderBottomWidth: StyleSheet.hairlineWidth }, empty: { padding: 24, textAlign: 'center' },
   connectionUnavailable: { minHeight: 180, alignItems: 'center', justifyContent: 'center', padding: 24 }, connectionUnavailableText: { maxWidth: 320, textAlign: 'center', fontSize: 12, lineHeight: 18 },
-  digestSource: { minHeight: 56, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 }, preview: { maxHeight: 280, borderRadius: 6, padding: 10 }, presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, preset: { minWidth: 52, minHeight: 44, flexBasis: '22%', flexGrow: 1, borderRadius: 5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 }, modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, modeButton: { minHeight: 44, minWidth: 88, flexGrow: 1, borderRadius: 6, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' }, toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center' },
-  jobStartPicker: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, gap: 2 }, jobStartPickerControl: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 8 }, jobStartPickerControlPhone: { minHeight: 74, width: '100%', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', gap: 3, paddingVertical: 5 }, jobStartPickerHeading: { minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 8 }, jobStartPickerNativePhone: { width: '100%', minHeight: 44, alignSelf: 'stretch' }, jobStartPickerLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' }, jobStartPickerValue: { marginTop: 2, fontSize: 13, fontWeight: '700' }, jobStartPickerButton: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  jobReferenceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, jobReferenceChip: { minHeight: 34, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 }, jobMentionPicker: { maxHeight: 260, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, padding: 6, gap: 2 }, jobMentionOption: { minHeight: 46, borderRadius: 5, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  process: { minHeight: 58, borderRadius: 6, padding: 9, marginBottom: 6, flexDirection: 'row', gap: 8 }, processDot: { width: 7, height: 7, borderRadius: 4, marginTop: 5 }, log: { padding: 10, borderRadius: 6, fontFamily: 'Menlo', fontSize: 11, lineHeight: 16 },
+  digestSource: { minHeight: 56, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 }, preview: { maxHeight: 280, borderRadius: radius.md, padding: 10 }, presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, preset: { minWidth: 52, minHeight: 44, flexBasis: '22%', flexGrow: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 }, modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, modeButton: { minHeight: 44, minWidth: 88, flexGrow: 1, borderRadius: radius.md, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' }, toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center' },
+  jobStartPicker: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5, gap: 2 }, jobStartPickerControl: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 8 }, jobStartPickerControlPhone: { minHeight: 74, width: '100%', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', gap: 3, paddingVertical: 5 }, jobStartPickerHeading: { minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 8 }, jobStartPickerNativePhone: { width: '100%', minHeight: 44, alignSelf: 'stretch' }, jobStartPickerLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' }, jobStartPickerValue: { marginTop: 2, fontSize: 13, fontWeight: '700' }, jobStartPickerButton: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  jobReferenceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, jobReferenceChip: { minHeight: 34, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 }, jobMentionPicker: { maxHeight: 260, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 6, gap: 2 }, jobMentionOption: { minHeight: 46, borderRadius: radius.md, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  process: { minHeight: 58, borderRadius: radius.md, padding: 9, marginBottom: 6, flexDirection: 'row', gap: 8 }, processDot: { width: 7, height: 7, borderRadius: radius.round, marginTop: 5 }, log: { padding: 10, borderRadius: radius.md, fontFamily: 'Menlo', fontSize: 11, lineHeight: 16 },
   outputHeader: { minHeight: 34, flexDirection: 'row', alignItems: 'center' }, outputTitle: { flex: 1, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  fontScale: { minHeight: 74, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }, fontScalePreview: { flex: 1, gap: 3 }, fontScaleValue: { fontSize: 10, fontWeight: '800' },
-  privacySettingsLinks: { minHeight: 34, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16 }, privacyLink: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5 }, privacyLinkText: { fontSize: 11, fontWeight: '700' },
-  setupIntro: { paddingTop: 4, flexDirection: 'row', alignItems: 'center', gap: 12 }, setupIcon: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, setupCopy: { flex: 1, gap: 4 }, setupTitle: { fontSize: 18, fontWeight: '800' }, setupBody: { fontSize: 13, lineHeight: 18 },
-  setupSteps: { paddingVertical: 8, gap: 4 }, setupStep: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 5 }, setupStepText: { flex: 1, fontSize: 13, lineHeight: 18 }, setupGuide: { minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, setupGuideText: { fontSize: 13, fontWeight: '700' },
+  fontScale: { minHeight: 74, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, fontScalePreview: { flex: 1, gap: spacing.xs }, fontScaleValue: { ...typography.caption, fontWeight: '600' },
+  settingsCategories: { gap: spacing.xl, paddingTop: spacing.sm }, settingsHeading: { ...typography.label, fontWeight: '600', paddingBottom: spacing.sm },
+  settingsRow: { minHeight: 56, paddingVertical: spacing.md, gap: spacing.md, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth }, settingsRowTitle: { ...typography.body, flex: 1 }, settingsRowValue: { ...typography.label, maxWidth: '35%' },
+  themeOptions: { flexDirection: 'row', gap: spacing.xs, padding: spacing.xs, borderRadius: radius.md, marginBottom: spacing.lg }, themeOption: { flex: 1, minHeight: 76, paddingVertical: spacing.md, paddingHorizontal: spacing.xs, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', gap: spacing.sm }, themeOptionText: { fontWeight: '600', textAlign: 'center' },
+  settingsNetworkCopy: { flex: 1, gap: spacing.xs },
+  setupIntro: { paddingTop: 4, flexDirection: 'row', alignItems: 'center', gap: 12 }, setupIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' }, setupCopy: { flex: 1, gap: 4 }, setupTitle: { fontSize: 18, fontWeight: '800' }, setupBody: { fontSize: 13, lineHeight: 18 },
+  setupSteps: { paddingVertical: 8, gap: 4 }, setupStep: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 5 }, setupStepText: { flex: 1, fontSize: 13, lineHeight: 18 }, setupGuide: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, setupGuideText: { fontSize: 13, fontWeight: '700' },
 })

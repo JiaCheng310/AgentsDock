@@ -186,12 +186,16 @@ try {
     if (url.pathname === `/api/sessions/${session.id}`) {
       return jsonResponse({
         session,
-        events: [],
+        events: [cachedEvent],
         queued_turns: [],
         events_omitted_before: 0,
         events_omitted_after: 0,
         latest_seq: 5,
         event_count: 1,
+        semantic_item_count: 1,
+        semantic_total: 1,
+        semantic_omitted_before: 0,
+        semantic_omitted_after: 0,
       })
     }
     if (url.pathname === `/api/sessions/${session.id}/files`) {

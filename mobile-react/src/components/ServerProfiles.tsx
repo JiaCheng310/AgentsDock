@@ -1,18 +1,17 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   View,
 } from 'react-native'
+import { ScreenStack, ScreenStackItem } from 'react-native-screens'
 import { MenuView, type MenuAction } from '@expo/ui/community/menu'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Check, ChevronDown, MoreHorizontal, Pencil, Plus, Server, Wifi, X } from 'lucide-react-native'
+import { ArrowLeft, Check, ChevronDown, MoreHorizontal, Plus, Server, Wifi } from 'lucide-react-native'
 import {
   buildCreateServerProfileInput,
   buildUpdateServerProfileInput,
@@ -23,8 +22,6 @@ import {
   findProfileByIdentity,
   initialServerProfileDraft,
   profileConnectionLabel,
-  profileHostSubtitle,
-  reorderedServerProfileIds,
   requiresIdentityResetConfirmation,
   unreadCountLabel,
   type CreateServerProfileInput,
@@ -36,7 +33,8 @@ import {
   type ServerProfileTestInput,
   type UpdateServerProfileInput,
 } from '../lib/server-profile-ui'
-import { usePalette } from '../theme'
+import { fontWeight, radius, spacing, typography, usePalette } from '../theme'
+import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { Text, TextInput } from './AppText'
 import { IconButton, SheetCloseButton } from './ui'
 
@@ -52,6 +50,7 @@ export type {
 type Awaitable<T> = T | Promise<T>
 type ActionResult = boolean | void
 type CreatedProfile = string | Pick<ServerProfileListItem, 'id'>
+const serverSheetDetents = [0.5, 1]
 
 interface CommonServerProfileProps {
   profiles: readonly ServerProfileListItem[]
@@ -61,9 +60,8 @@ interface CommonServerProfileProps {
 
 export interface ServerProfileSelectorProps extends CommonServerProfileProps {
   disabled?: boolean
-  onSelectProfile: (profileId: string) => Awaitable<ActionResult>
-  onAddServer: () => void
-  onManageServers: () => void
+  refreshing?: boolean
+  onPress: () => void
 }
 
 export interface ServerProfilesManagerProps extends CommonServerProfileProps {
@@ -72,8 +70,9 @@ export interface ServerProfilesManagerProps extends CommonServerProfileProps {
   onTestConnection: (input: ServerProfileTestInput) => Awaitable<ServerConnectionTestResult>
   onCreateProfile: (input: CreateServerProfileInput) => Awaitable<CreatedProfile>
   onUpdateProfile: (profileId: string, patch: UpdateServerProfileInput) => Awaitable<void>
-  onReorderProfiles: (orderedProfileIds: string[]) => Awaitable<void>
   onRemoveProfile: (profileId: string) => Awaitable<void>
+  onSelected?: () => void
+  onClose?: () => void
 }
 
 export interface ServerProfilesSheetProps extends ServerProfilesManagerProps {
@@ -86,92 +85,61 @@ export function ServerProfileSelector({
   activeProfileId,
   switchingProfileId = null,
   disabled = false,
-  onSelectProfile,
-  onAddServer,
-  onManageServers,
+  refreshing = false,
+  onPress,
 }: ServerProfileSelectorProps) {
   const colors = usePalette()
   const active = profiles.find(profile => profile.id === activeProfileId) ?? profiles[0] ?? null
   const switching = profiles.find(profile => profile.id === switchingProfileId) ?? null
-  const host = active ? profileHostSubtitle(active) : null
   const unavailable = disabled || Boolean(switchingProfileId)
   const selectorLabel = switching
     ? `Switching to ${switching.name}. Please wait.`
     : active
       ? `${active.name}, ${profileConnectionLabel(active)}${active.cachedUnreadCount > 0 ? `, ${active.cachedUnreadCount} unread` : ''}. Choose agent server.`
       : 'Choose agent server'
-  const profileActions: MenuAction[] = profiles.length
-    ? profiles.map(profile => ({
-        id: `profile:${encodeURIComponent(profile.id)}`,
-        title: profile.cachedUnreadCount > 0 ? `${profile.name} · ${profile.cachedUnreadCount} unread` : profile.name,
-        state: profile.id === activeProfileId ? 'on' : 'off',
-        attributes: { disabled: unavailable },
-      }))
-    : [{ id: 'no-profiles', title: 'No saved servers', attributes: { disabled: true } }]
-  const actions: MenuAction[] = [
-    { id: 'profiles', title: 'Servers', displayInline: true, subactions: profileActions },
-    { id: 'add', title: 'Add Server', image: 'plus', attributes: { disabled } },
-    { id: 'manage', title: 'Manage Servers', image: 'gearshape', attributes: { disabled } },
-  ]
-  const trigger = <View
+  return <Pressable
     testID="server-profile-selector"
     accessible
     accessibilityRole="button"
-    accessibilityLabel={selectorLabel}
-    accessibilityState={{ disabled: unavailable, expanded: false }}
-    style={[styles.selector, { backgroundColor: colors.raised, borderColor: colors.border, opacity: disabled ? 0.4 : 1 }]}
+    accessibilityLabel={`${selectorLabel}${refreshing ? ' Refreshing chats.' : ''}`}
+    accessibilityState={{ disabled: unavailable, expanded: false, busy: Boolean(switchingProfileId) || refreshing }}
+    disabled={unavailable}
+    onPress={onPress}
+    style={({ pressed }) => [styles.selector, { borderColor: colors.controlBorder, backgroundColor: pressed ? colors.raised : colors.controlSurface, opacity: unavailable ? 0.4 : 1 }]}
   >
-    <ServerConnectionDot state={switching ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
-    <View style={styles.selectorCopy}>
-      <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1}>{active?.name || 'Choose server'}</Text>
-      {host ? <Text style={[styles.selectorHost, { color: colors.muted }]} numberOfLines={1}>{host}</Text> : null}
+    <ServerConnectionDot state={switchingProfileId ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
+    <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || 'Choose server'}</Text>
+    <View style={styles.selectorRefresh} pointerEvents="none">
+      {refreshing ? <ActivityIndicator testID="server-chat-refresh" accessibilityLabel="Refreshing chats" size="small" color={colors.muted} /> : <ChevronDown size={14} color={colors.muted} />}
     </View>
-    {active && active.cachedUnreadCount > 0 ? <ServerUnreadBadge count={active.cachedUnreadCount} /> : null}
-    {switching ? <ActivityIndicator size="small" color={colors.blue} /> : <ChevronDown size={15} color={colors.muted} />}
-  </View>
-
-  if (unavailable) return trigger
-  return <MenuView
-    title="Servers"
-    actions={actions}
-    onPressAction={event => {
-      const id = event.nativeEvent.event
-      if (id === 'add') onAddServer()
-      else if (id === 'manage') onManageServers()
-      else if (id.startsWith('profile:')) {
-        const profileId = decodeURIComponent(id.slice('profile:'.length))
-        if (profileId !== activeProfileId) void Promise.resolve(onSelectProfile(profileId)).catch(error => {
-          Alert.alert('Could not switch server', errorMessage(error))
-        })
-      }
-    }}
-    style={styles.selectorMenu}
-  >{trigger}</MenuView>
+  </Pressable>
 }
 
 export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfilesSheetProps) {
   const colors = usePalette()
-  return <Modal
-    visible={visible}
-    animationType="slide"
-    presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
-    allowSwipeDismissal
-    onRequestClose={onClose}
-  >
-    <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
-      <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
-        <View style={styles.grabber} />
-        <View style={[styles.sheetHeader, { borderColor: colors.border }]}>
-          <View style={styles.sheetHeadingCopy}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>Servers</Text>
-            <Text style={[styles.sheetSubtitle, { color: colors.muted }]}>Each server keeps a separate workspace.</Text>
-          </View>
-          <SheetCloseButton onPress={onClose} label="Close server management" testID="server-management-close" />
-        </View>
-        <ServerProfilesManager key={`${visible}:${props.initialMode ?? 'manage'}`} {...props} />
-      </SafeAreaView>
-    </View>
-  </Modal>
+  // Keep the native presenter alive through dismissal, but never intercept home touches when closed.
+  return <View style={StyleSheet.absoluteFill} pointerEvents={visible ? 'box-none' : 'none'}>
+    <ScreenStack style={styles.sheet}>
+      <ScreenStackItem screenId="servers-anchor" activityState={2} headerConfig={{ hidden: true }} pointerEvents="none" style={styles.sheet} />
+      {visible ? <ScreenStackItem
+        screenId="servers-drawer"
+        activityState={2}
+        stackPresentation="formSheet"
+        sheetAllowedDetents={serverSheetDetents}
+        sheetInitialDetentIndex={0}
+        sheetGrabberVisible
+        sheetExpandsWhenScrolledToEdge
+        headerConfig={{ hidden: true }}
+        contentStyle={{ backgroundColor: colors.surface }}
+        onDismissed={onClose}
+        style={styles.sheet}
+      >
+        <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
+          <ServerProfilesManager {...props} onSelected={onClose} onClose={onClose} />
+        </SafeAreaView>
+      </ScreenStackItem> : null}
+    </ScreenStack>
+  </View>
 }
 
 export function ServerProfilesManager({
@@ -183,8 +151,9 @@ export function ServerProfilesManager({
   onTestConnection,
   onCreateProfile,
   onUpdateProfile,
-  onReorderProfiles,
   onRemoveProfile,
+  onSelected,
+  onClose,
 }: ServerProfilesManagerProps) {
   const colors = usePalette()
   const [draft, setDraft] = useState<ServerProfileDraftValues | null>(() => initialServerProfileDraft(initialMode, profiles, activeProfileId))
@@ -192,6 +161,11 @@ export function ServerProfilesManager({
   const [tested, setTested] = useState<ServerConnectionTestResult | null>(null)
   const [feedback, setFeedback] = useState<{ tone: 'error' | 'success' | 'neutral'; message: string } | null>(null)
   const testLease = useRef(0)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   const editedProfile = useMemo(() => profiles.find(profile => profile.id === draft?.profileId) ?? null, [draft?.profileId, profiles])
   const duplicateProfile = useMemo(
     () => findProfileByIdentity(profiles, tested?.server_identity, draft?.profileId),
@@ -244,6 +218,7 @@ export function ServerProfilesManager({
     if (busy) return
     invalidateTest()
     setDraft(null)
+    dismissAppKeyboard()
   }
 
   const testConnection = async () => {
@@ -272,12 +247,17 @@ export function ServerProfilesManager({
   }
 
   const switchProfile = async (profileId: string) => {
-    if (profileId === activeProfileId || switchingProfileId || busy) return
+    if (switchingProfileId || busy) return
+    if (profileId === activeProfileId) {
+      onSelected?.()
+      return
+    }
     setBusy(`switch:${profileId}`)
     setFeedback(null)
     try {
       const switched = await onSwitchProfile(profileId)
       if (switched === false) throw new Error('The requested server was not activated.')
+      if (mounted.current) onSelected?.()
     } catch (error) {
       setFeedback({ tone: 'error', message: errorMessage(error) })
     } finally {
@@ -323,21 +303,7 @@ export function ServerProfilesManager({
       testLease.current += 1
       setTested(null)
       setDraft(null)
-    } catch (error) {
-      setFeedback({ tone: 'error', message: errorMessage(error) })
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const moveProfile = async (profileId: string, direction: -1 | 1) => {
-    if (busy) return
-    const order = reorderedServerProfileIds(profiles, profileId, direction)
-    if (!order) return
-    setBusy(`move:${profileId}`)
-    setFeedback(null)
-    try {
-      await onReorderProfiles(order)
+      if (!draft.profileId && mounted.current) onSelected?.()
     } catch (error) {
       setFeedback({ tone: 'error', message: errorMessage(error) })
     } finally {
@@ -386,44 +352,49 @@ export function ServerProfilesManager({
     )
   }
 
-  return <ScrollView
+  return <>
+    <View style={[styles.sheetHeader, { borderColor: colors.border }]}>
+      {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label="Back to servers" testID="server-editor-back" /> : null}
+      <View style={styles.sheetHeadingCopy}>
+        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers'}</Text>
+      </View>
+      {onClose ? <SheetCloseButton onPress={onClose} label="Close server management" testID="server-management-close" /> : null}
+    </View>
+    {/* The native form sheet resizes for the keyboard; a second adjustment scrolls past the focused input. */}
+    <ScrollView
     style={styles.manager}
     contentContainerStyle={styles.managerContent}
-    automaticallyAdjustKeyboardInsets
+    automaticallyAdjustKeyboardInsets={false}
     keyboardDismissMode="interactive"
     keyboardShouldPersistTaps="handled"
   >
-    <View style={styles.managementHeading}>
-      <View style={styles.managementHeadingCopy}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved servers</Text>
-        <Text style={[styles.help, { color: colors.muted }]}>Switching replaces the active workspace without mixing server data.</Text>
-      </View>
-      <SecondaryButton icon={Plus} label="Add server" disabled={Boolean(busy)} onPress={openAdd} />
-    </View>
-
-    <View style={[styles.profileList, { borderColor: colors.border }]}>
-      {profiles.length ? profiles.map((profile, index) => {
+    {!draft ? <View testID="server-profile-list">
+      {profiles.length ? profiles.map(profile => {
         const active = profile.id === activeProfileId
         const switching = profile.id === switchingProfileId || busy === `switch:${profile.id}`
         return <ServerManagementRow
           key={profile.id}
           profile={profile}
-          index={index}
-          count={profiles.length}
           active={active}
           switching={switching}
           disabled={Boolean(busy) || Boolean(switchingProfileId)}
           onSwitch={() => { void switchProfile(profile.id) }}
           onEdit={() => openEdit(profile)}
-          onMove={direction => { void moveProfile(profile.id, direction) }}
           onRemove={() => confirmRemove(profile)}
         />
       }) : <View style={styles.noProfiles}>
         <Server size={24} color={colors.muted} />
         <Text style={[styles.noProfilesTitle, { color: colors.text }]}>No saved servers</Text>
-        <Text style={[styles.help, { color: colors.muted, textAlign: 'center' }]}>Add and test a server connection to begin.</Text>
       </View>}
-    </View>
+      <Pressable
+        testID="server-profile-add"
+        accessibilityRole="button"
+        accessibilityLabel="Add server"
+        disabled={Boolean(busy) || Boolean(switchingProfileId)}
+        onPress={openAdd}
+        style={({ pressed }) => [styles.addServer, { opacity: busy || switchingProfileId ? 0.35 : pressed ? 0.65 : 1 }]}
+      ><Plus size={20} color={colors.text} /><Text style={[styles.profileName, { color: colors.text }]}>Add server</Text></Pressable>
+    </View> : null}
 
     {feedback ? <View
       accessibilityRole="alert"
@@ -431,59 +402,59 @@ export function ServerProfilesManager({
         backgroundColor: feedback.tone === 'error' ? `${colors.red}18` : feedback.tone === 'success' ? `${colors.green}18` : colors.raised,
         borderColor: feedback.tone === 'error' ? `${colors.red}66` : feedback.tone === 'success' ? `${colors.green}66` : colors.border,
       }]}
-    ><Text style={{ color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text, fontSize: 12, lineHeight: 17 }}>{feedback.message}</Text></View> : null}
+    ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{feedback.message}</Text></View> : null}
 
-    {draft ? <View testID="server-profile-editor" style={[styles.editor, { backgroundColor: colors.raised, borderColor: colors.border }]}>
-      <View style={styles.editorHeader}>
-        <View style={styles.editorHeaderCopy}>
-          <Text style={[styles.editorTitle, { color: colors.text }]}>{draft.profileId ? `Edit ${editedProfile?.name || 'server'}` : 'Add server'}</Text>
-          <Text style={[styles.help, { color: colors.muted }]}>Credentials remain in the device secure store.</Text>
+    {draft ? <View testID="server-profile-editor" style={styles.editor}>
+      <View style={styles.editorFields}>
+        <View style={styles.editorField}>
+          <FieldLabel step={1} text="Name (optional)" />
+          <TextInput
+            testID="server-profile-name"
+            accessibilityLabel="Server name (optional)"
+            value={draft.name}
+            onChangeText={name => updateDraft({ name })}
+            editable={!busy}
+            placeholder="e.g. Home Mac"
+            placeholderTextColor={colors.muted}
+            returnKeyType="next"
+            style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+          />
         </View>
-        <IconButton icon={X} disabled={Boolean(busy)} onPress={closeEditor} label="Close server editor" />
+
+        <View style={styles.editorField}>
+          <FieldLabel step={2} text="Server URL" />
+          <TextInput
+            testID="server-profile-url"
+            accessibilityLabel="Server address"
+            value={draft.serverUrl}
+            onChangeText={serverUrl => updateDraft({ serverUrl }, true)}
+            editable={!busy}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            placeholder="http://server.example.com:7850"
+            placeholderTextColor={colors.muted}
+            style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+          />
+        </View>
+
+        <View style={styles.editorField}>
+          <FieldLabel step={3} text="Access token" />
+          <TextInput
+            testID="server-profile-token"
+            accessibilityLabel="Access token"
+            value={draft.accessToken}
+            onChangeText={accessToken => updateDraft({ accessToken }, true)}
+            editable={!busy && !draft.clearAccessToken}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder={editedProfile?.hasAccessToken ? 'Leave blank to keep saved token' : 'Token from AgentsServer'}
+            placeholderTextColor={colors.muted}
+            style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, opacity: draft.clearAccessToken ? 0.4 : 1 }]}
+          />
+        </View>
       </View>
-
-      <FieldLabel text="Name" />
-      <TextInput
-        testID="server-profile-name"
-        accessibilityLabel="Server name"
-        value={draft.name}
-        onChangeText={name => updateDraft({ name })}
-        editable={!busy}
-        placeholder="Production, Home Mac, Lab…"
-        placeholderTextColor={colors.muted}
-        returnKeyType="next"
-        style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-      />
-
-      <FieldLabel text="Server address" />
-      <TextInput
-        testID="server-profile-url"
-        accessibilityLabel="Server address"
-        value={draft.serverUrl}
-        onChangeText={serverUrl => updateDraft({ serverUrl }, true)}
-        editable={!busy}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        placeholder="server.example.com:7850"
-        placeholderTextColor={colors.muted}
-        style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-      />
-
-      <FieldLabel text="Access token" />
-      <TextInput
-        testID="server-profile-token"
-        accessibilityLabel="Access token"
-        value={draft.accessToken}
-        onChangeText={accessToken => updateDraft({ accessToken }, true)}
-        editable={!busy && !draft.clearAccessToken}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-        placeholder={editedProfile?.hasAccessToken ? 'Leave blank to keep saved token' : 'Token from AgentsServer'}
-        placeholderTextColor={colors.muted}
-        style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, opacity: draft.clearAccessToken ? 0.4 : 1 }]}
-      />
       {editedProfile?.hasAccessToken ? <View style={styles.switchRow}>
         <View style={styles.switchCopy}>
           <Text style={[styles.switchTitle, { color: colors.text }]}>Remove saved access token</Text>
@@ -516,7 +487,7 @@ export function ServerProfilesManager({
 
       {tested ? <View accessibilityRole="alert" style={[styles.testResult, { backgroundColor: `${duplicateProfile || testedIdentityChanged ? colors.orange : colors.green}18` }]}>
         <Check size={16} color={duplicateProfile || testedIdentityChanged ? colors.orange : colors.green} />
-        <Text style={{ flex: 1, color: duplicateProfile || testedIdentityChanged ? colors.orange : colors.green, fontSize: 12, lineHeight: 17 }}>
+        <Text style={[typography.caption, { flex: 1, color: duplicateProfile || testedIdentityChanged ? colors.orange : colors.green }]}>
           {duplicateProfile
             ? `Already saved as “${duplicateProfile.name}”.`
             : testedIdentityChanged
@@ -537,9 +508,8 @@ export function ServerProfilesManager({
           onPress={() => { void testConnection() }}
         />
         <View style={styles.actionSpacer} />
-        <SecondaryButton label="Cancel" disabled={Boolean(busy)} onPress={closeEditor} />
         <PrimaryButton
-          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? `Use ${duplicateProfile.name}` : 'Add & switch'}
+          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? `Use ${duplicateProfile.name}` : 'Add'}
           disabled={Boolean(busy) || !draft.serverUrl.trim() || (!draft.profileId && !tested?.ok) || Boolean(draft.profileId && duplicateProfile) || updateTestMissing || identityResetUnconfirmed}
           busy={busy === 'save'}
           onPress={() => { void save() }}
@@ -547,46 +517,51 @@ export function ServerProfilesManager({
       </View>
     </View> : null}
   </ScrollView>
+  </>
 }
 
-function ServerManagementRow({ profile, index, count, active, switching, disabled, onSwitch, onEdit, onMove, onRemove }: {
+function ServerManagementRow({ profile, active, switching, disabled, onSwitch, onEdit, onRemove }: {
   profile: ServerProfileListItem
-  index: number
-  count: number
   active: boolean
   switching: boolean
   disabled: boolean
   onSwitch: () => void
   onEdit: () => void
-  onMove: (direction: -1 | 1) => void
   onRemove: () => void
 }) {
   const colors = usePalette()
   const status = profileConnectionLabel(profile)
-  const details = [profile.serverIdentity ? `Identity: ${profile.serverIdentity}` : '', profile.serverVersion ? `AgentsServer ${profile.serverVersion}` : ''].filter(Boolean).join(' · ')
   const actions: MenuAction[] = [
-    { id: 'up', title: `Move ${profile.name} Up`, image: 'arrow.up', attributes: { disabled: disabled || index === 0 } },
-    { id: 'down', title: `Move ${profile.name} Down`, image: 'arrow.down', attributes: { disabled: disabled || index === count - 1 } },
+    { id: 'edit', title: 'Edit', image: 'pencil', attributes: { disabled } },
     {
       id: 'remove',
-      title: active ? 'Active Server Cannot Be Removed' : `Remove ${profile.name}`,
+      title: 'Remove',
       image: 'trash',
       attributes: { disabled: disabled || active, destructive: !active },
     },
   ]
-  return <View style={[styles.profileRow, { borderColor: colors.border, backgroundColor: active ? `${colors.blue}10` : colors.surface }]}>
+  return <View style={[styles.profileRow, { borderColor: colors.border }]}>
+    <Pressable
+      testID={`server-profile-switch-${profile.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Use ${profile.name}`}
+      accessibilityHint={status}
+      accessibilityState={{ selected: active, disabled, busy: switching }}
+      disabled={disabled}
+      onPress={onSwitch}
+      style={({ pressed }) => [styles.profileSwitch, { backgroundColor: pressed ? colors.raised : 'transparent', opacity: disabled && !switching ? 0.5 : 1 }]}
+    >
     <ServerConnectionDot state={switching ? 'connecting' : profile.connectionState} label={switching ? `Connecting to ${profile.name}` : status} />
     <View style={styles.profileCopy}>
       <View style={styles.profileTitleRow}>
         <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>{profile.name}</Text>
-        {active ? <View style={[styles.activeBadge, { backgroundColor: `${colors.blue}20` }]}><Text style={[styles.activeBadgeText, { color: colors.blue }]}>Active</Text></View> : null}
         {profile.cachedUnreadCount > 0 ? <ServerUnreadBadge count={profile.cachedUnreadCount} /> : null}
       </View>
       <Text style={[styles.profileUrl, { color: colors.muted }]} numberOfLines={1}>{profile.serverUrl}</Text>
-      {profile.lastConnectionError ? <Text style={[styles.profileDetail, { color: profile.connectionState === 'degraded' ? colors.orange : colors.red }]} numberOfLines={2}>{profile.lastConnectionError}</Text> : details ? <Text style={[styles.profileDetail, { color: colors.muted }]} numberOfLines={1}>{details}</Text> : null}
+      {profile.lastConnectionError ? <Text style={[styles.profileDetail, { color: profile.connectionState === 'degraded' ? colors.orange : colors.red }]} numberOfLines={2}>{profile.lastConnectionError}</Text> : null}
     </View>
-    {!active ? <SecondaryButton label={switching ? 'Using…' : 'Use'} disabled={disabled} busy={switching} accessibilityLabel={`Use ${profile.name}`} compact onPress={onSwitch} /> : null}
-    <IconButton icon={Pencil} disabled={disabled} onPress={onEdit} label={`Edit ${profile.name}`} />
+    <View style={styles.profileSelection}>{switching ? <ActivityIndicator size="small" color={colors.muted} /> : active ? <Check size={20} color={colors.text} /> : null}</View>
+    </Pressable>
     {disabled ? <View style={styles.rowMenu}><View
       accessible
       accessibilityRole="button"
@@ -597,13 +572,13 @@ function ServerManagementRow({ profile, index, count, active, switching, disable
       title={profile.name}
       actions={actions}
       onPressAction={event => {
-        if (event.nativeEvent.event === 'up') onMove(-1)
-        else if (event.nativeEvent.event === 'down') onMove(1)
+        if (event.nativeEvent.event === 'edit') onEdit()
         else if (event.nativeEvent.event === 'remove') onRemove()
       }}
       style={styles.rowMenu}
     >
       <View
+        testID={`server-profile-actions-${profile.id}`}
         accessible
         accessibilityRole="button"
         accessibilityLabel={`More actions for ${profile.name}`}
@@ -622,13 +597,18 @@ export function ServerConnectionDot({ state, label = connectionStateLabel(state)
 export function ServerUnreadBadge({ count }: { count: number }) {
   const colors = usePalette()
   return <View accessible accessibilityRole="text" accessibilityLabel={`${count} unread chat${count === 1 ? '' : 's'}`} style={[styles.unreadBadge, { backgroundColor: colors.blue }]}>
-    <Text style={styles.unreadText}>{unreadCountLabel(count)}</Text>
+    <Text style={[styles.unreadText, { color: colors.onAccent }]}>{unreadCountLabel(count)}</Text>
   </View>
 }
 
-function FieldLabel({ text }: { text: string }) {
+function FieldLabel({ step, text }: { step: 1 | 2 | 3; text: string }) {
   const colors = usePalette()
-  return <Text style={[styles.fieldLabel, { color: colors.muted }]}>{text}</Text>
+  return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${text}`} style={styles.fieldHeading}>
+    <View style={[styles.fieldStep, { borderColor: colors.blue, backgroundColor: `${colors.blue}10` }]}>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.fieldStepNumber, { color: colors.blue }]}>{step}</Text>
+    </View>
+    <Text style={[styles.fieldLabel, { color: colors.muted }]}>{text}</Text>
+  </View>
 }
 
 function PrimaryButton({ label, disabled, busy, onPress }: { label: string; disabled?: boolean; busy?: boolean; onPress: () => void }) {
@@ -640,7 +620,7 @@ function PrimaryButton({ label, disabled, busy, onPress }: { label: string; disa
     disabled={disabled}
     onPress={onPress}
     style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}
-  >{busy ? <ActivityIndicator size="small" color="white" /> : null}<Text style={styles.primaryButtonText}>{label}</Text></Pressable>
+  >{busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}<Text style={[styles.primaryButtonText, { color: colors.onAccent }]}>{label}</Text></Pressable>
 }
 
 function SecondaryButton({ icon: Icon, label, accessibilityLabel, disabled, busy, compact, onPress }: {
@@ -674,57 +654,53 @@ function normalizeComparableURL(value?: string): string {
 }
 
 const styles = StyleSheet.create({
-  selectorMenu: { minWidth: 0 },
-  selector: { minHeight: 48, minWidth: 0, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  selectorCopy: { flex: 1, minWidth: 0, gap: 1 },
-  selectorName: { fontSize: 13, fontWeight: '800' },
-  selectorHost: { fontSize: 10 },
-  connectionDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  unreadBadge: { minWidth: 21, minHeight: 20, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center', justifyContent: 'center' },
-  unreadText: { color: 'white', fontSize: 10, fontWeight: '800' },
+  selector: { minHeight: 44, minWidth: 0, maxWidth: '100%', alignSelf: 'flex-start', borderRadius: radius.round, borderWidth: 1, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  selectorName: { ...typography.label, flexShrink: 1, minWidth: 0, fontWeight: fontWeight.semibold },
+  selectorRefresh: { width: 20, height: 20, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
+  connectionDot: { width: 8, height: 8, borderRadius: radius.round, flexShrink: 0 },
+  unreadBadge: { minWidth: 21, minHeight: 20, borderRadius: radius.round, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center', justifyContent: 'center' },
+  unreadText: { ...typography.caption, fontWeight: fontWeight.semibold },
   sheet: { flex: 1 },
   sheetSafeArea: { flex: 1 },
-  grabber: { alignSelf: 'center', width: 36, height: 5, marginTop: 7, marginBottom: 1, borderRadius: 3, backgroundColor: '#8a8a8a88' },
-  sheetHeader: { minHeight: 64, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sheetHeadingCopy: { flex: 1, minWidth: 0, gap: 2 },
-  sheetTitle: { fontSize: 17, fontWeight: '800' },
-  sheetSubtitle: { fontSize: 10 },
+  sheetHeader: { minHeight: 64, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sheetHeadingCopy: { flex: 1, minWidth: 0 },
+  sheetTitle: { ...typography.title, fontWeight: fontWeight.semibold },
   manager: { flex: 1 },
-  managerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 14, paddingBottom: 28, gap: 10 },
-  managementHeading: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  managementHeadingCopy: { flex: 1, minWidth: 0, gap: 3 },
-  sectionTitle: { fontSize: 14, fontWeight: '800' },
-  help: { fontSize: 11, lineHeight: 16 },
-  profileList: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, overflow: 'hidden' },
-  profileRow: { minHeight: 68, paddingVertical: 8, paddingLeft: 11, paddingRight: 5, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  profileCopy: { flex: 1, minWidth: 74, gap: 2 },
-  profileTitleRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  profileName: { minWidth: 0, flexShrink: 1, fontSize: 13, fontWeight: '800' },
-  profileUrl: { fontSize: 10 },
-  profileDetail: { fontSize: 9, lineHeight: 13 },
-  activeBadge: { minHeight: 18, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center', justifyContent: 'center' },
-  activeBadgeText: { fontSize: 8, fontWeight: '800', textTransform: 'uppercase' },
+  managerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg },
+  help: { ...typography.caption },
+  profileRow: { minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  profileSwitch: { flex: 1, minWidth: 0, minHeight: 68, paddingVertical: spacing.md, paddingHorizontal: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profileSelection: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  addServer: { minHeight: 60, paddingHorizontal: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profileCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  profileTitleRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  profileName: { ...typography.body, minWidth: 0, flexShrink: 1, fontWeight: fontWeight.semibold },
+  profileUrl: { ...typography.caption },
+  profileDetail: { ...typography.caption },
   rowMenu: { width: 44, height: 44 },
-  moreButton: { width: 44, height: 44, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  noProfiles: { minHeight: 150, padding: 20, alignItems: 'center', justifyContent: 'center', gap: 7 },
-  noProfilesTitle: { fontSize: 15, fontWeight: '800' },
-  feedback: { minHeight: 42, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, padding: 10, justifyContent: 'center' },
-  editor: { borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 8 },
-  editorHeader: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  editorHeaderCopy: { flex: 1, minWidth: 0, gap: 2 },
-  editorTitle: { fontSize: 14, fontWeight: '800' },
-  fieldLabel: { marginTop: 2, fontSize: 11, fontWeight: '700' },
-  input: { minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, fontSize: 14 },
+  moreButton: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  noProfiles: { minHeight: 150, padding: spacing.xl, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  noProfilesTitle: { ...typography.body, fontWeight: fontWeight.semibold },
+  feedback: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: spacing.md, justifyContent: 'center' },
+  editor: { gap: spacing.sm },
+  editorFields: { gap: spacing.xl },
+  editorField: { gap: spacing.sm },
+  fieldHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  // Keep the translucent fill inside the badge during native sheet resizing.
+  fieldStep: { width: 24, height: 24, borderRadius: radius.round, borderWidth: 1, overflow: 'hidden', flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
+  fieldStepNumber: { ...typography.caption, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  fieldLabel: { ...typography.label, flex: 1, fontWeight: fontWeight.semibold },
+  input: { ...typography.body, minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   switchRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchCopy: { flex: 1, minWidth: 0, gap: 2 },
-  switchTitle: { fontSize: 12, fontWeight: '700' },
-  identityWarning: { borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 2 },
-  testResult: { minHeight: 42, borderRadius: 6, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  editorActions: { paddingTop: 3, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 7 },
+  switchTitle: { ...typography.label, fontWeight: fontWeight.semibold },
+  identityWarning: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 2 },
+  testResult: { minHeight: 42, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  editorActions: { paddingTop: spacing.xs, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.sm },
   actionSpacer: { flex: 1, minWidth: 8 },
-  primaryButton: { minHeight: 44, borderRadius: 6, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  primaryButtonText: { color: 'white', fontSize: 12, fontWeight: '800' },
-  secondaryButton: { minHeight: 44, borderRadius: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  primaryButton: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  primaryButtonText: { ...typography.label, fontWeight: fontWeight.semibold },
+  secondaryButton: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   compactButton: { minWidth: 55, paddingHorizontal: 9 },
-  secondaryButtonText: { fontSize: 12, fontWeight: '700' },
+  secondaryButtonText: { ...typography.label, fontWeight: fontWeight.semibold },
 })

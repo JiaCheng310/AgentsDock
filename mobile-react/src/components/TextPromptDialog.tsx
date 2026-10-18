@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text, TextInput } from './AppText'
 
 export interface TextPromptOptions {
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 440,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
+    borderRadius: radius.sheet,
     padding: 18,
     gap: 12,
     elevation: 14,
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
   },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  button: { minWidth: 88, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  button: { minWidth: 88, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   buttonText: { fontSize: 14, fontWeight: '800' },
 })

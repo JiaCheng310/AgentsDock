@@ -4645,25 +4645,41 @@ describe('Composer', () => {
     confirm.mockRestore()
   })
 
-  it.each(['feedback', 'issue', 'bug'])('opens the public AgentsDock issue form from /%s without sending a chat message', async query => {
+  it('prefills feedback with the originating chat context even if the selected server changes during IPC', async () => {
+    let resolveEnvironment!: (value: unknown) => void
     const openExternal = vi.fn().mockResolvedValue(undefined)
     const send = vi.fn()
     Object.defineProperty(window, 'agentsDock', {
       configurable: true,
       value: {
         preferences: { get: vi.fn().mockResolvedValue(''), set: vi.fn().mockResolvedValue(undefined) },
-        native: { openExternal },
+        native: { openExternal, issueReportEnvironment: () => new Promise(resolve => { resolveEnvironment = resolve }) },
         turns: { send }
       } as unknown as AgentsDockAPI
+    })
+    useAppStore.setState({
+      connected: true,
+      health: { ok: true, server_version: '1.0.9' },
+      sessions: [{ id: 'chat-1', title: 'Private title', backend: 'codex', model: 'gpt-5.6-sol', cwd: '/private/work' }]
     })
     const user = userEvent.setup()
     render(<Composer />)
     const editor = screen.getByPlaceholderText('Message')
-
-    await user.type(editor, `/${query}`)
+    await user.type(editor, '/feedback')
     await user.click(screen.getByRole('option', { name: /^Send feedback/ }))
+    act(() => useAppStore.setState({
+      activeProfileId: 'profile-b', health: { ok: true, server_version: 'different-server' }
+    }))
+    await act(async () => resolveEnvironment({
+      platform: 'darwin', systemVersion: '15.7', architecture: 'arm64', appVersion: '1.0.9', appBuild: '1200'
+    }))
 
-    expect(openExternal).toHaveBeenCalledExactlyOnceWith('https://github.com/ZhengyiLuo/AgentsDock/issues/new')
+    expect(openExternal).toHaveBeenCalledOnce()
+    const url = new URL(openExternal.mock.calls[0][0])
+    expect(url.searchParams.get('extra')).toContain('AgentsServer version: 1.0.9')
+    expect(url.searchParams.get('extra')).toContain('Agent: Codex')
+    expect(url.searchParams.get('extra')).toContain('Model: gpt-5.6-sol')
+    expect(url.toString()).not.toContain('different-server')
     expect(send).not.toHaveBeenCalled()
     expect(editor).toHaveValue('')
   })

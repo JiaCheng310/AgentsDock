@@ -103,6 +103,19 @@ assertEqual(await loadProfileToken('profile-a', 1), '')
 assertEqual(await SecureStore.getItemAsync(legacyProfileTokenKey), null)
 assertEqual(await loadProfileToken('profile-a', replacementVersion), 'new-token')
 
+// Repair the old generated name without moving credentials or workspace data.
+await saveWorkspacePreferences('server-alpha', cachedWorkspace('keep my draft'))
+await AsyncStorage.setItem('agentsdock.react.settings.v2', JSON.stringify({
+  ...settings,
+  profiles: [{ ...settings.profiles[0], name: 'server-alpha' }],
+}))
+const renamedSettings = await loadProfileSettings()
+assertEqual(renamedSettings, { ...settings, profiles: [{ ...settings.profiles[0], name: 'alpha.example:7850' }] })
+assertEqual(JSON.parse(await AsyncStorage.getItem('agentsdock.react.settings.v2') ?? '{}'), renamedSettings)
+assertEqual(await loadProfileToken('profile-a', replacementVersion), 'new-token')
+assertEqual((await loadWorkspacePreferences('server-alpha')).drafts['chat-a'], 'keep my draft')
+assertEqual(await loadProfileSettings(), renamedSettings)
+
 // Removing a token stages an empty next version without touching the current token.
 const emptyVersion = await stageProfileToken('profile-a', replacementVersion, '')
 assertEqual(emptyVersion, 3)

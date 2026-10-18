@@ -2,6 +2,7 @@
 import { t, getLocale } from '@shared/i18n'
 import { openAIProviderSettings } from '../lib/provider-settings'
 import { isSharedChatCollaborator } from '@shared/chat-shares'
+import { issueReportURL } from '@shared/issue-report'
 import { useLocale } from '../lib/i18n'
 import { forwardRef, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
@@ -22,6 +23,8 @@ import { awaitAllClaudePermissionUpdates, awaitClaudePermissionUpdates } from '.
 import { supportedClaudePermissionModes } from '../lib/claude-permission-copy'
 import { awaitAllCodexPermissionUpdates, awaitCodexPermissionUpdates } from '../lib/codex-permission-updates'
 import { awaitAllCursorPermissionUpdates, awaitCursorPermissionUpdates } from '../lib/cursor-permission-updates'
+import { awaitAllGeminiPermissionUpdates, awaitGeminiPermissionUpdates } from '../lib/gemini-permission-updates'
+import { GeminiPermissionMenu } from './GeminiPermissionMenu'
 import { nativeFileRefsFromFiles } from '../lib/native-files'
 import { profileSessionKey } from '../lib/profile-scope'
 import { orderedActiveSessions, rankSessionsForSearch } from '../lib/sessions'
@@ -125,6 +128,7 @@ import { openCodeProviderCommandsAvailable } from '@shared/opencode'
 import { opencodeBackendAvailable, opencodeBackendUnavailableReason } from '@shared/runtime-catalog'
 import { awaitAllOpenCodePermissionUpdates, awaitOpenCodePermissionUpdates } from '../lib/opencode-permission-updates'
 import { RuntimeHealthNotice } from './RuntimeHealth'
+import { GeminiImportConnection } from './GeminiImportConnection'
 import { ShortcutTooltip } from './ShortcutTooltip'
 import { WorkingDirectoryInput } from './WorkingDirectoryInput'
 import { WorkingDirectoryPopover } from './WorkingDirectoryPopover'
@@ -752,6 +756,10 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   const referencesSupported = chatReferencesSupported && composerTeamReferencesSupported
   const sendContext = `${activeProfileId}:${profileGeneration}:${selectedId}`
   const selectedRuntimeError = sessionRuntimeAdmissionError(session, health, catalog)
+  const geminiImportRecovery = session?.backend === 'gemini' && Boolean(session.session_id)
+    && session.provider_connection !== 'custom' && !session.archived && !window.agentsDock.sharedChat
+    && health?.capabilities?.gemini_backend?.features?.native_import_api === true
+    && selectedRuntimeError === t('gemini.apiOnlyError')
   const [sendFailure, setSendFailure] = useState<{ context: string; message: string } | null>(null)
   const currentCustomConnection = session && catalog?.backends[session.backend]?.custom_provider
   const connectionIdentity = JSON.stringify([currentCustomConnection?.configured ?? null,
@@ -820,6 +828,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       return codexGoalsAvailable
     }
     if (command.id === 'permissions') return codexPermissionsAvailable || claudePermissionsAvailable || cursorPermissionsAvailable || session.backend === 'opencode' && opencodeBackendAvailable(health, catalog)
+      || session.backend === 'gemini' && health?.capabilities?.gemini_backend?.features?.permission_mode_control === true && !window.agentsDock.sharedChat
     if (command.id === 'reasoning') {
       return session.backend !== 'cursor' && session.backend !== 'opencode'
         && runtimeEffortOptions(catalog, session.backend, session.model, session.effort, (session.provider_connection === 'custom' ? 'custom' : session.codex_provider), (session.provider_connection_catalog ?? session.codex_provider_catalog))
@@ -1123,6 +1132,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
         awaitAllClaudePermissionUpdates(),
         awaitAllCodexPermissionUpdates(),
         awaitAllOpenCodePermissionUpdates(),
+        awaitAllGeminiPermissionUpdates(),
         awaitAllCursorPermissionUpdates()
       ]).then(() => {
         referencesDirtyRef.current = false
@@ -1425,6 +1435,10 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
         try { await awaitOpenCodePermissionUpdates(session.id) } catch (error) { reportActionError(error); return }
         if (!composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, session.id, draftContextRef, mountedRef)) return
       }
+      if (session.backend === 'gemini') {
+        try { await awaitGeminiPermissionUpdates(session.id) } catch (error) { reportActionError(error); return }
+        if (!composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, session.id, draftContextRef, mountedRef)) return
+      }
       const currentRuntimeState = useAppStore.getState()
       const currentSession = currentRuntimeState.sessions.find(candidate => candidate.id === session.id)
       const currentRuntimeError = sessionRuntimeAdmissionError(currentSession, currentRuntimeState.health, currentRuntimeState.runtimeCatalog)
@@ -1715,7 +1729,24 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
     } else if (command.id === 'digest') {
       useAppStore.getState().setModal('digest', true)
     } else if (command.id === 'feedback') {
-      void window.agentsDock.native.openExternal('https://github.com/ZhengyiLuo/AgentsDock/issues/new').catch(reportActionError)
+      // Capture this pane's context before the IPC await; never attach a later chat/server.
+      const state = useAppStore.getState()
+      const profile = state.profiles.find(item => item.id === state.activeProfileId)
+      const custom = session.provider_connection === 'custom' || session.codex_provider === 'custom'
+      const backendCatalog = state.runtimeCatalog?.backends[session.backend]
+      const defaultModel = custom
+        ? (session.provider_connection_catalog ?? session.codex_provider_catalog ?? backendCatalog?.custom_provider)?.default_model
+          || (session.provider_connection_catalog ?? session.codex_provider_catalog ?? backendCatalog?.custom_provider)?.model
+        : backendCatalog?.default_model
+      const context = {
+        serverVersion: state.connected ? state.health?.server_version : profile?.serverVersion,
+        serverConnected: state.connected,
+        backend: session.backend,
+        model: session.model || (defaultModel ? `${defaultModel} (server default)` : 'Server default (not reported)')
+      }
+      void window.agentsDock.native.issueReportEnvironment()
+        .then(environment => window.agentsDock.native.openExternal(issueReportURL(environment, context)))
+        .catch(reportActionError)
     } else if (command.id === 'goal') {
       openGoalControls()
     } else if (command.id === 'import') {
@@ -1873,7 +1904,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       />
         </fieldset>
       {(uploads.length > 0 || uploadPaths.length > 0) && <AttachmentShelf sessionId={session.id} profileId={activeProfileId} profileGeneration={profileGeneration} files={uploads} pending={uploadPaths} />}
-      <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || selectedRuntimeError || undefined} />
+      <GeminiImportConnection key={`${activeProfileId}:${profileGeneration}:${session.id}`} session={session} />
+      <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || (geminiImportRecovery ? undefined : selectedRuntimeError) || undefined} />
       {activeInboundDeliveryKind && <span className={activeInboundDeliveryKind === 'unknown' ? 'composer-sync-status' : 'chat-reference-warning'} role="status">{activeInboundDeliveryKind === 'unknown'
         ? t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")
         : activeInboundDeliveryKind === 'secure_peer'
@@ -2231,6 +2263,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
           {goalControlsAvailable && <button type="button" className="composer-icon" aria-label={goalTitle} title={goalTitle} onClick={openGoalControls}><Goal size={15} /></button>}
           {session.backend === 'cursor' && <CursorPermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
           {session.backend === 'opencode' && <OpenCodePermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
+          {session.backend === 'gemini' && !window.agentsDock.sharedChat && <GeminiPermissionMenu session={session} running={running} open={permissionMenuOpen} onOpenChange={setPermissionMenuOpen} />}
         </div>
         <div className="composer-actions">
           {(steeringPending || admitting) && <span className="steering-pending" role="status"><span className="activity-ring" /><span className="steering-pending-label">{
@@ -3328,7 +3361,7 @@ function RuntimeMenu({
             <DropdownMenu.Label className="menu-label">Reasoning</DropdownMenu.Label>
             {efforts.map(option => <DropdownMenu.CheckboxItem data-runtime-section="reasoning" key={option.value || 'default'} className="menu-item" checked={(session.effort ?? '') === option.value} onCheckedChange={() => void useAppStore.getState().updateSession(session.id, { effort: option.value || null })}>{option.label}</DropdownMenu.CheckboxItem>)}
           </>}
-          {!window.agentsDock.sharedChat && session.backend !== 'cursor' && session.backend !== 'opencode' && <>
+          {!window.agentsDock.sharedChat && (session.backend === 'codex' || session.backend === 'claude') && <>
             <DropdownMenu.Separator className="menu-separator" />
             <DropdownMenu.Label className="menu-label">{t("ui.Composer.RuntimeMenu.agent_process_4dc27ee")}</DropdownMenu.Label>
             <DropdownMenu.Item

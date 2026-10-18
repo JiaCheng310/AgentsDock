@@ -33,7 +33,7 @@ import { inferredMobileFileContentType, mobileFileViewerKind, mobileFileViewerLa
 import { fullscreenModalPadding, type FullscreenSafeAreaInsets } from '../../lib/fullscreen-modal-layout'
 import { filesNewestFirst, formatBytes } from '../../lib/format'
 import { client, useAppStore } from '../../store/useAppStore'
-import { usePalette } from '../../theme'
+import { radius, usePalette } from '../../theme'
 import type { AgentFile, WorkspaceInfo } from '../../types'
 import { Text } from '../AppText'
 import { EmptyState, IconButton, SheetCloseButton } from '../ui'
@@ -734,12 +734,12 @@ const styles = StyleSheet.create({
   sidebarTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   sidebarCount: { fontSize: 10, fontVariant: ['tabular-nums'] },
   sidebarList: { paddingHorizontal: 7, paddingBottom: 16 },
-  sidebarItem: { minHeight: 58, borderRadius: 7, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  sidebarItem: { minHeight: 58, borderRadius: radius.md, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 9 },
   sidebarIdentity: { flex: 1, minWidth: 0 },
   sidebarName: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
   sidebarMeta: { fontSize: 10, lineHeight: 14, marginTop: 2 },
   phoneOverflow: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  phoneAction: { minWidth: 116, minHeight: 44, borderRadius: 7, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  phoneAction: { minWidth: 116, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   phoneNavigation: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   phoneNavigationCount: { minWidth: 72, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'], textAlign: 'center' },
 })

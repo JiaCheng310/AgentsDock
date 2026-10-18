@@ -4,6 +4,7 @@ import { t } from '@shared/i18n'
 import type { CodexAuthStatus, CodexProviderConfiguration, CodexProviderTestResult, CodexServerSettingsScope } from '@shared/types'
 import { useLocale } from '../lib/i18n'
 import { trackOperation } from '../lib/analytics'
+import { flushEndpointDraft, queueEndpointDraft, readEndpointDraft } from '../lib/endpoint-draft'
 import { CustomModelSettings } from './CustomModelSettings'
 import { EndpointMenu } from './EndpointMenu'
 import { CodexModelCompatibilityCheck } from './CodexModelCompatibilityCheck'
@@ -11,7 +12,7 @@ import './CodexAuthSettings.css'
 import './ProviderConnectionSettings.css'
 import { NativeProviderSignIn } from './NativeProviderSignIn'
 
-type AuthFailure = 'admin' | 'update' | 'connection' | 'readFailed'
+type AuthFailure = 'admin' | 'update' | 'connection' | 'readFailed' | 'reloadUnavailable'
 type ProviderFailure = 'providerAdmin' | 'providerUpdate' | 'providerBusy' | 'providerInvalid' | 'providerConnection' | 'providerFailed'
 
 function providerFailure(reason: unknown): ProviderFailure {
@@ -29,6 +30,7 @@ function authFailure(reason: unknown): AuthFailure {
   if (/CODEX_AUTH_ADMIN|\b(?:401|403)\b|unauthori[sz]ed|forbidden/i.test(message)) return 'admin'
   if (/CODEX_AUTH_UPDATE|\b(?:404|405|501)\b|not found|not implemented|method not allowed/i.test(message)) return 'update'
   if (/CODEX_AUTH_CONNECTION/i.test(message)) return 'connection'
+  if (/CODEX_AUTH_BUSY/i.test(message)) return 'reloadUnavailable'
   return 'readFailed'
 }
 
@@ -68,6 +70,11 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
   scopeRef.current = { connected, profileId, profileGeneration }
   const keyInputRef = useRef<HTMLInputElement | null>(null)
   const endpointInputRef = useRef<HTMLInputElement | null>(null)
+  useEffect(() => {
+    const flush = () => flushEndpointDraft(profileId, 'codex')
+    window.addEventListener('pagehide', flush)
+    return () => { window.removeEventListener('pagehide', flush); flush() }
+  }, [profileId])
 
   // Keep credentials out of React state and clear even a detached input when the
   // form, selected server, or settings dialog closes.
@@ -148,6 +155,29 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
 
   const scopeMatches = statusScope?.profileId === profileId && statusScope?.profileGeneration === profileGeneration
   const currentStatus = connected && scopeMatches ? status : null
+  async function reloadNativeLogin() {
+    if (!connected || !profileId || loading || saving) return
+    if (!currentStatus?.login_reload_available || typeof window.agentsDock.codex?.reloadAuth !== 'function') {
+      // Older servers retain a read-only account recheck. Never emulate a
+      // missing reload API with the catalog's legacy side-effectful GET.
+      setReload(value => value + 1)
+      return
+    }
+    const scope = { profileId, profileGeneration }
+    const request = ++requestRef.current
+    setLoading(true)
+    setError(null)
+    try {
+      const next = await window.agentsDock.codex.reloadAuth(scope)
+      if (!ownsRequest(request, scope)) return
+      setStatus(next)
+      setStatusScope(scope)
+    } catch (reason) {
+      if (ownsRequest(request, scope)) setError(authFailure(reason))
+    } finally {
+      if (ownsRequest(request, scope)) setLoading(false)
+    }
+  }
   // Endpoint configuration has its own authorization and readiness checks.
   // A failed normal-account read must not strand the endpoint recovery flow.
   const canOpenSettings = connected && profileId != null && !saving
@@ -176,7 +206,7 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
       if (request !== providerRequestRef.current || !ownsScope(scope)) return
       setProvider(next)
       setProviderScope(scope)
-      setBaseURL(next.base_url ?? 'https://api.openai.com/v1')
+      setBaseURL(readEndpointDraft(profileId, 'codex')?.baseURL ?? next.base_url ?? 'https://api.openai.com/v1')
     } catch (reason) {
       if (request === providerRequestRef.current && ownsScope(scope)) {
         const failure = providerFailure(reason)
@@ -268,6 +298,7 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
   }
 
   function cancelForm() {
+    flushEndpointDraft(profileId, 'codex')
     clearKey()
     invalidateTest()
     providerRequestRef.current += 1
@@ -293,14 +324,15 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
         <div><strong>{t('codexAuth.title')}</strong>{serverTitle && <small>{serverTitle}</small>}</div>
         <div className="codex-auth-settings-actions">
           <button type="button" className="quiet-button" disabled={!connected || !profileId || loading || saving}
-            onClick={() => setReload(value => value + 1)}>
-            {loading ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}{t('codexAuth.recheck')}
+            onClick={() => { void reloadNativeLogin() }}>
+            {loading ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}{t(currentStatus?.login_reload_available ? 'codexAuth.reloadLogin' : 'codexAuth.recheck')}
           </button>
         </div>
       </div>
       <small>{!connected || !profileId ? t('codexAuth.connect') : loading ? t('codexAuth.loading')
         : currentStatus?.available === false ? t('codexAuth.nativeRequired') : currentStatus ? account : t('codexAuth.unknown')}</small>
       {!nativeSignedIn && !loading && <NativeProviderSignIn backend="codex" disabled={!connected} />}
+      {currentStatus?.login_reload_available && <small>{t(currentStatus.login_reload_pending ? 'codexAuth.reloadPending' : 'codexAuth.reloadHelp')}</small>}
       {error && <small className="codex-auth-settings-error" role="alert">{t(`codexAuth.${error}`)}</small>}
     </div>
   </section>
@@ -327,14 +359,22 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
       <CustomModelSettings backend="codex" active={expanded === true && apiVerified} onSaved={() => setReload(value => value + 1)} />
       {showForm && <form className="codex-auth-settings-form" onSubmit={event => { event.preventDefault(); void saveProvider() }}>
         {providerLoading && <small>{t('codexAuth.providerLoading')}</small>}
+        <small>{t('connections.draftHelp')}</small>
         <div className="codex-auth-endpoint-fields">
           {currentProvider?.available === false && <small>{t('codexAuth.nativeRequired')}</small>}
-          <label htmlFor={`${fieldId}-endpoint`}>{t('codexAuth.baseURL')}</label>
-          <input ref={endpointInputRef} id={`${fieldId}-endpoint`} type="url" value={baseURL} disabled={!providerEditable} autoComplete="off" spellCheck={false}
-            onChange={event => { setBaseURL(event.currentTarget.value); invalidateTest() }} />
+          <label htmlFor={`${fieldId}-endpoint`}>{t('codexAuth.baseURL')} <span aria-hidden="true" className="provider-field-requirement">{t('connections.required')}</span></label>
+          <input ref={endpointInputRef} id={`${fieldId}-endpoint`} aria-label={t('codexAuth.baseURL')} required type="url" value={baseURL} disabled={!providerEditable} autoComplete="off" spellCheck={false}
+            onChange={event => {
+              setBaseURL(event.currentTarget.value); invalidateTest()
+              queueEndpointDraft(profileId, 'codex', { baseURL: event.currentTarget.value, model: '', protocol: 'responses', authHeader: 'bearer' })
+            }} />
         </div>
-        <label htmlFor={fieldId}>{t('codexAuth.providerKey')}</label>
-        <input ref={attachKeyInput} id={fieldId} type="password" autoComplete="off" autoCapitalize="none" autoCorrect="off"
+        <div className="provider-connection-field"><label htmlFor={`${fieldId}-protocol`}>{t('connections.protocol')}</label>
+          <select id={`${fieldId}-protocol`} disabled value="responses"><option value="responses">OpenAI Responses</option></select></div>
+        <div className="provider-connection-field"><label htmlFor={`${fieldId}-auth`}>{t('connections.authHeader')}</label>
+          <select id={`${fieldId}-auth`} disabled value="bearer"><option value="bearer">Bearer</option></select></div>
+        <label htmlFor={fieldId}>{t('codexAuth.providerKey')} <span aria-hidden="true" className="provider-field-requirement">{t('connections.required')}</span></label>
+        <input ref={attachKeyInput} id={fieldId} aria-label={t('codexAuth.providerKey')} required type="password" autoComplete="off" autoCapitalize="none" autoCorrect="off"
           spellCheck={false} maxLength={4096} disabled={!providerEditable} data-1p-ignore data-lpignore="true"
           onChange={event => { setHasKey(Boolean(event.currentTarget.value.trim())); invalidateTest() }} />
         <div className="codex-auth-settings-actions">

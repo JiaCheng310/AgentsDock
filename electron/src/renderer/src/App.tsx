@@ -20,6 +20,7 @@ import { ChatPane } from './components/ChatPane'
 import { ChatSplitView } from './components/ChatSplitView'
 import { CodeReview } from './components/CodeReview'
 import { ClaudeInteractionShelf } from './components/ClaudeInteractionShelf'
+import { GeminiInteractionShelf } from './components/GeminiInteractionShelf'
 import { ClaudeRuntimeProvider } from './components/ClaudeRuntimeContext'
 import { CodexInteractionShelf } from './components/CodexInteractionShelf'
 import { CodexRuntimeProvider } from './components/CodexRuntimeContext'
@@ -36,6 +37,8 @@ import { TeamNetwork, type PendingSecurePeerInvite, type TeamNetworkMailboxTarge
 import { Timeline } from './components/Timeline'
 import { WelcomeChat } from './components/WelcomeChat'
 import { WorkspaceEditor } from './components/WorkspaceEditor'
+import { WorkspaceFilesProvider } from './components/WorkspaceFilesContext'
+import { readInspectorTab, saveInspectorTab } from './lib/inspector-preference'
 import { trackEvent } from './lib/analytics'
 import { activeEmergencyAlert } from './lib/emergency-alert'
 import { isTerminalToggleShortcut } from './lib/workspace-shortcuts'
@@ -88,6 +91,10 @@ const AVAILABLE_CLAUDE_CONTROLS = Object.freeze({
 })
 
 export function App() {
+  return <WorkspaceFilesProvider><AppWorkspace /></WorkspaceFilesProvider>
+}
+
+function AppWorkspace() {
   useLocale()
   const initialize = useAppStore(state => state.initialize)
   const initialized = useAppStore(state => state.initialized)
@@ -136,7 +143,27 @@ export function App() {
   } : null, [activeProfileId, activeServerIdentity, profileGeneration])
   const [scopedReviewTarget, setScopedReviewTarget] = useState<ScopedReviewTarget | null>(null)
   const [sideChatController] = useState(() => new SideChatController())
-  const [inspectorTab, setInspectorTab] = useState<InspectorWorkspaceTab>('details')
+  const [inspectorTab, setInspectorTab] = useState<InspectorWorkspaceTab>(readInspectorTab)
+  const preferredInspectorTab = useRef(readInspectorTab())
+  const chooseInspectorTab = useCallback((tab: InspectorWorkspaceTab) => {
+    if (tab !== 'review') {
+      preferredInspectorTab.current = tab
+      saveInspectorTab(tab)
+    }
+    setInspectorTab(tab)
+  }, [])
+  const showFilesForOpenedFile = useCallback(() => {
+    const state = useAppStore.getState()
+    const ownerSession = state.sessions.find(session => session.id === selectedSessionId)
+    // A delayed file load must not reopen the panel for a different chat/server.
+    if (!ownerSession || !selectedSessionId || state.switchingProfileId
+      || state.activeProfileId !== activeProfileId || state.profileGeneration !== profileGeneration
+      || state.selectedSessionId !== selectedSessionId
+      || (state.profiles.find(profile => profile.id === state.activeProfileId)?.serverIdentity ?? null) !== activeServerIdentity
+      || ownerSession.cwd !== selectedSession?.cwd) return
+    chooseInspectorTab('files')
+    if (!state.inspectorVisible) state.setInspectorVisible(true)
+  }, [activeProfileId, activeServerIdentity, profileGeneration, selectedSessionId, selectedSession?.cwd, chooseInspectorTab])
   const [sideChatFocusVersion, setSideChatFocusVersion] = useState(0)
   const [sideChatOpenTarget, setSideChatOpenTarget] = useState<string | null>(null)
   const previousSideChatTarget = useRef<string | null>(null)
@@ -415,6 +442,9 @@ export function App() {
     setScopedReviewTarget(current => current?.profileId === activeProfileId && current.profileGeneration === profileGeneration && reviewTargetBelongsToSession(current.target, selectedSessionId) ? current : null)
   }, [activeProfileId, profileGeneration, selectedSessionId])
   useEffect(() => {
+    if (!reviewTarget && inspectorTab === 'review') setInspectorTab(preferredInspectorTab.current)
+  }, [reviewTarget, inspectorTab])
+  useEffect(() => {
     if (!splitOpen) return
     const openEditorForChat = (event: Event) => {
       if (replayingWorkspaceOpenEvent.current === event) return
@@ -567,7 +597,7 @@ export function App() {
       if (!event.shiftKey && key === 'l') {
         event.preventDefault()
         event.stopPropagation()
-        if (reviewVisible) { setScopedReviewTarget(null); setInspectorTab('details') }
+        if (reviewVisible) { setScopedReviewTarget(null); setInspectorTab(preferredInspectorTab.current) }
         else useAppStore.getState().setInspectorVisible(!inspectorVisible)
       }
     }
@@ -677,7 +707,7 @@ export function App() {
       const closeWorkspaceFile = new Event('agentsdock:workspace-close-active', { cancelable: true })
       window.dispatchEvent(closeWorkspaceFile)
       if (closeWorkspaceFile.defaultPrevented) return
-      if (reviewVisible) { setScopedReviewTarget(null); setInspectorTab('details'); return }
+      if (reviewVisible) { setScopedReviewTarget(null); setInspectorTab(preferredInspectorTab.current); return }
       if (terminalOpen && selectedSessionId) { setTerminalOpen(selectedSessionId, false); return }
       if (splitWorkspaceTargetRef.current) { dismissSplitWorkspace(); return }
       if (splitOpen) { useAppStore.getState().closeChatPane(focusedChatPane); return }
@@ -805,6 +835,7 @@ export function App() {
       <div className="chat-workspace-shelves">
         <CodexInteractionShelf key={`codex-interactions:${selectedRenderKey}`} />
         <ClaudeInteractionShelf key={`claude-interactions:${selectedRenderKey}`} />
+        <GeminiInteractionShelf key={`gemini-interactions:${selectedRenderKey}`} session={selectedSession} />
       </div>
       {selectedSession && <EmergencyTimelineDock
         key={`emergency:${selectedRenderKey}`}
@@ -840,21 +871,33 @@ export function App() {
         capabilityVersion={workspaceFilesVersion}
         maxTextFileBytes={workspaceFilesMaxTextFileBytes}
         unavailableMessage={workspaceFilesUnavailableMessage}
+        onFileOpen={showFilesForOpenedFile}
         chatContent={chatWorkspace}
       />
       : chatWorkspace}
   </>
 
-  const splitWorkspaceSession = splitWorkspaceTarget?.sessionId === primarySession?.id
+  // Files can browse the focused split chat without covering either conversation.
+  // Opening/editing a file activates this same editor, preserving its buffers.
+  const filesBrowseTarget = splitOpen && visibleDockOpen && inspectorTab === 'files' && selectedSession
+    ? { profileId: activeProfileId, profileGeneration, serverIdentity: activeServerIdentity,
+      sessionId: selectedSession.id, cwd: selectedSession.cwd ?? '' }
+    : null
+  const renderedWorkspaceTarget = splitWorkspaceTarget ?? (filesBrowseTarget
+    ? { ...filesBrowseTarget, key: splitWorkspaceKey(filesBrowseTarget) } : null)
+  const splitWorkspaceSession = renderedWorkspaceTarget?.sessionId === primarySession?.id
     ? primarySession
-    : splitWorkspaceTarget?.sessionId === secondarySession?.id
-      ? secondarySession
-      : null
-  const splitWorkspaceProfileScope = splitWorkspaceTarget?.profileId ? {
-    profileId: splitWorkspaceTarget.profileId,
-    profileGeneration: splitWorkspaceTarget.profileGeneration,
-    serverIdentity: splitWorkspaceTarget.serverIdentity
+    : renderedWorkspaceTarget?.sessionId === secondarySession?.id ? secondarySession : null
+  const splitWorkspaceProfileScope = renderedWorkspaceTarget?.profileId ? {
+    profileId: renderedWorkspaceTarget.profileId,
+    profileGeneration: renderedWorkspaceTarget.profileGeneration,
+    serverIdentity: renderedWorkspaceTarget.serverIdentity
   } : null
+  const activateSplitFiles = () => {
+    if (!renderedWorkspaceTarget || splitWorkspaceTarget) return
+    splitWorkspaceTargetRef.current = renderedWorkspaceTarget
+    setSplitWorkspaceTarget(renderedWorkspaceTarget)
+  }
 
   if (!initialized) {
     return <main className="app-boot"><LoaderCircle className="spin" size={20} /><span>{t("ui.App.App.opening_agentsdock_24f75ec")}</span>{slowBoot && <><small>{t("ui.App.App.startup_is_taking_longer_than_expected_che_4274a9c")}</small><button className="quiet-button" onClick={() => window.location.reload()}>{t("ui.App.App.retry_942087c")}</button></>}</main>
@@ -909,17 +952,17 @@ export function App() {
                 onTerminalToggle={toggleTerminal}
               />}
             />
-            {splitWorkspaceTarget && splitWorkspaceSession && <div
+            {renderedWorkspaceTarget && splitWorkspaceSession && <div
               ref={splitWorkspaceOverlayRef}
-              className="split-workspace-overlay"
+              className={splitWorkspaceTarget ? 'split-workspace-overlay' : 'split-workspace-files-browser'}
               role="region"
               aria-label={t("ui.App.App.file_workspace_7499ea9", { "name": String(splitWorkspaceSession.title) })}
               data-session-id={splitWorkspaceSession.id}
               tabIndex={-1}
             >
               <WorkspaceEditor
-                key={`split-workspace-editor:${splitWorkspaceTarget.key}`}
-                workspaceKey={`${profileSessionKey(splitWorkspaceTarget.profileId, splitWorkspaceSession.id, splitWorkspaceTarget.serverIdentity)}:cwd:${splitWorkspaceTarget.cwd}`}
+                key={`split-workspace-editor:${renderedWorkspaceTarget.key}`}
+                workspaceKey={`${profileSessionKey(renderedWorkspaceTarget.profileId, splitWorkspaceSession.id, renderedWorkspaceTarget.serverIdentity)}:cwd:${renderedWorkspaceTarget.cwd}`}
                 session={splitWorkspaceSession}
                 profileScope={splitWorkspaceProfileScope}
                 available={workspaceFilesAvailable}
@@ -928,6 +971,9 @@ export function App() {
                 unavailableMessage={workspaceFilesUnavailableMessage}
                 onReady={renderedSplitWorkspaceReady}
                 onReturnToChat={dismissSplitWorkspace}
+                filesOnly={!splitWorkspaceTarget}
+                onActivate={activateSplitFiles}
+                onFileOpen={showFilesForOpenedFile}
                 chatContent={<div className="split-workspace-return">
                   <strong>{t("ui.App.App.your_split_chats_are_still_open_4a8601f")}</strong>
                   <span>{t("ui.App.App.choose_chat_to_return_to_both_panes_3c6aab3")}</span>
@@ -949,9 +995,9 @@ export function App() {
         disabled={Boolean(switchingProfileId)}
         contentKey={selectedRenderKey}
         content={<InspectorWorkspace session={selectedSession} scope={{ profileId: activeProfileId ?? '', profileGeneration, serverIdentity: activeServerIdentity }}
-          controller={sideChatController} tab={inspectorTab} onTabChange={setInspectorTab}
-          onHide={() => { setInspectorTab(current => current === 'review' ? 'details' : current); useAppStore.getState().setInspectorVisible(false) }}
-          review={reviewTarget ? <CodeReview target={reviewTarget} onClose={() => { setScopedReviewTarget(null); setInspectorTab('details') }} /> : undefined} />}
+          controller={sideChatController} tab={inspectorTab} onTabChange={chooseInspectorTab}
+          onHide={() => { setInspectorTab(current => current === 'review' ? preferredInspectorTab.current : current); useAppStore.getState().setInspectorVisible(false) }}
+          review={reviewTarget ? <CodeReview target={reviewTarget} onClose={() => { setScopedReviewTarget(null); setInspectorTab(preferredInspectorTab.current) }} /> : undefined} />}
       />
       {!switchingProfileId && <WorkspaceResizeHandles
         key={`resize:${activeRenderKey}`}

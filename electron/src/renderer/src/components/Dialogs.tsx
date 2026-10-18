@@ -6,8 +6,8 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, u
 import * as Dialog from '@radix-ui/react-dialog'
 import { ArrowRight, Check, ChevronDown, ChevronRight, CircleAlert, Clock3, Command, Copy, Download, ExternalLink, FileText, FolderOpen, GitFork, Import, KeyRound, Laptop, LoaderCircle, Network, RefreshCw, RotateCcw, Search, Server, Sparkles, X } from 'lucide-react'
 import type { AppUpdateStatus, AppUpdateTrack, Backend, BulkImportSessionItem, BulkImportSessionResult, ChatReference, ChatReferenceAction, CoordinatedServerUpdate, CreateJobInput, Health, Job, JobContextMode, JobScheduleKind, LocalSessionCandidate, ServerRestartBlockerSnapshot, ServerSetupCapabilities, ServerSetupProgress, ServerUpdateStatus, ServerUpdateTrack, Session, TeamReference, UpdateJobInput, WorkspaceProfileScope } from '@shared/types'
-import { cursorLocalSessionImportSupported, localSessionImportKey, localSessionImportSupported } from '@shared/local-session-import'
-import { opencodeBackendAvailable, opencodeBackendUnavailableReason, chatBackendSelection, codexCustomProviderAvailable, cursorBackendAvailable, cursorBackendUnavailableReason, runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError, selectableChatBackendChoices, selectableChatBackends, type ChatBackendChoice } from '@shared/runtime-catalog'
+import { cursorLocalSessionImportSupported, geminiLocalSessionImportSupported, localSessionImportKey, localSessionImportSupported } from '@shared/local-session-import'
+import { opencodeBackendAvailable, opencodeBackendUnavailableReason, chatBackendChoice, chatBackendSelection, codexCustomProviderAvailable, cursorBackendAvailable, cursorBackendUnavailableReason, runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError, selectableChatBackendChoices, selectableChatBackends, type ChatBackendChoice } from '@shared/runtime-catalog'
 import { trackEvent, trackOperation } from '../lib/analytics'
 import { readAppearance, setAppearanceMode, type AppearanceMode } from '../lib/appearance'
 import { t, useLanguagePreference, type LanguagePreference } from '../lib/i18n'
@@ -19,8 +19,8 @@ import { historyResultsBySession, openSessionHistoryResult, useSessionHistorySea
 import { effectiveScheduleKind, formatScheduleWallTime, jobLoopsForever, parseScheduleWallTime, supportedTimezones, validateJobSchedule } from '../lib/job-schedule'
 import { digestTargetSections, orderedActiveSessions, rankSessionsForSearch, sessionNameMatchRank } from '../lib/sessions'
 import { useTransientClose } from '../lib/transient-close'
-import { captureWorkspaceScope } from '../lib/workspace-preferences'
-import { markNewChatPlaceholder, saveNewChatDefaults, useAppStore, waitForWorkspaceReady } from '../store/app-store'
+import { captureWorkspaceScope, getWorkspacePreference } from '../lib/workspace-preferences'
+import { markNewChatPlaceholder, saveNewChatDefaults, preferredNewChatDefaults, newChatPermissions, NEW_CHAT_DEFAULTS_PREFERENCE_KEY, type NewChatDefaults, useAppStore, waitForWorkspaceReady } from '../store/app-store'
 import { BackendMark } from './BackendMark'
 import { ChatShareDialog } from './ChatShareDialog'
 import { AIProviderSettings } from './AIProviderSettings'
@@ -28,8 +28,6 @@ import { openAIProviderSettings } from '../lib/provider-settings'
 import { CodexModelDiscovery } from './CodexModelDiscovery'
 import { ReasoningDisplaySettings } from './ReasoningDisplaySettings'
 import { CoordinatedServerUpdateRow } from './CoordinatedServerUpdateRow'
-import { CodexServerSettings } from './CodexServerSettings'
-import { CodexSubagentSettings } from './CodexSubagentSettings'
 import { ServerManagement } from './ServerManagement'
 import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings'
 import { ShortcutKey } from './ShortcutTooltip'
@@ -444,7 +442,7 @@ export function Dialogs() {
   return <>
     <ServerOnboardingDialog />
     <SettingsDialog />
-    <SessionDialog mode="newChat" />
+    {/* New chat always opens the composer through requestNewChat. */}
     <SessionDialog mode="resume" />
     <ImportChatsDialog />
     <FolderDialog />
@@ -2833,14 +2831,12 @@ export function SettingsDialog() {
     store.setModal('appSettings', false)
   }
   const serverSettingsContent = <div className="dialog-form settings-dialog-body app-settings-server-page">
-    <ServerManagement addRequest={addServerRequest} manageRequest={manageServersRequest} />
-    <div className={`server-health ${connected ? degraded ? 'degraded' : 'online' : 'offline'}`}><span /><div className="server-health-copy"><strong>{connected ? degraded ? t("ui.Dialogs.SettingsDialog.connected_limited_a6733ca") : t("ui.Dialogs.SettingsDialog.connected_2296556") : t("ui.Dialogs.SettingsDialog.offline_a179478")}</strong><small>{health?.server_identity || t("ui.Dialogs.SettingsDialog.connection_settings_are_stored_on_this_mac_7348bfb")}</small>{restartNotice && <small className={`server-restart-notice ${restartNotice.kind}`} role={restartNotice.kind === 'error' ? 'alert' : 'status'} aria-live="polite">{restartNotice.message}</small>}</div>{restartServerButton()}</div>
-    <CodexServerSettings
-      connected={connected}
-      profileId={activeProfileId}
-      profileGeneration={profileGeneration}
-    />
-    <CodexSubagentSettings connected={connected} profileId={activeProfileId} profileGeneration={profileGeneration} />
+    <ServerManagement addRequest={addServerRequest} manageRequest={manageServersRequest} activeServerControls={
+      <div className="server-management-runtime-actions">
+        {restartServerButton()}
+        {restartNotice && <small className={`server-restart-notice ${restartNotice.kind}`} role={restartNotice.kind === 'error' ? 'alert' : 'status'} aria-live="polite">{restartNotice.message}</small>}
+      </div>
+    } />
     <footer><button type="button" className="primary-button" onClick={closeSettings}>{t("ui.Dialogs.SettingsDialog.done_11a6767")}</button></footer>
   </div>
   return <>
@@ -2928,6 +2924,10 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
   const directoryCompletionAvailable = useAppStore(state => state.health?.capabilities?.working_directory_completion?.available === true)
   const importSupported = useAppStore(state => localSessionImportSupported(state.health))
   const sessions = useAppStore(state => state.sessions)
+  const profileId = useAppStore(state => state.activeProfileId)
+  const profileGeneration = useAppStore(state => state.profileGeneration)
+  const [inheritedDefaults, setInheritedDefaults] = useState<NewChatDefaults | null>(null)
+  const [initializing, setInitializing] = useState(mode === 'newChat')
   const [title, setTitle] = useState('')
   const [folder, setFolder] = useState('General')
   const [cwd, setCwd] = useState('')
@@ -2943,7 +2943,11 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
   const folders = useMemo(() => [...new Set(sessions.map(session => session.folder || 'General'))].sort(), [sessions])
   const backendOptions = useMemo(() => selectableChatBackendChoices(health, catalog).filter(choice => mode !== 'resume' || choice !== 'opencode' && !choice.endsWith('-custom')), [catalog, health, mode])
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      // Keep fallback effects gated for the first render of the next opening.
+      setInitializing(mode === 'newChat')
+      return
+    }
     setTitle(mode === 'newChat' ? 'New chat' : 'Resumed chat')
     setProviderId('')
     setModel('')
@@ -2951,15 +2955,49 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
     setSystemPrompt('')
     setManualModel(false)
     setCwd(defaultCwd)
-  }, [defaultCwd, mode, open])
+    setInheritedDefaults(null)
+    setInitializing(false)
+    if (mode !== 'newChat') return
+    setFolder('General')
+    setInitializing(true)
+    const initial = useAppStore.getState()
+    const scope = captureWorkspaceScope(initial)
+    let cancelled = false
+    const stillCurrent = () => !cancelled && useAppStore.getState().activeProfileId === initial.activeProfileId
+      && useAppStore.getState().profileGeneration === initial.profileGeneration
+    const applyDefaults = (stored: unknown) => {
+      if (!stillCurrent()) return
+      const seed = preferredNewChatDefaults(initial.sessions, initial.selectedSessionId, defaultCwd, stored)
+      setInheritedDefaults(seed)
+      if (seed) {
+        setBackendChoice(chatBackendChoice(seed))
+        setFolder(seed.folder)
+        setCwd(seed.cwd)
+        setModel(seed.model || '')
+        setEffort(seed.effort || '')
+      } else setBackendChoice('codex')
+      setInitializing(false)
+    }
+    if (initial.sessions.some(session => session.id === initial.selectedSessionId && !session.archived)) {
+      applyDefaults(null)
+    } else {
+      void Promise.resolve().then(() => getWorkspacePreference(scope, NEW_CHAT_DEFAULTS_PREFERENCE_KEY, null))
+        .catch(() => null).then(applyDefaults)
+    }
+    return () => { cancelled = true }
+  }, [defaultCwd, mode, open, profileId, profileGeneration])
   useEffect(() => {
-    if (!open || backendOptions.includes(backendChoice)) return
+    // An unavailable inherited provider must require an explicit choice, not
+    // silently switch the new conversation to an unrelated account/provider.
+    if (!open || initializing || inheritedDefaults || backendOptions.includes(backendChoice)) return
     if (backendOptions[0]) setBackendChoice(backendOptions[0])
     setModel('')
     setEffort('')
-  }, [backendChoice, backendOptions, open])
+  }, [backendChoice, backendOptions, open, initializing, inheritedDefaults])
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); setSaving(true)
+    event.preventDefault()
+    if (initializing) return
+    setSaving(true)
     try {
       const state = useAppStore.getState()
       const preferenceScope = captureWorkspaceScope(state)
@@ -2967,7 +3005,8 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
       if (!backendOptions.includes(backendChoice)) throw new Error(t('connections.noneReady'))
       const runtimeError = runtimeSelectionError(state.health, state.runtimeCatalog, backend, model, connectionMode)
       if (runtimeError) throw new Error(runtimeError)
-      const input = { title: title.trim() || 'New chat', folder: folder.trim() || 'General', cwd: cwd.trim(), backend, codex_provider, provider_connection, model: model || null, effort: effort || null, system_prompt: systemPrompt.trim() || null, cursor_permission_mode: backend === 'cursor' ? 'default' as const : null, opencode_permission_mode: backend === 'opencode' ? 'default' as const : null }
+      const permissions = newChatPermissions(mode === 'newChat' && inheritedDefaults?.backend === backend ? inheritedDefaults : {}, backend)
+      const input = { title: title.trim() || 'New chat', folder: folder.trim() || 'General', cwd: cwd.trim(), backend, codex_provider, provider_connection, model: model || null, effort: effort || null, system_prompt: systemPrompt.trim() || null, ...permissions }
       const session = mode === 'resume' ? await window.agentsDock.sessions.resume({ ...input, providerId: providerId.trim() }) : await window.agentsDock.sessions.create(input)
       if (mode === 'newChat') {
         trackEvent('chat_created')
@@ -3031,7 +3070,7 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
       </div>}
       {runtimeError && <small className="span-two schedule-validation error" role="alert">{runtimeError}</small>}
       <label className="span-two"><span>{t("ui.Dialogs.SessionDialog.system_prompt_561257c")}</span><textarea rows={4} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder={t("ui.Dialogs.SessionDialog.optional_per_chat_instructions_454671b")} /></label>
-      <footer className="span-two"><button type="button" className="quiet-button" onClick={() => useAppStore.getState().setModal(mode, false)}>{t("ui.Dialogs.SessionDialog.cancel_19766ed")}</button><button className="primary-button" disabled={saving || Boolean(runtimeError) || mode === 'resume' && !providerId.trim()}>{saving && <LoaderCircle className="spin" size={14} />}{mode === 'newChat' ? t("ui.Dialogs.SessionDialog.create_chat_35e51d6") : t("ui.Dialogs.SessionDialog.resume_chat_790e1b9")}</button></footer>
+      <footer className="span-two"><button type="button" className="quiet-button" onClick={() => useAppStore.getState().setModal(mode, false)}>{t("ui.Dialogs.SessionDialog.cancel_19766ed")}</button><button className="primary-button" disabled={initializing || saving || Boolean(runtimeError) || mode === 'resume' && !providerId.trim()}>{saving && <LoaderCircle className="spin" size={14} />}{mode === 'newChat' ? t("ui.Dialogs.SessionDialog.create_chat_35e51d6") : t("ui.Dialogs.SessionDialog.resume_chat_790e1b9")}</button></footer>
     </form>
   </Shell>
 }
@@ -3092,6 +3131,10 @@ export function ImportChatsDialog() {
   useLocale()
   const open = useAppStore(state => state.modals.importChats)
   const health = useAppStore(state => state.health)
+  const geminiAPI = useAppStore(state => state.runtimeCatalog?.backends.gemini?.custom_provider)
+  const [geminiImportAPI, setGeminiImportAPI] = useState(false)
+  const canBindGemini = health?.capabilities?.gemini_backend?.features?.native_import_api === true
+  const useGeminiAPI = canBindGemini && geminiAPI?.available === true && geminiImportAPI
   const sessions = useAppStore(state => state.sessions)
   const selectedSessionId = useAppStore(state => state.selectedSessionId)
   const activeProfileId = useAppStore(state => state.activeProfileId)
@@ -3131,6 +3174,7 @@ export function ImportChatsDialog() {
     setResults([])
     setLoadError(null)
     setCandidates([])
+    setGeminiImportAPI(false)
     setImporting(false)
     setLoading(false)
     setCollapsed(new Set())
@@ -3249,7 +3293,8 @@ export function ImportChatsDialog() {
     if (activeOperationEpoch.current !== null) return
     const items: BulkImportSessionItem[] = candidates
       .filter(candidate => selected.has(localSessionImportKey(candidate.backend, candidate.provider_session_id)))
-      .map(candidate => ({ provider_session_id: candidate.provider_session_id, backend: candidate.backend, cwd: candidate.cwd }))
+      .map(candidate => ({ provider_session_id: candidate.provider_session_id, backend: candidate.backend, cwd: candidate.cwd,
+        ...(candidate.backend === 'gemini' && useGeminiAPI ? { provider_connection: 'custom' as const } : {}) }))
     if (!items.length) return
     const epoch = ++requestEpoch.current
     const origin = dialogScope
@@ -3314,6 +3359,7 @@ export function ImportChatsDialog() {
       const outcome = await window.agentsDock.sessions.bulkImport([{
         provider_session_id: match.providerId,
         backend: match.backend,
+        ...(match.backend === 'gemini' && useGeminiAPI ? { provider_connection: 'custom' as const } : {}),
         cwd: match.cwd
       }])
       if (!currentImportDialogScope(origin, epoch, requestEpoch.current)) return
@@ -3385,7 +3431,7 @@ export function ImportChatsDialog() {
 
   const operationBusy = importing || resumingById
 
-  return <Shell open={open} onOpenChange={value => useAppStore.getState().setModal('importChats', value)} title={t("ui.Dialogs.ImportChatsDialog.import_chat_ed32942")} description={cursorLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.cursor_snapshot_history') : t("ui.Dialogs.ImportChatsDialog.bring_in_your_local_claude_code_and_codex__0ffcba9")}>
+  return <Shell open={open} onOpenChange={value => useAppStore.getState().setModal('importChats', value)} title={t("ui.Dialogs.ImportChatsDialog.import_chat_ed32942")} description={geminiLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.gemini_snapshot_history') : cursorLocalSessionImportSupported(health) ? t('ui.Dialogs.ImportChatsDialog.cursor_snapshot_history') : t("ui.Dialogs.ImportChatsDialog.bring_in_your_local_claude_code_and_codex__0ffcba9")}>
     <div className="dialog-form import-chats-dialog">
       <form className="import-chats-resume" onSubmit={event => void submitResumeById(event)}>
         <div className="import-chats-resume-heading">
@@ -3421,12 +3467,21 @@ export function ImportChatsDialog() {
         </div>}
         {resumeNeedsDetails && resumeMatches.length === 0 && <div className="import-chats-resume-details">
           <small>{t("ui.Dialogs.ImportChatsDialog.this_id_was_not_found_in_local_history_con_dca866c")}</small>
-          <label><span>Agent</span><select aria-label="Agent" value={resumeBackend} disabled={operationBusy} onChange={event => setResumeBackend(event.target.value as Backend)}>{selectableChatBackends(health, useAppStore.getState().runtimeCatalog).filter(backend => backend !== 'opencode').map(backend => <option value={backend} key={backend}>{backendLabel(backend)}</option>)}</select></label>
+          <label><span>Agent</span><select aria-label="Agent" value={resumeBackend} disabled={operationBusy} onChange={event => setResumeBackend(event.target.value as Backend)}>{selectableChatBackends(health, useAppStore.getState().runtimeCatalog).filter(backend => backend !== 'opencode' && backend !== 'gemini').map(backend => <option value={backend} key={backend}>{backendLabel(backend)}</option>)}</select></label>
           <label><span>{t("ui.Dialogs.ImportChatsDialog.working_directory_865e85c")}</span><input aria-label={t("ui.Dialogs.ImportChatsDialog.working_directory_865e85c")} value={resumeCwd} disabled={operationBusy} onChange={event => setResumeCwd(event.target.value)} placeholder={health?.default_cwd || '/path/to/project'} /></label>
         </div>}
         {resumeError && <small className="import-chats-resume-error" role="alert">{resumeError}</small>}
       </form>
       <div className="import-chats-resume-heading"><Import size={15} aria-hidden="true" /><strong>{t('ui.import.localHistory')}</strong></div>
+      {canBindGemini && candidates.some(candidate => candidate.backend === 'gemini') && <div className="import-chats-resume-details gemini-import-connection-choice">
+        <label><span>{t('gemini.import.choice')}</span><select aria-label={t('gemini.import.choice')} disabled={operationBusy}
+          value={useGeminiAPI ? 'custom' : 'default'} onChange={event => setGeminiImportAPI(event.target.value === 'custom')}>
+          <option value="default">{t('gemini.import.historyOnly')}</option>
+          {geminiAPI?.available && <option value="custom">{t('gemini.import.useAPI')}</option>}
+        </select></label>
+        {useGeminiAPI ? <small>{t('gemini.import.help', { url: geminiAPI?.base_url ?? '' })}</small>
+          : !geminiAPI?.available && <button type="button" className="quiet-button" onClick={() => openAIProviderSettings('gemini')}>{t('connections.configure')}</button>}
+      </div>}
       {loading && <p className="import-chats-status"><LoaderCircle className="spin" size={14} />{" "}{t("ui.Dialogs.ImportChatsDialog.scanning_local_chat_history_9b94771")}</p>}
       {!loading && loadError && <p className="import-chats-status" role="alert">{loadError}</p>}
       {!loading && !loadError && candidates.length === 0 && <p className="import-chats-status">{t("ui.Dialogs.ImportChatsDialog.no_un_imported_local_chats_found_93e16e7")}</p>}

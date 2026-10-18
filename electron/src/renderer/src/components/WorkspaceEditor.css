@@ -287,10 +287,7 @@
 
 .workspace-editor-editor-panel {
   display: grid;
-  grid-template-columns:
-    minmax(160px, min(var(--workspace-explorer-width, 232px), calc(100% - 245px)))
-    5px
-    minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .workspace-editor-editor-groups {
@@ -325,29 +322,6 @@
   background: #171717;
   border-right: 1px solid var(--border);
   overflow: hidden;
-}
-
-.workspace-editor-explorer-resize-handle {
-  min-width: 5px;
-  position: relative;
-  z-index: 2;
-  background: #151515;
-  border-right: 1px solid #303030;
-  border-left: 1px solid #303030;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.workspace-editor-explorer-resize-handle:hover,
-.workspace-editor-explorer-resize-handle:focus-visible,
-.workspace-editor-explorer-dragging .workspace-editor-explorer-resize-handle {
-  background: color-mix(in srgb, var(--accent), #151515 72%);
-  outline: none;
-}
-
-.workspace-editor-explorer-dragging {
-  cursor: col-resize;
-  user-select: none;
 }
 
 .workspace-editor-explorer-header {
@@ -1431,8 +1405,7 @@
 
 :root[data-theme="light"] .workspace-editor-tab-strip-split::after,
 :root[data-theme="light"] .workspace-editor-split-handle,
-:root[data-theme="light"] .workspace-editor-group-divider,
-:root[data-theme="light"] .workspace-editor-explorer-resize-handle {
+:root[data-theme="light"] .workspace-editor-group-divider {
   background: var(--surface-2);
   border-color: var(--border);
 }
@@ -1483,10 +1456,7 @@
 :root[data-theme="light"] .workspace-editor-split-handle:hover,
 :root[data-theme="light"] .workspace-editor-split-handle:focus-visible,
 :root[data-theme="light"] .workspace-editor-split-dragging .workspace-editor-split-handle,
-:root[data-theme="light"] .workspace-editor-group-divider:hover,
-:root[data-theme="light"] .workspace-editor-explorer-resize-handle:hover,
-:root[data-theme="light"] .workspace-editor-explorer-resize-handle:focus-visible,
-:root[data-theme="light"] .workspace-editor-explorer-dragging .workspace-editor-explorer-resize-handle {
+:root[data-theme="light"] .workspace-editor-group-divider:hover {
   background: color-mix(in srgb, var(--accent), var(--surface-2) 82%);
 }
 
@@ -1751,11 +1721,4 @@
   }
 }
 
-.workspace-editor-editor-panel.workspace-editor-explorer-compact {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.workspace-editor-explorer-compact > .workspace-editor-explorer,
-.workspace-editor-explorer-compact > .workspace-editor-explorer-resize-handle {
-  display: none;
-}
+.split-workspace-files-browser { display: contents; }

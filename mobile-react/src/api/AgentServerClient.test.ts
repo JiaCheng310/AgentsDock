@@ -716,6 +716,16 @@ try {
   assert(createBody.codex_permission_profile === null, 'The server should own an omitted Codex permission profile default')
   assert(createBody.codex_approvals_reviewer === null, 'The server should own an omitted Codex reviewer default')
   assert(createBody.provider_jobs_access === null, 'The server should own an omitted provider jobs access default')
+  assert(!Object.hasOwn(createBody, 'codex_provider') && !Object.hasOwn(createBody, 'provider_connection'), 'Legacy native creation must not add a custom route')
+  for (const backend of ['codex', 'claude'] as const) {
+    const field = backend === 'codex' ? 'codex_provider' : 'provider_connection'
+    await codex.createSession({ title: 'API test', folder: '', cwd: '', backend, [field]: 'custom', model: 'exact-api-model' })
+    const body = JSON.parse(fetchRecords.at(-1)?.body ?? '{}')
+    assert(body[field] === 'custom' && body.model === 'exact-api-model', 'Create must serialize the selected API mode and exact model')
+    await codex.updateSession('api-session', { backend, [field]: 'custom', model: null, effort: null })
+    const patch = JSON.parse(fetchRecords.at(-1)?.body ?? '{}')
+    assert(patch[field] === 'custom' && patch.model === null, 'Switching modes must send the API route and clear the old model')
+  }
 
   await codex.createSession({
     title: 'Restricted Codex',

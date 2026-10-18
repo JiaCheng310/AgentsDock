@@ -73,6 +73,52 @@ try {
   }, 'successful quick creation remembers the effective location')
   assert.equal(useAppStore.getState().selectedSessionId, 'created-1')
 
+  const apiHealth = { ok: true, capabilities: {
+    codex_provider_v1: { per_chat: true, per_chat_models: true },
+    provider_connections_v1: { per_chat: true },
+  } }
+  const apiCatalog = { backends: Object.fromEntries(['codex', 'claude'].map(backend => [backend, {
+    native_credentials_present: false, available: false, models: [], efforts: [],
+    custom_provider: { configured: true, available: true, model: 'api-model' },
+  }])) }
+  for (const backend of ['codex', 'claude'] as const) {
+    const modeField = backend === 'codex' ? 'codex_provider' : 'provider_connection'
+    resetCreation({ health: apiHealth, runtime: apiCatalog, chatDefaults: { ...defaults, backend, [modeField]: 'custom', model: 'api-model' } })
+    assert.equal(await useAppStore.getState().quickCreateSession(0), true)
+    assert.equal(requests[0][modeField], 'custom', 'API mode must reach the client even with no native login')
+    assert.equal(useAppStore.getState().chatDefaults[modeField], 'custom')
+    assert.equal(useAppStore.getState().sessions.at(-1)?.[modeField], 'custom')
+    requests.length = 0
+    useAppStore.setState({ runtime: { backends: { [backend]: { models: [], efforts: [], native_credentials_present: true } } } })
+    assert.equal(await useAppStore.getState().quickCreateSession(0), false)
+    assert.equal(requests.length, 0, 'a removed custom default must not fall back to native login')
+  }
+  resetCreation({ health: apiHealth, runtime: apiCatalog })
+  assert.equal(await useAppStore.getState().quickCreateSession(0), true)
+  assert.equal(requests[0].provider_connection, 'custom', 'API-only servers create in an available API mode')
+  assert.equal(requests[0].model, '', 'switching to API must not carry a native model default')
+
+  resetCreation({ health: apiHealth, runtime: apiCatalog })
+  client.createSession = async input => ({ ...createdSession(input), provider_connection: 'default' })
+  assert.equal(await useAppStore.getState().quickCreateSession(0), false, 'a server ignoring API routing must not open a native chat as though it were custom')
+  assert.equal(useAppStore.getState().selectedSessionId, selected.id)
+
+  const originalUpdate = client.updateSession
+  try {
+    const updates: Partial<Session>[] = []
+    client.updateSession = async (id, patch) => { updates.push(patch); return { ...selected, ...patch, id } }
+    resetCreation({ health: apiHealth, runtime: apiCatalog })
+    assert.equal(await useAppStore.getState().updateSession(selected.id, { codex_provider: 'custom', model: null, effort: null }, 0), true)
+    assert.equal(updates[0].codex_provider, 'custom')
+    resetCreation({ health: apiHealth, runtime: apiCatalog })
+    client.updateSession = async () => selected
+    assert.equal(await useAppStore.getState().updateSession(selected.id, { codex_provider: 'custom', model: null }, 0), false)
+    assert.equal(useAppStore.getState().sessions[0].codex_provider, undefined, 'ignored API selection rolls back instead of appearing successful')
+    useAppStore.setState({ sessions: [{ ...selected, codex_provider: 'custom', codex_thread_id: 'started-thread' }] })
+    assert.equal(await useAppStore.getState().updateSession(selected.id, { codex_provider: 'default' }, 0), false)
+    assert.equal(updates.length, 1, 'a started chat cannot switch credentials even if the backend stays the same')
+  } finally { client.updateSession = originalUpdate }
+
   for (const [label, openSession, selectedSessionId] of [
     ['no selection', selected, null],
     ['missing selection', selected, 'missing'],

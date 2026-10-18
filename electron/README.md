@@ -21,6 +21,14 @@ node scripts/package_shared_chat_analytics.mjs electron/out/share-analytics/snap
 
 These generate source artifacts only; server deployment requires separate
 authorization. Read-only pages authorize only the exact bundled script hash.
+## Gemini
+
+Gemini is a built-in desktop/server provider; no development flag is required.
+Install `@google/gemini-cli@0.64.0` on the server machine and configure its API in
+**Settings → My Agents → Gemini**. Google/CLI login is not offered. A matching
+server must advertise Gemini support; the card's presence does not mean the CLI
+or API is ready. Mobile support is separate. See
+[setup, supported features and validation](../server/docs/GEMINI_PROVIDER_PREVIEW.md).
 
 ## Local build
 
@@ -91,15 +99,42 @@ Server identity scopes sessions, preferences, timeline rows, read state, jobs,
 files, and pins so aliases for one server share data without contaminating a
 different server.
 
-## OpenCode (optional beta backend)
+New chat opens the composer directly, including the first chat on a server.
+It inherits the last-opened chat's agent/connection, model, thinking, permissions,
+workspace, folder, custom instructions and supported subagent limit. Without
+previous settings it prefers an available agent; discovery still loading does
+not reopen the old setup dialog. Before the first message, use the composer's
+Agent picker to switch agents or open My Agents. Credentials, native session
+identity, goals and delegated/job authorization are not copied.
 
-OpenCode appears in the chat backend picker. A matching standalone
-AgentsServer must advertise the OpenCode v1 contract; an older server shows
-an upgrade requirement and cannot silently switch the chat to another backend.
+Settings → Server starts with collapsed cards showing each saved server's name,
+URL and connection status. Add server is above the cards. Expand a card for
+separate version and identity rows. A token field shows its first four characters
+with the remainder masked, and Copy at the end copies the complete credential.
+Short tokens stay fully masked. The token field is grouped separately from
+Use/Edit and the red Remove action. The Show QR code entry is temporarily
+commented out; its implementation is retained. Sharing
+does not switch the active server. The active card also contains restart controls.
+Persistent goals have no server-wide Settings toggle. Updated servers keep the
+capability available by default; each chat retains its own goal controls.
+Connection QR import still needs a matching mobile implementation; the image
+does not make a loopback-only server reachable from a phone. See
+[`SERVER_CONNECTION_SHARING.md`](../docs/SERVER_CONNECTION_SHARING.md) for the
+format and remaining acceptance checks.
+
+<a id="opencode-optional-beta-backend"></a>
+
+## OpenCode
+
+OpenCode is available in desktop stable 1.0.9 with AgentsServer 1.0.9 and appears
+in the chat backend picker. The server must advertise the OpenCode v1 contract;
+an older server shows an upgrade requirement and cannot silently switch the
+chat to another backend.
 Install the server-supported OpenCode CLI and configure its provider on the
-server host, not in Electron. Settings → AI Providers → Recheck CLIs reports
-readiness and setup guidance. OpenCode is optional and does not block other
-providers when it is absent.
+server host. Settings → My Agents → OpenCode reports readiness and setup
+guidance and supports custom API connections. OpenCode is optional and does not
+block other providers when it is absent. This availability applies to desktop;
+mobile provider support depends on its separately released client.
 
 Choose a server-advertised model, or leave the model empty to use OpenCode's
 native default. Existing AgentsDock chats resume their native OpenCode session
@@ -115,7 +150,7 @@ resets native OpenCode context while retaining the visible AgentsDock timeline.
 
 OpenCode supports explicitly authorized cross-chat routes through the run-bound
 AgentsDock tool on matching servers, including tool-capable custom API models.
-This beta does not provide external history import, native session forks,
+The 1.0.9 release does not provide external history import, native session forks,
 side chats, live steering, or native goals for OpenCode.
 Ordinary queued follow-ups and Stop remain available. A copied-memory fork
 is not presented as a native clone.
@@ -133,13 +168,29 @@ All feature work and bug fixes also follow the hands-on acceptance requirements
 in [APP_DEV_OPERATIONS.md](../docs/APP_DEV_OPERATIONS.md). Mocked checks alone
 do not establish that a feature works through the real app/server connection.
 
-The renderer is cache-first. It opens the cached tail immediately, subscribes
-to live events, and performs an `after=<last cached seq>` reconciliation in the
-background. Incoming events are coalesced to one renderer publish per animation
-frame. Timeline rows are virtualized with stable semantic keys.
+The renderer is cache-first. It opens the cached tail immediately, requests the
+latest bounded semantic page, then subscribes to events after that page's
+boundary. Reopening a stale cache does not replay the entire offline gap;
+older history loads on upward navigation. Failed refreshes retain the cache.
+Incoming events are coalesced to one renderer publish per animation frame.
+Timeline rows are virtualized with stable semantic keys.
 
 Every selected chat also owns a lightweight workspace surface rooted at its
-server-side `cwd`. Chat remains the pinned default tab. Use `Cmd+O` to search
+server-side `cwd`. The right-hand Details panel has a **Files** tab for browsing
+that directory and opening files in the existing workspace editor. It replaces
+the editor's separate Explorer pane and retains new file/folder, refresh and
+right-click actions (open beside, copy path, download, rename and delete), with
+the existing unsaved-edit and revision checks. Folders load on expansion or
+when revealing the active file; large folders have an explicit Load more button.
+Changing chat, server or working directory clears the old tree. Symlinks retain
+the server's existing access restriction. The last Details/Files selection is
+remembered across panel and app reopening; temporary Review views do not change
+that preference. Opening or selecting a file tab (including attachment and
+image/PDF previews) automatically opens the right panel on Files. Cancelling
+the file picker does not change the panel. In split chat, Files follows the focused chat and browsing
+does not cover the conversations until a file editor or dialog is needed.
+
+Chat remains the pinned default tab. Use `Cmd+O` to search
 and open a UTF-8 source file, switch explicitly from read-only to edit mode,
 and save with `Cmd+S`; `Shift+Cmd+O` remains the attachment picker. Syntax
 support is loaded only after a file opens, clean inactive files are evicted
