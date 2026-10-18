@@ -176,6 +176,45 @@ try {
   const savedId = saved.session?.id
   assert(typeof savedId === 'string' && savedId.length >= 8, 'Test chat was not saved.')
   phase('candidate-a-managed-server-running')
+  // The updater's preparation runs in a detached tmux child. Probe that same
+  // installed interpreter and tmux environment after service installation;
+  // the earlier workflow probe runs before the installer starts.
+  const installedRoot = join(process.env.HOME, '.local/share/agents-server/current')
+  const installedPython = join(installedRoot, '.venv/bin/python')
+  const probeScript = join(work, 'detached-registry-probe.py')
+  const probeOutput = join(work, 'detached-registry-probe.result')
+  const probeExit = join(work, 'detached-registry-probe.exit')
+  const probeManifest = join(root, 'b', 'agents-server-npm-manifest.json')
+  for (const path of [installedRoot, installedPython, probeScript, probeOutput, probeExit, probeManifest]) {
+    assert(/^[A-Za-z0-9_./-]+$/.test(path), 'Disposable probe path is not shell-safe.')
+  }
+  await writeFile(probeScript, `import json, os, sys, urllib.request
+try:
+    sys.path.insert(0, sys.argv[2])
+    import update_runner
+    with open(sys.argv[1], encoding='utf-8') as source:
+        manifest = json.load(source)
+    data = update_runner.download_npm_archive(manifest)
+    print('postinstall-probe-ok size=' + str(len(data)))
+except Exception as error:
+    reason = getattr(error, 'reason', None)
+    print('postinstall-probe-failed type=' + type(error).__name__
+          + ' reason=' + type(reason).__name__
+          + ' errno=' + str(getattr(reason, 'errno', None))
+          + ' verify=' + str(getattr(reason, 'verify_code', None))
+          + ' bypass=' + str(urllib.request.proxy_bypass('registry.npmjs.org'))
+          + ' ca=' + str(bool(os.environ.get('SSL_CERT_FILE')))
+          + ' noproxy=' + str(bool(os.environ.get('NO_PROXY'))))
+    sys.exit(1)
+`, { flag: 'wx', mode: 0o600 })
+  const probeCommand = `${installedPython} ${probeScript} ${probeManifest} ${installedRoot} > ${probeOutput} 2>&1; printf '%s' $? > ${probeExit}`
+  executePrivate('tmux', ['new-session', '-d', '-s', 'agentsdock-update-replay-installed-probe', probeCommand])
+  await until('Detached installed-runtime npm probe', async () => existsSync(probeExit) ? true : null, 70_000)
+  const probeLine = readFileSync(probeOutput, 'utf8').split(/\r?\n/)
+    .find(line => /^postinstall-probe-(?:ok|failed) /.test(line))
+  if (probeLine) process.stdout.write(`${probeLine}\n`)
+  assert(readFileSync(probeExit, 'utf8') === '0' && probeLine?.startsWith('postinstall-probe-ok '),
+    'Detached installed-runtime npm download probe failed before native App update.')
   const profileDirectory = join(work, 'profile')
   await mkdir(profileDirectory, { mode: 0o700 })
   const settings = { schemaVersion: 2, activeProfileId: PROFILE, profiles: [{ id: PROFILE,
