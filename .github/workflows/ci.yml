@@ -139,6 +139,25 @@ jobs:
           done
           echo 'Private exact-origin feed did not become ready.' >&2
           exit 1
+      - name: Give detached test updater the disposable registry trust
+        run: |
+          set -euo pipefail
+          network="$RUNNER_TEMP/coordinated-network"
+          test -f "$network/trust-bundle.pem"
+          if tmux has-session -t '=agentsdock-update-replay-trust' 2>/dev/null; then
+            echo 'Disposable replay tmux session already exists.' >&2
+            exit 1
+          fi
+          /usr/bin/env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" \
+            SHELL=/bin/zsh PATH="$PATH" LANG="${LANG:-C}" TERM=xterm-256color \
+            "$(command -v tmux)" new-session -d -s agentsdock-update-replay-trust 'sleep 3600'
+          for name in SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE; do
+            tmux set-environment -g "$name" "$network/trust-bundle.pem"
+          done
+          tmux set-environment -g NODE_EXTRA_CA_CERTS "$network/ca.pem"
+          tmux set-environment -g NO_PROXY "$NO_PROXY"
+          tmux set-environment -g no_proxy "$NO_PROXY"
+          test "$(tmux show-environment -g SSL_CERT_FILE)" = "SSL_CERT_FILE=$network/trust-bundle.pem"
       - name: Click real Update AgentsDock and verify Server first, App second
         run: node scripts/coordinated-update-test-journey.mjs "$RUNNER_TEMP/candidates"
       - name: Remove only this runner's owned routing and trust
@@ -149,6 +168,12 @@ jobs:
           cleanup_status=0
           /bin/launchctl unsetenv SSL_CERT_FILE || true
           /bin/launchctl unsetenv NODE_EXTRA_CA_CERTS || true
+          if tmux has-session -t '=agentsdock-update-replay-trust' 2>/dev/null; then
+            for name in SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE NODE_EXTRA_CA_CERTS NO_PROXY no_proxy; do
+              tmux set-environment -gu "$name" || true
+            done
+            tmux kill-session -t '=agentsdock-update-replay-trust' || true
+          fi
           if [[ -f "$network/feed.pid" ]]; then
             feed_pid="$(sudo -n cat "$network/feed.pid")"
             if [[ "$feed_pid" =~ ^[1-9][0-9]*$ ]]; then sudo -n kill -TERM "$feed_pid" || true; fi
