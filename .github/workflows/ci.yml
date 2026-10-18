@@ -256,6 +256,7 @@ jobs:
           retention-days: 7
 
   server-cli:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/test/recoverable-update-replay-20261017'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -284,6 +285,7 @@ jobs:
           python3 -m unittest discover -s server/tests -t server -p test_npm_release_package.py
 
   electron:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/test/recoverable-update-replay-20261017'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -309,6 +311,7 @@ jobs:
         working-directory: electron
 
   mobile-source:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/test/recoverable-update-replay-20261017'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
