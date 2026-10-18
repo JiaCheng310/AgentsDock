@@ -28,6 +28,11 @@
   an explicit ready state before requesting activation; a regression test
   covers staging followed by readiness. Packaged replay of this correction
   remains pending.
+- A later isolated replay activated the matching server but did not complete
+  native app replacement. The coordinator now keeps the same user update
+  action alive across the expected server restart connection gap, including
+  an ambiguous restart response. The fix has focused regression coverage;
+  another packaged replay is required before acceptance.
 ## 2026-10-17 — Make Gemini a built-in provider
 
 - Remove the Gemini preview environment gate from provider registration,

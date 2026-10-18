@@ -142,7 +142,7 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     expect(f.manager.status()[0].phase).toBe('current')
   })
 
-  it('retries an ambiguous force response with the same durable request ID', async () => {
+  it('keeps one-click installation alive through an ambiguous force response and restart gap', async () => {
     const f = fixture()
     const capabilities = { server_updates: { available: true, version: 12 },
       server_update_ensure_v1: { available: true, version: 1 },
@@ -153,18 +153,16 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     f.clients.a.ensureServerUpdate.mockResolvedValue({ phase: 'pending', current_version: '1.1.0-beta.1',
       target_version: '1.2.0-beta.2', server_identity: 'server-a', server_instance_id: 'boot-a',
       schedule_id: 'a'.repeat(32), preparation_phase: 'ready' })
-    f.clients.a.restartServer.mockRejectedValueOnce(new Error('connection lost'))
-      .mockImplementationOnce(async request => {
-        f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2', capabilities }))
-        return { phase: 'accepted', request_id: request.request_id,
-          update_schedule_id: request.expected_update_schedule_id, message: 'Restart accepted.' }
-      })
-    await expect(f.manager.prepareForInstall(signed(), '1.2.0-beta.2')).rejects.toThrow('connection lost')
+    f.clients.a.restartServer.mockImplementationOnce(async () => {
+      f.clients.a.health.mockRejectedValueOnce(new Error('service restarting'))
+        .mockResolvedValue(health('a', { server_version: '1.2.0-beta.2', capabilities }))
+      throw new Error('connection lost')
+    })
     await f.manager.prepareForInstall(signed(), '1.2.0-beta.2')
-    expect(f.clients.a.restartServer).toHaveBeenCalledTimes(2)
-    expect(f.clients.a.restartServer.mock.calls[1][0].request_id)
-      .toBe(f.clients.a.restartServer.mock.calls[0][0].request_id)
-  })
+    expect(f.clients.a.restartServer).toHaveBeenCalledOnce()
+    expect(f.manager.status()[0].phase).toBe('current')
+    expect(f.saved()?.records[0].forceRequestId).toBe(f.clients.a.restartServer.mock.calls[0][0].request_id)
+  }, 10_000)
 
   it('does not mutate any server when another saved server fails preflight', async () => {
     const f = fixture(['a', 'b'])

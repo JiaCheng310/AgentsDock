@@ -157,8 +157,13 @@ export class CoordinatedUpdateManager {
           completed = true
           return
         }
+        // A managed service must disconnect briefly while replacing its
+        // runtime. A lost force-restart response is also ambiguous: the
+        // server may already be activating the exact saved reservation.
+        // Keep observing that signed target instead of ending the user's
+        // single update action on the expected connection gap.
         const failed = records.find(record => record.phase === 'failed' || record.phase === 'blocked'
-          || record.phase === 'offline' || record.paused)
+          || record.paused)
         if (failed) throw new Error(`${failed.name}: ${failed.message}`)
         await new Promise(resolve => setTimeout(resolve, 2_000))
       }
