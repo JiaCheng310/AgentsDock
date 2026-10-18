@@ -12,27 +12,32 @@
   in-flight provider operation; already-completed side effects can be repeated.
   Goals, other internal work and unsupported runtimes still wait for a safe
   boundary.
-- Validation: targeted restart-recovery and coordinated-update tests run in
-  isolated fixtures. A disposable named server was upgraded with the signed
-  unpublished candidate and completed an ordinary Codex turn. Packaged native
-  app/server update acceptance is pending; no public release was changed.
+- Validation: 88 focused server tests, 71 focused desktop tests, TypeScript and
+  the desktop production build pass. A disposable named server was upgraded
+  with a signed unpublished candidate and completed an ordinary Codex turn.
+  No public release was changed.
 - A compiled local Electron app from this branch connected to an existing
   test server through the real client/server transport. A disposable Codex
   chat and follow-up both completed, and the Updates page resolved the
   published Stable and Beta feeds. Equal-version and local-suffix preflight
   behavior has focused regression coverage. The development app cannot
-  install updates, and the connected test server lacks the new continuation
-  protocol, so no active-chat update or native installation was accepted.
+  install unpublished updates through its public feed; active-chat
+  continuation still needs a real-provider update test.
 - An isolated native update replay exposed an early forced-restart request
   while the server package was still staging. The coordinator now waits for
   an explicit ready state before requesting activation; a regression test
-  covers staging followed by readiness. Packaged replay of this correction
-  remains pending.
+  covers staging followed by readiness.
 - A later isolated replay activated the matching server but did not complete
   native app replacement. The coordinator now keeps the same user update
   action alive across the expected server restart connection gap, including
-  an ambiguous restart response. The fix has focused regression coverage;
-  another packaged replay is required before acceptance.
+  an ambiguous restart response. A later isolated macOS native replay with
+  signed, notarized, unpublished beta.6 and beta.7 packages passed the actual
+  one-click journey: the server reached beta.7 before app replacement, the app
+  relaunched at beta.7, and server identity and a saved chat survived. See
+  [native replay](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39105335755).
+  The replay used a private exact-package test feed and a disposable server;
+  it did not exercise a real provider turn during the update, busy goals,
+  multiple saved servers, or a production release.
 ## 2026-10-17 — Make Gemini a built-in provider
 
 - Remove the Gemini preview environment gate from provider registration,
