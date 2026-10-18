@@ -1,5 +1,37 @@
 # Public development log
 
+## 2026-10-17 — Let a Team Space host stop hosting and join another team
+
+- Add a visible **Stop hosting…** action that invokes the existing Host-to-Member
+  operation. Replace the old listener-only control, which left the Host role
+  active and prevented joining another team. Confirmation explains that peer
+  access stops while chats and the original team's stored data remain intact.
+- Retire only the desktop's obsolete managed-host session cache after confirmed
+  demotion. Keep human sign-in records, server-owned teams and peer pairings.
+  Recover a committed stop whose response or follow-up health request failed
+  using explicit authenticated role evidence, retaining the original warning.
+- Clear the old workspace and expose joining; restore a previously joined remote
+  team's workspace when the server resumes that membership. Preserve pending
+  invitations and ignore results belonging to a different selected server.
+- Validation: 1,040 focused desktop checks, TypeScript and production compilation
+  passed. Sixteen isolated server checks and a real TLS lifecycle probe passed.
+  An unrelated filesystem fixture requires its expected POSIX umask; its isolated
+  rerun and the final scoped suite passed with that setting.
+- Native acceptance: reproduced the missing exit in the baseline desktop, then
+  personally exercised the compiled app offscreen with disposable real servers:
+  cancel, failed stop and retry, successful stop, lost response after committed
+  stop, invitation-based joining, and reconnect after renderer reload. Mail sent
+  through native IPC was read on the new host. Reactivating the original host
+  preserved its hub/team identities and saved message. Host approval and original
+  team reactivation used authenticated fixture APIs; provider runtimes were not
+  invoked. No installed apps or production services were changed.
+- Visual acceptance: checked the actual desktop at 1040 × 780 in light and dark
+  appearance, including English and Chinese confirmation, keyboard focus,
+  Escape/cancel, and the recovered stop's dismissible warning and join form.
+- Availability: desktop source and isolated development build only. This uses the
+  existing server host-control contract; no new server deployment is required.
+  Signed-package and other desktop-platform acceptance are not established here.
+
 ## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
 
 - Scope known Codex model retirements to native ChatGPT sign-in. Filter the
