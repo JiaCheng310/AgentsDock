@@ -58,8 +58,9 @@ const safeMessage = value => typeof value === 'string' ? value.slice(0, 240)
   .replace(/[A-Za-z]:\\[^\s,;:)]+/g, '[path]') : undefined
 const safeSnapshot = async () => {
   const appStatus = await client?.evaluate('window.agentsDock.updates.status()').catch(() => null)
+  const renderedServerStatus = await client?.evaluate('window.agentsDock.serverUpdates.status()').catch(() => null)
   const server = await readServerDiagnostics?.().catch(() => null)
-  const status = server?.status
+  const status = renderedServerStatus ?? server?.status
   const health = server?.health
   return {
     app: appStatus ? { state: appStatus.state, currentVersion: appStatus.currentVersion,
@@ -198,11 +199,16 @@ try {
   let lastDiagnostic = ''
   const upgradedHealth = await until('Server B completes before App replacement', async () => {
     if (Date.now() >= nextDiagnosticAt) {
-      nextDiagnosticAt = Date.now() + 30_000
-      const snapshot = JSON.stringify(await safeSnapshot())
-      if (snapshot !== lastDiagnostic) {
-        process.stdout.write(`native-replay-state ${snapshot}\n`)
-        lastDiagnostic = snapshot
+      nextDiagnosticAt = Date.now() + 2_000
+      const snapshot = await safeSnapshot()
+      const encoded = JSON.stringify(snapshot)
+      if (encoded !== lastDiagnostic) {
+        process.stdout.write(`native-replay-state ${encoded}\n`)
+        lastDiagnostic = encoded
+      }
+      if (snapshot.app?.state === 'downloaded'
+        && snapshot.app.servers.some(item => item.phase === 'failed' || item.phase === 'blocked')) {
+        return { terminalFailure: snapshot }
       }
     }
     let value
@@ -211,6 +217,7 @@ try {
     serverFirst = appVersion(ownedApp) === VERSION_A
     return value
   }, 12 * 60_000)
+  assert(!('terminalFailure' in upgradedHealth), 'Managed server update failed before native App replacement.')
   assert(serverFirst, 'App replacement preceded observed server activation.')
   assert(upgradedHealth.server_identity === beforeHealth.server_identity,
     'Managed update changed the server identity.')
