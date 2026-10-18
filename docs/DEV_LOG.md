@@ -23,8 +23,9 @@
   passes on macOS and Linux, including first setup, exact runtime inventory,
   default/named lifecycle, repeat installation and preserved state on removal.
 - [Paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
-  has accepted the runtime upload; public registry availability and the short
-  CLI upload are still pending. Desktop and legacy bridge remain private drafts.
+  accepted the runtime upload, then exhausted 61 read-only visibility checks.
+  Public registry availability and the short CLI upload are still pending.
+  Desktop and legacy bridge remain private drafts.
   This is candidate acceptance, not a completed public release. Mobile Gemini,
   unsigned Windows warnings, native Windows/Linux UI, populated-history/busy
   upgrades and logout/reboot remain the disclosed boundaries.

@@ -17,8 +17,9 @@ API/CLI conversation, automatic-title and reload acceptance against the exact
 packaged server. See the [development log](DEV_LOG.md) for scope and limits.
 
 [Paired publication 39103091104](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39103091104)
-has accepted the runtime upload through OIDC, but the exact runtime is not yet
-publicly installable. The short CLI has not been uploaded. Both public `beta`
+accepted the runtime upload through OIDC, then exhausted 61 read-only registry
+checks without finding the exact public runtime. The short CLI has not been
+uploaded. Both public `beta`
 tags remain `1.0.11-beta.1`, and both `latest` tags remain `1.0.10` at this check.
 Never re-upload the pending version or change its accepted bytes. Once it is
 public, continue with unchanged pins; the verifier skips the existing runtime
