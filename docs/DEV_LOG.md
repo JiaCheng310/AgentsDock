@@ -1,5 +1,21 @@
 # Public development log
 
+## Unreleased — Prepare paired servers before replacing the desktop app
+
+- A downloaded app update now verifies its matching signed server descriptor,
+  checks saved server identities, and waits for every paired server to reach
+  the target before invoking the native installer. The app blocks chat controls
+  while updating and reports an incomplete update on failure.
+- A capable server can activate its exact queued update immediately. Ordinary
+  Codex, Claude and Cursor chats interrupted by that update receive one durable
+  internal continuation after restart. This does not checkpoint the exact
+  in-flight provider operation; already-completed side effects can be repeated.
+  Goals, other internal work and unsupported runtimes still wait for a safe
+  boundary.
+- Validation: targeted restart-recovery and coordinated-update tests run in
+  isolated fixtures. Packaged native app/server update acceptance is pending;
+  this source branch has not changed an installed server or public release.
+
 ## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
 
 - Scope known Codex model retirements to native ChatGPT sign-in. Filter the
