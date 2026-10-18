@@ -126,6 +126,7 @@ jobs:
             "$(command -v node)" scripts/coordinated-update-test-feed.mjs "$RUNNER_TEMP/candidates" \
             "$network/leaf.pem" "$network/leaf.key" "$network/feed.pid" \
             > "$network/feed.log" 2>&1 &
+          expected_tag="$(node -p "'v' + require('./scripts/coordinated-update-test-pins.json').b.version")"
           for attempt in {1..60}; do
             if [[ -f "$network/feed.pid" ]] \
               && sudo -n kill -0 "$(sudo -n cat "$network/feed.pid")" \
@@ -133,7 +134,7 @@ jobs:
               --resolve github.com:443:127.0.0.1 \
               https://github.com/ZhengyiLuo/AgentsDock/releases.atom \
               -o "$network/probe.atom" \
-              && /usr/bin/grep -Eq 'v1\.0\.11-beta\.3' "$network/probe.atom"; then
+              && /usr/bin/grep -Fq "$expected_tag" "$network/probe.atom"; then
               exit 0
             fi
             sleep 1
