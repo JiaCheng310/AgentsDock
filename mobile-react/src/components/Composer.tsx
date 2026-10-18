@@ -76,12 +76,14 @@ import {
   isCompactComposerToolbar,
   isDenseComposerToolbar,
 } from '../lib/composer-toolbar-layout'
-import { cursorBackendUnavailableReason, isBackendLocked, selectableChatBackends } from '../lib/runtime-catalog'
-import { usePalette } from '../theme'
+import { isBackendLocked } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendLabel, chatBackendSelection, selectableChatBackendChoices, type ChatBackendChoice } from '../lib/provider-selection'
+import { radius, spacing, typography, usePalette } from '../theme'
 import type { AgentCrossChatRoute, AgentFile, Backend, ChatReference, ChatReferenceAction, FailedUpload, QueuedTurn, Session, TeamReference, UploadRef } from '../types'
 import { appendWelcomeExchange, isWelcomeSession } from '../lib/welcome-session'
 import { Text, TextInput } from './AppText'
 import { BackendMark } from './BackendMark'
+import { AgentPicker } from './AgentPicker'
 import { CodexPermissionMenu } from './CodexPermissionMenu'
 import { useCodexRuntime } from './CodexRuntimeContext'
 import { CodexGoalBar } from './CodexGoalBar'
@@ -129,6 +131,8 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     const session = state.sessions.find(value => value.id === sessionId)
     return session ? {
       backend: session.backend,
+      codex_provider: session.codex_provider,
+      provider_connection: session.provider_connection,
       model: session.model,
       effort: session.effort,
       backend_locked: session.backend_locked,
@@ -772,7 +776,8 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
       pendingCaretRef.current = null
     })
   }
-  const providerName = backend ? backendLabel(backend) : 'Claude'
+  const providerChoice = sourceSession ? chatBackendChoice(sourceSession) : null
+  const providerName = providerChoice ? chatBackendLabel(providerChoice) : 'Claude'
   const reloadChatAgent = async () => {
     if (providerReloadDisabled || !backend || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
     setProviderReloading(true)
@@ -792,26 +797,17 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
       if (composerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) setProviderReloading(false)
     }
   }
-  const switchChatBackend = async (next: Backend) => {
-    if (!backendSwitchable || next === backend || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
+  const switchChatBackend = async (next: ChatBackendChoice) => {
+    if (!backendSwitchable || next === providerChoice || !selectableChatBackendChoices(health, runtime).includes(next) || !remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
     // Clear model and effort: they are catalogued per backend, so the new agent
     // falls back to its server default rather than inheriting an invalid pick.
-    const changed = await updateSession(sessionId, { backend: next, model: null, effort: null }, profileGeneration)
+    const changed = await updateSession(sessionId, { ...chatBackendSelection(next), model: null, effort: null }, profileGeneration)
     if (!changed && composerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) {
       Alert.alert('Could not change chat agent', useAppStore.getState().error || 'The server did not change this chat agent.')
     }
   }
-  const cursorUnavailableReason = cursorBackendUnavailableReason(health, runtime)
-  const backendActions: MenuAction[] = backendSwitchable ? selectableChatBackends(health).map(value => ({
-    id: `switch-backend:${value}`,
-    title: backendLabel(value),
-    state: value === backend ? 'on' : 'off',
-    attributes: value === 'cursor' && Boolean(cursorUnavailableReason) ? { disabled: true } : undefined,
-  })) : []
-  const runtimeActions: MenuAction[] = []
-  if (backendActions.length) runtimeActions.push({ id: 'switch-backend', title: 'Coding agent', displayInline: true, subactions: backendActions })
-  if (!providerReloadDisabled) runtimeActions.push({ id: 'reload-provider', title: `Reload ${providerName}`, image: 'arrow.clockwise' })
-  const runtimeInteractive = runtimeActions.length > 0
+  const backendChoices = backendSwitchable ? selectableChatBackendChoices(health, runtime) : []
+  const runtimeInteractive = backendChoices.length > 0 || !providerReloadDisabled
   const runtimeTrigger = welcome ? <View
     testID="chat-runtime-menu"
     accessible
@@ -819,11 +815,11 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     accessibilityLabel="AgentsDock"
     style={[styles.runtime, compactToolbar && styles.runtimeCompact, denseToolbar && styles.runtimeDense]}
   >
-    <Image source={require('../../assets/icon.png')} contentFit="contain" style={{ width: 21, height: 21, borderRadius: 5 }} />
+    <Image source={require('../../assets/icon.png')} contentFit="contain" style={{ width: 21, height: 21, borderRadius: radius.md }} />
     {!compactToolbar ? <Text style={[styles.backend, { color: colors.text }]}>AgentsDock</Text> : null}
   </View> : backend ? <View
-    testID="chat-runtime-menu"
-    accessible
+    testID={runtimeInteractive ? undefined : 'chat-runtime-menu'}
+    accessible={!runtimeInteractive}
     accessibilityRole="button"
     accessibilityLabel={`Chat agent options for ${providerName}`}
     accessibilityState={{ disabled: !runtimeInteractive, busy: providerReloading }}
@@ -832,18 +828,18 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     {providerReloading ? <ActivityIndicator size="small" color={colors.muted} /> : <BackendMark backend={backend} size={21} />}
     {!compactToolbar ? <><Text style={[styles.backend, { color: colors.text }]}>{providerName}</Text><Pill tone="neutral">{model || 'Server model'}{effort ? ` · ${effort}` : ''}</Pill></> : null}
   </View> : null
-  const runtimeControl = welcome || !runtimeTrigger || !runtimeInteractive ? runtimeTrigger : <MenuView
-    title={`${providerName} agent`}
-    actions={runtimeActions}
-    onPressAction={event => {
-      const action = event.nativeEvent.event
-      if (action === 'reload-provider') void reloadChatAgent()
-      else if (action.startsWith('switch-backend:')) void switchChatBackend(action.slice('switch-backend:'.length) as Backend)
-    }}
+  const runtimeControl = welcome || !runtimeTrigger || !runtimeInteractive || !providerChoice ? runtimeTrigger : <AgentPicker
+    key={`${activeProfileId}:${profileGeneration}:${sessionId}`}
+    testID="chat-runtime-menu"
+    label={`Chat agent options for ${providerName}`}
+    value={providerChoice}
+    choices={backendChoices}
+    onChange={next => void switchChatBackend(next)}
+    onReload={providerReloadDisabled ? undefined : () => void reloadChatAgent()}
     style={[styles.runtimeMenu, compactToolbar && styles.runtimeMenuCompact, denseToolbar && styles.runtimeMenuDense]}
   >
     {runtimeTrigger}
-  </MenuView>
+  </AgentPicker>
 
   return (
     <View testID="chat-composer" style={[styles.shell, { backgroundColor: colors.background }]}>
@@ -1642,49 +1638,49 @@ function pickerError(error: unknown): string {
 
 const styles = StyleSheet.create({
   routeNotice: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  routeRow: { flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, overflow: 'hidden' },
+  routeRow: { flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, overflow: 'hidden' },
   routeTarget: { flex: 1, minWidth: 0, borderWidth: 0 },
   routeRevoke: { minWidth: 64, minHeight: 44, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
-  shell: { padding: COMPOSER_SHELL_PADDING, gap: 7 },
-  auxiliaryScroll: { flexGrow: 0 }, auxiliaryContent: { gap: 7 },
-  commandSuggestion: { minHeight: 54, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 9 }, commandSuggestionText: { minWidth: 0, flex: 1, gap: 2 }, commandSuggestionTitle: { fontSize: 12.5, fontWeight: '800' }, commandSuggestionSyntax: { fontSize: 10.5, fontFamily: 'Menlo' },
+  shell: { padding: COMPOSER_SHELL_PADDING, gap: spacing.sm },
+  auxiliaryScroll: { flexGrow: 0 }, auxiliaryContent: { gap: spacing.sm },
+  commandSuggestion: { minHeight: 54, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, commandSuggestionText: { minWidth: 0, flex: 1, gap: spacing.xs }, commandSuggestionTitle: { ...typography.label, fontWeight: '600' }, commandSuggestionSyntax: { ...typography.caption, fontFamily: 'Menlo' },
   referenceShelfWrap: { minWidth: 0, gap: 3 },
   referenceRail: { flexGrow: 0, minHeight: 44, maxHeight: 44 },
   referenceShelf: { flexDirection: 'row', gap: 6, paddingRight: 2 },
-  referenceChip: { minWidth: 0, maxWidth: 310, height: 44, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  referenceChip: { minWidth: 0, maxWidth: 310, height: 44, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
   referenceAction: { minWidth: 0, maxWidth: 230, height: 44, flexDirection: 'row', alignItems: 'center', gap: 3 },
   referenceTitle: { minWidth: 34, maxWidth: 118, flexShrink: 1, fontSize: 11.5, fontWeight: '800' },
   referenceLabel: { minWidth: 0, maxWidth: 114, flexShrink: 1, fontSize: 10.5, fontWeight: '700' },
   referenceWarning: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4 },
   referenceWarningText: { minWidth: 0, flex: 1, fontSize: 10.5, lineHeight: 14, fontWeight: '600' },
-  composer: { maxHeight: COMPOSER_CARD_MAX_HEIGHT, minHeight: COMPOSER_EMPTY_CARD_MIN_HEIGHT, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  input: { minHeight: COMPOSER_INPUT_MIN_HEIGHT, maxHeight: COMPOSER_INPUT_MAX_HEIGHT, paddingHorizontal: 14, paddingTop: 10, fontSize: 15.5, lineHeight: 21 },
-  toolbar: { minHeight: 48, flexShrink: 0, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  composer: { maxHeight: COMPOSER_CARD_MAX_HEIGHT, minHeight: COMPOSER_EMPTY_CARD_MIN_HEIGHT, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  input: { ...typography.body, minHeight: COMPOSER_INPUT_MIN_HEIGHT, maxHeight: COMPOSER_INPUT_MAX_HEIGHT, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  toolbar: { minHeight: 48, flexShrink: 0, paddingHorizontal: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   toolbarCompact: { minHeight: COMPOSER_COMPACT_TOOLBAR_HEIGHT, paddingHorizontal: COMPOSER_COMPACT_TOOLBAR_PADDING, gap: COMPOSER_COMPACT_TOOLBAR_GAP },
   toolbarDense: { paddingHorizontal: COMPOSER_DENSE_TOOLBAR_PADDING, gap: COMPOSER_DENSE_TOOLBAR_GAP },
-  quickMessagesMenu: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0 }, quickMessages: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  quickMessagesMenu: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0 }, quickMessages: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   runtimeMenu: { minWidth: 0, flexShrink: 1 }, runtimeMenuCompact: { width: COMPOSER_COMPACT_BACKEND_SLOT_WIDTH, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0 }, runtimeMenuDense: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, alignItems: 'center', justifyContent: 'center' }, runtime: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }, runtimeCompact: { width: COMPOSER_COMPACT_BACKEND_SLOT_WIDTH, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, justifyContent: 'center', gap: 0 }, runtimeDense: { width: COMPOSER_DENSE_BACKEND_SLOT_WIDTH }, backend: { fontSize: 12, fontWeight: '700' }, toolbarSpacer: { flex: 1, minWidth: 0 },
-  stop: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, stopWide: { width: 76 }, compactStopFace: { width: COMPOSER_STOP_FACE_SIZE, height: COMPOSER_STOP_FACE_SIZE, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, stopLabel: { color: 'white', fontSize: 11, fontWeight: '800' }, send: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }, sendFace: { width: COMPOSER_SEND_FACE_SIZE, height: COMPOSER_SEND_FACE_SIZE, borderRadius: COMPOSER_SEND_FACE_SIZE / 2, alignItems: 'center', justifyContent: 'center' }, steer: { minHeight: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }, steerCompact: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, paddingHorizontal: 0 },
-  uploadRail: { flexGrow: 0, minHeight: 64, maxHeight: 64 }, uploads: { flexDirection: 'row', gap: 7, paddingRight: 2 }, upload: { width: 216, height: 64, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingLeft: 7, flexDirection: 'row', alignItems: 'center' }, uploadIdentity: { minWidth: 0, flex: 1, height: 62, flexDirection: 'row', alignItems: 'center', gap: 8 }, fileIconWell: { width: 48, height: 48, minWidth: 48, flexShrink: 0, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, uploadText: { minWidth: 0, flex: 1, gap: 2 }, uploadName: { fontSize: 12, fontWeight: '700' }, uploadMeta: { fontSize: 10.5 }, uploadActionSpacer: { width: 44, height: 44, flexShrink: 0 }, uploadBusy: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#00000066' }, uploadError: { position: 'absolute', right: 3, bottom: 3, width: 19, height: 19, borderRadius: 10, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  stop: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, stopWide: { width: 76 }, compactStopFace: { width: COMPOSER_STOP_FACE_SIZE, height: COMPOSER_STOP_FACE_SIZE, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' }, stopLabel: { color: 'white', fontSize: 11, fontWeight: '800' }, send: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }, sendFace: { width: COMPOSER_SEND_FACE_SIZE, height: COMPOSER_SEND_FACE_SIZE, borderRadius: COMPOSER_SEND_FACE_SIZE / 2, alignItems: 'center', justifyContent: 'center' }, steer: { minHeight: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }, steerCompact: { width: COMPOSER_TOOLBAR_TOUCH_SIZE, paddingHorizontal: 0 },
+  uploadRail: { flexGrow: 0, minHeight: 64, maxHeight: 64 }, uploads: { flexDirection: 'row', gap: 7, paddingRight: 2 }, upload: { width: 216, height: 64, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 7, flexDirection: 'row', alignItems: 'center' }, uploadIdentity: { minWidth: 0, flex: 1, height: 62, flexDirection: 'row', alignItems: 'center', gap: 8 }, fileIconWell: { width: 48, height: 48, minWidth: 48, flexShrink: 0, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, uploadText: { minWidth: 0, flex: 1, gap: 2 }, uploadName: { fontSize: 12, fontWeight: '700' }, uploadMeta: { fontSize: 10.5 }, uploadActionSpacer: { width: 44, height: 44, flexShrink: 0 }, uploadBusy: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#00000066' }, uploadError: { position: 'absolute', right: 3, bottom: 3, width: 19, height: 19, borderRadius: radius.round, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   previewModal: { flex: 1 }, previewHeader: { minHeight: FULLSCREEN_HEADER_MIN_HEIGHT, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: FULLSCREEN_HEADER_GUTTER, flexDirection: 'row', alignItems: 'center', gap: 8 }, previewTitle: { minWidth: 0, flex: 1, fontSize: 14, fontWeight: '700' }, previewImage: { flex: 1, margin: 12 },
   targetPickerSafe: { flex: 1 },
-  targetPickerGrabber: { width: 38, height: 5, marginTop: 8, marginBottom: 3, borderRadius: 3, backgroundColor: '#8e8e9380', alignSelf: 'center' },
+  targetPickerGrabber: { width: 38, height: 5, marginTop: 8, marginBottom: 3, borderRadius: radius.round, backgroundColor: '#8e8e9380', alignSelf: 'center' },
   targetPickerPanel: { flex: 1, width: '100%', alignSelf: 'center' }, targetPickerPanelTablet: { maxWidth: 760 },
   targetPickerHeader: { minHeight: 70, paddingLeft: 16, paddingRight: 10, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 10 },
   targetPickerHeading: { minWidth: 0, flex: 1, gap: 3 }, targetPickerTitle: { fontSize: 18, fontWeight: '800' }, targetPickerSubtitle: { fontSize: 12.5 },
-  targetSearch: { height: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  targetSearch: { height: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   targetSearchInput: { minWidth: 0, flex: 1, height: 44, paddingVertical: 0, fontSize: 15 },
   targetLimitWarning: { minHeight: 40, marginHorizontal: 12, marginBottom: 8, paddingVertical: 6 },
   targetList: { paddingHorizontal: 12, paddingBottom: 20, gap: 7 }, targetListEmpty: { flexGrow: 1 },
-  targetRow: { minHeight: 66, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 }, targetRowTablet: { minHeight: 74, paddingHorizontal: 14 },
-  targetBackend: { width: 40, height: 40, flexShrink: 0, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  targetRow: { minHeight: 66, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 }, targetRowTablet: { minHeight: 74, paddingHorizontal: 14 },
+  targetBackend: { width: 40, height: 40, flexShrink: 0, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   targetIdentity: { minWidth: 0, flex: 1, gap: 3 }, targetTitle: { fontSize: 14, fontWeight: '700' }, targetMeta: { fontSize: 10.5 },
-  targetStatus: { minHeight: 25, maxWidth: 104, borderRadius: 7, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' }, targetStatusText: { fontSize: 10.5, fontWeight: '700' },
+  targetStatus: { minHeight: 25, maxWidth: 104, borderRadius: radius.sm, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' }, targetStatusText: { fontSize: 10.5, fontWeight: '700' },
   targetEmpty: { flex: 1, minHeight: 200, alignItems: 'center', justifyContent: 'center', gap: 7, padding: 24 }, targetEmptyTitle: { fontSize: 17, fontWeight: '700' }, targetEmptyBody: { maxWidth: 300, fontSize: 12.5, lineHeight: 18, textAlign: 'center' },
-  queue: { gap: 5 }, queueLabel: { fontSize: 10, fontWeight: '800', textAlign: 'right' },
-  queueStatus: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingLeft: 10, flexDirection: 'row', alignItems: 'center', gap: 7 }, queueStatusText: { minWidth: 0, flex: 1, paddingVertical: 8, fontSize: 11.5, lineHeight: 16 },
-  queueList: { gap: 5 },
-  queueRow: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 10, paddingTop: 6, gap: 4 }, queuePrompt: { width: '100%', minWidth: 60, minHeight: 44, justifyContent: 'center', paddingVertical: 6 }, queueText: { fontSize: 12.5, lineHeight: 17 }, queueInput: { width: '100%', minHeight: 52, fontSize: 12.5, lineHeight: 17, paddingVertical: 6 }, queueActions: { minHeight: 44, width: '100%', flexDirection: 'row', alignItems: 'center' }, runNow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 7 },
+  queue: { gap: spacing.sm }, queueLabel: { ...typography.caption, fontWeight: '600', textAlign: 'right' },
+  queueStatus: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, queueStatusText: { ...typography.caption, minWidth: 0, flex: 1, paddingVertical: spacing.sm },
+  queueList: { gap: spacing.sm },
+  queueRow: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.xs }, queuePrompt: { width: '100%', minWidth: 60, minHeight: 44, justifyContent: 'center', paddingVertical: spacing.sm }, queueText: { ...typography.label }, queueInput: { ...typography.label, width: '100%', minHeight: 52, paddingVertical: spacing.sm }, queueActions: { minHeight: 44, width: '100%', flexDirection: 'row', alignItems: 'center' }, runNow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm },
   queueEditActions: { minHeight: 50, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
-  queueEditButton: { minWidth: 82, height: 44, borderRadius: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, queueEditButtonText: { fontSize: 12, fontWeight: '800' },
+  queueEditButton: { minWidth: 82, height: 44, borderRadius: radius.md, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, queueEditButtonText: { fontSize: 12, fontWeight: '800' },
 })

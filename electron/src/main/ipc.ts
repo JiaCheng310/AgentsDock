@@ -263,6 +263,7 @@ export function registerIpc(
   handle('sessions:read', (sessionId, seq) => service.markRead(sessionId, seq))
   handle('sessions:unread', sessionId => service.markUnread(sessionId))
   handle('sessions:emergency:acknowledge', (sessionId, alertId) => service.acknowledgeEmergency(sessionId, alertId))
+  handle('sessions:emergency:dismiss-all', (sessionId, throughAlertId) => service.dismissEmergencyAlerts(sessionId, throughAlertId))
   handle('sessions:import-history', (sessionId, force) => service.importHistory(sessionId, force))
   handle('sessions:list-local', () => service.listLocalSessions())
   handle('sessions:bulk-import', items => service.bulkImportSessions(
@@ -327,6 +328,8 @@ export function registerIpc(
   ))
 
   handle('claude:runtime', sessionId => service.claudeRuntime(sessionId))
+  handle('gemini:runtime', sessionId => service.geminiRuntime(sessionId))
+  handle('gemini:interaction:resolve', (sessionId, interactionId, response) => service.resolveGeminiInteraction(sessionId, interactionId, response))
   handle('claude:goal:set', (sessionId, condition) => service.setClaudeGoal(sessionId, condition))
   handle('claude:goal:clear', sessionId => service.clearClaudeGoal(sessionId))
   handle('claude:context-usage:refresh', sessionId => service.refreshClaudeContextUsage(sessionId))

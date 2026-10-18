@@ -40,7 +40,7 @@ import {
   toolTraceHeadline,
 } from '../lib/trace-detail'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, spacing, typography, usePalette } from '../theme'
 import { Text } from './AppText'
 import { ChatReferenceChips, CrossChatExchangeCard, CrossChatHandoffCard, CrossChatMessageCard } from './CrossChatTimelineCards'
 import { ImportedCrossChatDeliveryCard } from './ImportedCrossChatDeliveryCard'
@@ -186,7 +186,7 @@ function MessageRowView({ row, sessionId, fontScale }: { row: Extract<TimelineRo
   }
   return (
     <View style={[styles.messageWrap, row.role === 'user' && styles.userAlign]}>
-      <View style={[styles.message, row.role === 'user' ? { backgroundColor: colors.user, borderColor: colors.green } : { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.message, { backgroundColor: row.role === 'user' ? colors.user : colors.surface, borderColor: colors.border }]}>
         <View style={styles.metaRow}>
           <Text style={[styles.author, { color: colors.muted }]} numberOfLines={1}>{row.role === 'user' ? 'You' : 'Assistant'}</Text>
           <Text style={[styles.time, { color: colors.muted }]} numberOfLines={1}>{formatDateTime(event.ts)}</Text>
@@ -880,25 +880,25 @@ function digestStatusText(event: Extract<TimelineRow, { kind: 'system' }>['event
 }
 
 const styles = StyleSheet.create({
-  messageWrap: { width: '100%', paddingHorizontal: 14 }, userAlign: { alignItems: 'flex-end' },
-  message: { width: '100%', maxWidth: 940, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 12 },
-  metaRow: { minWidth: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 4 }, metaSpacer: { flex: 1, minWidth: 0 }, author: { flexShrink: 0, fontSize: 10, fontWeight: '700' }, time: { minWidth: 0, flexShrink: 1, fontSize: 10 }, feedback: { minWidth: 0, flexShrink: 1, fontSize: 10, fontWeight: '800' },
-  fold: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 5, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' }, collapse: { alignSelf: 'flex-start', minHeight: 44, paddingVertical: 5, justifyContent: 'center' },
-  traceWrap: { paddingHorizontal: 14 }, traceHeader: { minHeight: 52, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  traceHeading: { flex: 1, minWidth: 0, gap: 3 }, traceHeadingMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 7 }, traceTitle: { flexShrink: 0, fontSize: 12, fontWeight: '700' }, traceMeta: { flex: 1, minWidth: 0, fontSize: 10.5 }, traceHeadline: { fontSize: 10.5, lineHeight: 15 }, traceAction: { flexShrink: 0, fontSize: 10.5, fontWeight: '800' }, review: { minHeight: 44, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 5, justifyContent: 'center' },
+  messageWrap: { width: '100%', paddingHorizontal: spacing.lg }, userAlign: { alignItems: 'flex-end' },
+  message: { width: '100%', maxWidth: 940, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  metaRow: { minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs }, metaSpacer: { flex: 1, minWidth: 0 }, author: { ...typography.caption, flexShrink: 0, fontWeight: '600' }, time: { minWidth: 0, flexShrink: 1, ...typography.caption }, feedback: { ...typography.caption, minWidth: 0, flexShrink: 1, fontWeight: '600' },
+  fold: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' }, collapse: { alignSelf: 'flex-start', minHeight: 44, paddingVertical: spacing.xs, justifyContent: 'center' },
+  traceWrap: { paddingHorizontal: spacing.lg }, traceHeader: { minHeight: 52, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  traceHeading: { flex: 1, minWidth: 0, gap: spacing.xs }, traceHeadingMeta: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }, traceTitle: { ...typography.label, flexShrink: 1, fontWeight: '600' }, traceMeta: { ...typography.caption, flex: 1, minWidth: 0 }, traceHeadline: { ...typography.caption }, traceAction: { ...typography.caption, flexShrink: 0, fontWeight: '600' }, review: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, justifyContent: 'center' },
   traceBody: { marginHorizontal: 8, borderLeftWidth: StyleSheet.hairlineWidth, paddingVertical: 8, paddingLeft: 11, gap: 9 }, traceHidden: { fontSize: 10, fontWeight: '700' }, traceEvent: { flexDirection: 'row', gap: 8 }, traceEventBody: { flex: 1, minWidth: 0 }, traceEventType: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' }, traceText: { fontSize: 12, fontFamily: 'Menlo', lineHeight: 17, marginTop: 3 },
   traceDetailActions: { gap: 7, paddingTop: 3 },
-  traceDetailAction: { minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  traceDetailAction: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   traceDetailActionText: { fontSize: 11, fontWeight: '800' },
   traceDetailError: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 7 },
   traceDetailErrorText: { flex: 1, fontSize: 11, lineHeight: 15 },
   traceDetailLimitText: { fontSize: 10.5, lineHeight: 15 },
-  progressWrap: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingTop: 5, paddingBottom: 3, overflow: 'hidden' },
+  progressWrap: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingTop: 5, paddingBottom: 3, overflow: 'hidden' },
   progressMeta: { paddingTop: 5, paddingBottom: 3, fontSize: 10, fontWeight: '700' },
   progressItem: { paddingTop: 4, paddingBottom: 5 }, progressActivity: { fontSize: 11, lineHeight: 16, fontWeight: '600' },
-  mediaRow: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, padding: 10, gap: 10 }, mediaTitle: { fontSize: 12, fontWeight: '800' },
-  job: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 9 },
-  emergencyAcknowledge: { minHeight: 38, alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  mediaRow: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 10, gap: 10 }, mediaTitle: { fontSize: 12, fontWeight: '800' },
+  job: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 9 },
+  emergencyAcknowledge: { minHeight: 38, alignSelf: 'flex-start', borderRadius: radius.md, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   jobDisclosure: { gap: 9 },
   jobHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 },
   jobHeading: { flex: 1, minWidth: 0 },
@@ -906,8 +906,8 @@ const styles = StyleSheet.create({
   jobMeta: { fontSize: 10, marginTop: 2 },
   jobText: { fontSize: 14, lineHeight: 20 },
   jobStructuredText: { fontSize: 12, lineHeight: 17, fontFamily: 'Menlo' },
-  jobStatusPill: { flexShrink: 0, minHeight: 24, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
-  jobStatusPillCompact: { minHeight: 21, borderRadius: 11, paddingHorizontal: 6 },
+  jobStatusPill: { flexShrink: 0, minHeight: 24, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  jobStatusPillCompact: { minHeight: 21, borderRadius: radius.sm, paddingHorizontal: 6 },
   jobStatusPillText: { fontSize: 10, fontWeight: '800' },
   jobStatusPillTextCompact: { fontSize: 9 },
   jobHistory: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 7 },
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
   jobHistoryTitle: { flex: 1, fontSize: 12, fontWeight: '800' },
   jobHistoryCount: { fontSize: 11, fontWeight: '700' },
   jobHistoryBody: { gap: 7, paddingBottom: 2 },
-  jobHistoryRun: { borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  jobHistoryRun: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   jobHistoryRunHeader: { minHeight: 54, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
   jobHistoryRunText: { minWidth: 0, flex: 1, gap: 2 },
   jobHistoryRunBody: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 9 },
@@ -925,9 +925,9 @@ const styles = StyleSheet.create({
   jobHistoryStatusText: { flex: 1, fontSize: 11, lineHeight: 15 },
   jobHistoryAction: { fontSize: 11, fontWeight: '800' },
   jobHistoryRetry: { minWidth: 52, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  jobHistoryMore: { minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  system: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, padding: 12, flexDirection: 'row', gap: 10 }, systemTitle: { fontSize: 10, fontWeight: '800', textTransform: 'capitalize' }, systemText: { fontSize: 13.5, lineHeight: 19, marginTop: 4 },
-  interactionAudit: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  jobHistoryMore: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  system: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 12, flexDirection: 'row', gap: 10 }, systemTitle: { fontSize: 10, fontWeight: '800', textTransform: 'capitalize' }, systemText: { fontSize: 13.5, lineHeight: 19, marginTop: 4 },
+  interactionAudit: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   interactionAuditHeader: { minHeight: 52, paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
   interactionAuditHeading: { flex: 1, minWidth: 0, gap: 2 },
   interactionAuditTitle: { fontSize: 11.5, fontWeight: '800' },
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   interactionAuditEntryLabel: { fontSize: 11.5, fontWeight: '700' },
   interactionAuditEntryStatus: { fontSize: 10.5, fontWeight: '700' },
   interactionAuditEntryTime: { flexShrink: 0, fontSize: 9.5 },
-  lifecycle: { marginHorizontal: 14, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  lifecycle: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   lifecycleSummary: { minHeight: 44, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7 },
   lifecycleTitle: { flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: '800' }, lifecycleTime: { fontSize: 9.5 },
   lifecycleDetail: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 9 },

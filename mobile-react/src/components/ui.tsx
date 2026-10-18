@@ -2,7 +2,7 @@ import { useRef, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { X } from 'lucide-react-native'
-import { usePalette } from '../theme'
+import { radius, spacing, typography, usePalette } from '../theme'
 import { Text } from './AppText'
 
 export function IconButton({ icon: Icon, onPress, disabled, selected, size = 18, touchSize = 44, label, testID, activateOnPressIn = false }: { icon: LucideIcon; onPress: () => void; disabled?: boolean; selected?: boolean; size?: number; touchSize?: number; label?: string; testID?: string; activateOnPressIn?: boolean }) {
@@ -96,14 +96,14 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
 }
 
 const styles = StyleSheet.create({
-  iconButton: { flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
-  sheetClose: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  sectionHeader: { minHeight: 28, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  pill: { minHeight: 24, minWidth: 0, maxWidth: 190, flexShrink: 1, borderRadius: 6, paddingHorizontal: 8, justifyContent: 'center' },
-  pillText: { fontSize: 12, fontWeight: '600' },
-  loading: { flex: 1, minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  empty: { flex: 1, minHeight: 180, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-  emptyTitle: { fontSize: 20, fontWeight: '700' },
-  emptyBody: { fontSize: 14, textAlign: 'center', maxWidth: 320 },
+  iconButton: { flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: radius.round },
+  sheetClose: { width: 48, height: 48, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: radius.round },
+  sectionHeader: { minHeight: 32, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { ...typography.caption, fontWeight: '600', textTransform: 'uppercase' },
+  pill: { minHeight: 24, minWidth: 0, maxWidth: 190, flexShrink: 1, borderRadius: radius.sm, paddingHorizontal: spacing.sm, justifyContent: 'center' },
+  pillText: { ...typography.caption, fontWeight: '600' },
+  loading: { flex: 1, minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  empty: { flex: 1, minHeight: 180, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
+  emptyTitle: { ...typography.heading, fontWeight: '600' },
+  emptyBody: { ...typography.body, textAlign: 'center', maxWidth: 320 },
 })

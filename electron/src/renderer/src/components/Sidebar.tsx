@@ -391,7 +391,7 @@ const SessionRow = memo(function SessionRow({ session, selected, visiblePane, se
       <ContextMenu.Trigger asChild>
         <div
           ref={ref}
-          className={`session-row ${selected ? 'selected' : visiblePane ? 'visible-in-split' : ''} ${unread ? 'unread' : ''} ${needsUserAction ? 'action-needed' : ''} ${emergency ? 'emergency' : ''} ${dropIndicator} ${draggable.isDragging ? 'dragging' : ''}`}
+          className={`session-row ${session.archived ? 'is-archived' : ''} ${selected ? 'selected' : visiblePane ? 'visible-in-split' : ''} ${unread ? 'unread' : ''} ${needsUserAction ? 'action-needed' : ''} ${emergency ? 'emergency' : ''} ${dropIndicator} ${draggable.isDragging ? 'dragging' : ''}`}
           title={emergency ? t("ui.Sidebar.SessionRow.emergency_9202f3c", { "chat": String(session.title), "message": String(emergency.message) }) : needsUserAction ? t("ui.Sidebar.SessionRow.action_needed_c2d066a", { "chat": String(session.title) }) : undefined}
           aria-label={emergency ? t("ui.Sidebar.SessionRow.emergency_9e48fd2", { "chat": String(session.title), "message": String(emergency.message) }) : undefined}
           onClick={select}
@@ -401,8 +401,9 @@ const SessionRow = memo(function SessionRow({ session, selected, visiblePane, se
           {...draggable.listeners}
           {...draggable.attributes}
         >
-          <BackendMark backend={session.backend} size={18} />
+          {session.archived ? <Archive size={18} aria-label={t('chat.archived')} /> : <BackendMark backend={session.backend} size={18} />}
           <span className="session-copy"><strong>{session.title}</strong><small title={emergency?.message || (needsUserAction ? t("ui.Sidebar.SessionRow.this_agent_is_paused_until_you_respond_82dc6e8") : childActivity || undefined)}>{emergency ? t("ui.Sidebar.SessionRow.emergency_89e4490", { "message": String(emergency.message) }) : needsUserAction ? t("ui.Sidebar.SessionRow.action_needed_c2d066a", { "chat": String(backendLabel(session.backend)) }) : childActivity ? `${childActivity} · ${backendLabel(session.backend)} · ${runtime}${running ? ' · running' : ''}` : `${backendLabel(session.backend)} · ${runtime}${running ? ' · running' : unread ? ' · new' : ''}`}</small></span>
+          {session.archived && <span className="session-archive-badge">{t('chat.archived')}</span>}
           {emergency && <span key={emergency.id} className="sr-only" role="alert">{t('ui.sidebar.emergency', { title: session.title, message: emergency.message })}</span>}
           {visiblePane && <span className="sr-only">{t(visiblePane === 'primary' ? 'ui.sidebar.firstPane' : 'ui.sidebar.secondPane')}</span>}
           {(emergency || needsUserAction || running || liveChildren > 0 || unread) && <span className={`status-dot ${emergency ? 'emergency' : needsUserAction ? 'attention' : running || liveChildren > 0 ? 'running' : 'unread'}`} aria-hidden="true" />}

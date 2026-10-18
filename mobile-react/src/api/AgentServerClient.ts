@@ -323,6 +323,8 @@ export class AgentServerClient {
       folder: input.folder,
       cwd: input.cwd,
       backend: input.backend,
+      ...(input.codex_provider ? { codex_provider: input.codex_provider } : {}),
+      ...(input.provider_connection ? { provider_connection: input.provider_connection } : {}),
       model: input.model || null,
       effort: input.effort || null,
       system_prompt: input.system_prompt || null,

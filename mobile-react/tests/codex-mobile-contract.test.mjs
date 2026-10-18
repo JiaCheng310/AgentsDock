@@ -80,7 +80,7 @@ test('mobile preserves structured Stop and provider reload contracts', () => {
   assert.match(api, /async stopTurn\(sessionId: string\): Promise<TurnStopResult>/)
   assert.match(api, /stopped: response\.stopped \?\? response\.ok \?\? true/)
   assert.match(api, /async reloadProvider\(sessionId: string\): Promise<ProviderReloadResult>/)
-  assert.match(composer, /title: `Reload \$\{providerName\}`/)
+  assert.match(composer, /onReload=\{providerReloadDisabled \? undefined : \(\) => void reloadChatAgent\(\)\}/)
   assert.match(store, /if \(!result\.stopped\)/)
   assert.match(store, /result\.pending \|\| result\.deferred/)
 })

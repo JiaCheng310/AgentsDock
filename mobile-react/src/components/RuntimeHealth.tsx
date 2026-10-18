@@ -5,7 +5,7 @@ import { runtimeDiagnosticFor, runtimeLabel, runtimeNeedsAttention } from '../li
 import { cursorBackendAvailable, cursorBackendSupported, cursorBackendUnavailableReason } from '../lib/runtime-catalog'
 import { isTimelineError } from '../lib/timeline'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 
 export function RuntimeHealthNotice({ backend, sessionId }: { backend: Backend; sessionId: string }) {
@@ -76,9 +76,9 @@ function compactEventError(event: Event): string {
 }
 
 const styles = StyleSheet.create({
-  panel: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, padding: 9, gap: 6 },
+  panel: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 9, gap: 6 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 }, heading: { fontSize: 12, fontWeight: '800' }, caption: { fontSize: 10, marginTop: 1 },
-  refresh: { minHeight: 44, borderRadius: 5, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  row: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, padding: 8, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  refresh: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  row: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 8, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   compact: { marginHorizontal: 10, marginTop: 6, paddingVertical: 7 }, title: { fontSize: 11, fontWeight: '800' }, detail: { fontSize: 10, lineHeight: 14, marginTop: 2 }, action: { fontSize: 10, lineHeight: 14, marginTop: 3 }, version: { maxWidth: 100, fontSize: 9 },
 })

@@ -4,6 +4,15 @@ This directory contains the shipping iPhone/iPad React Native client. Its bundle
 identifier is `com.zhengyiluo.ZenithDock`, shared with TestFlight; installing a
 development build with this identifier can replace the installed TestFlight app.
 
+For an independent local device preview, set `AGENTSDOCK_APP_VARIANT=development`
+for both Expo prebuild and Metro. This selects **AgentsDock Dev**, app identifiers
+ending in `.dev`, and a separate `agentsdock-dev` URL scheme. The shipping config
+in `app.json` is unchanged. Regenerate native projects when switching variants;
+Expo does not automatically update an existing native project in `run:ios`.
+Before installing, verify the built app has the `.dev` identifier. A physical
+iPhone also needs Apple development signing and a provisioning profile. Expo Go
+cannot host this app's custom native modules; use a locally compiled Debug app.
+
 ## License
 
 AgentsDock's original mobile code is licensed under the
@@ -42,15 +51,12 @@ deletes and recreates the generated project. See
 [Expo's native generation guide](https://docs.expo.dev/workflow/continuous-native-generation/).
 
 The app connects directly to the same AgentsDock server contract as desktop.
-Configure the host and access token from Settings, or open **Servers → Scan
-connection QR** and scan `agentsdock pair [NAME]` (or choose a saved QR image).
-Review the server address and tap **Connect and save**; URL/token entry is
-automatic. The app authenticates the server identity and stores the token in
-SecureStore. Both `agentsdock://connect#...` and the existing terminal URL scheme
-are registered. QR camera support requires a native rebuild; Metro alone cannot
-add it. Simulator testing uses an imported QR image/deep link; live camera scanning
-needs a physical device. See [connection sharing](../docs/SERVER_CONNECTION_SHARING.md). Plain HTTP is intentionally
-permitted for private LAN and Tailscale endpoints.
+Open **Servers → Add Server**, enter the server URL and access token, then test
+the connection before saving. The app authenticates the server identity and
+stores the token in SecureStore. QR scanning, QR-image import and connection
+links are not available on mobile. The existing terminal URL scheme remains
+registered. Plain HTTP is intentionally permitted for private LAN and Tailscale
+endpoints.
 
 Keep dependency caches, temporary files, archives, DerivedData, exports and
 release logs in a local build-output directory excluded from Git. Configure
@@ -60,6 +66,10 @@ alone does not authorize an upload. See [Mac parity audit](docs/MAC_PARITY_AUDIT
 for the implemented goal/chat controls and remaining desktop differences.
 
 ## Architecture
+
+Shared visual roles and contribution rules are documented in
+[Mobile design tokens](docs/DESIGN_SYSTEM.md). Use `src/theme.ts` for typography,
+weights, palette, spacing and corners instead of adding per-screen values.
 
 - Expo SDK 57 / React Native 0.86 New Architecture
 - Zustand endpoint-scoped state and bounded AsyncStorage transcript cache

@@ -1,11 +1,11 @@
 import type { ConnectionProtocol } from '@shared/provider-connections'
 
-type Backend = 'codex' | 'claude' | 'opencode' | 'cursor'
+type Backend = 'codex' | 'claude' | 'opencode' | 'cursor' | 'gemini'
 export interface EndpointDraft {
   baseURL: string
   model: string
   protocol: ConnectionProtocol
-  authHeader: 'bearer' | 'x-api-key'
+  authHeader: 'bearer' | 'x-api-key' | 'x-goog-api-key'
 }
 
 const pending = new Map<string, { draft: EndpointDraft; timer: ReturnType<typeof setTimeout> }>()
@@ -16,8 +16,8 @@ function safeDraft(value: unknown): EndpointDraft | null {
   if (!value || typeof value !== 'object') return null
   const item = value as Record<string, unknown>
   if (typeof item.baseURL !== 'string' || item.baseURL.length > 2048 || typeof item.model !== 'string' || item.model.length > 256
-    || !['anthropic', 'responses', 'chat_completions', 'cursor'].includes(String(item.protocol))
-    || !['bearer', 'x-api-key'].includes(String(item.authHeader))) return null
+    || !['anthropic', 'responses', 'chat_completions', 'cursor', 'gemini'].includes(String(item.protocol))
+    || !['bearer', 'x-api-key', 'x-goog-api-key'].includes(String(item.authHeader))) return null
   // Allow incomplete URL drafts, but never persist credentials embedded in a
   // URL. The server still validates the complete URL on explicit submission.
   const baseURL = /[@?#\x00-\x20\x7f]/.test(item.baseURL.trim()) ? '' : item.baseURL.trim()
@@ -31,7 +31,8 @@ export function readEndpointDraft(profileId: string | null, backend: Backend): E
   try {
     const draft = safeDraft(pending.get(key)?.draft ?? fallback.get(key) ?? JSON.parse(localStorage.getItem(key) ?? 'null'))
     if (!draft || backend === 'codex' && draft.protocol !== 'responses' || backend === 'claude' && draft.protocol !== 'anthropic'
-      || (backend === 'cursor') !== (draft.protocol === 'cursor') || draft.protocol !== 'anthropic' && draft.authHeader !== 'bearer') return null
+      || (backend === 'gemini') !== (draft.protocol === 'gemini') || (backend === 'gemini') !== (draft.authHeader === 'x-goog-api-key')
+      || (backend === 'cursor') !== (draft.protocol === 'cursor') || !['anthropic', 'gemini'].includes(draft.protocol) && draft.authHeader !== 'bearer') return null
     return draft
   }
   catch { return null }

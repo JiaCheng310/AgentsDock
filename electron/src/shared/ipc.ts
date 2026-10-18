@@ -394,6 +394,7 @@ export interface AgentsDockAPI {
     markRead(sessionId: string, seq?: number | null): Promise<Session>
     markUnread(sessionId: string): Promise<Session>
     acknowledgeEmergency(sessionId: string, alertId: string): Promise<Session>
+    dismissEmergencyAlerts(sessionId: string, throughAlertId: string): Promise<Session>
     importHistory(sessionId: string, force?: boolean): Promise<TimelinePage>
     listLocal(): Promise<LocalSessionCandidate[]>
     bulkImport(items: BulkImportSessionItem[]): Promise<BulkImportSessionResult[]>
@@ -472,6 +473,10 @@ export interface AgentsDockAPI {
       sessionId: string,
       input: CodexBackgroundTerminalsCleanInput
     ): Promise<boolean>
+  }
+  gemini?: {
+    runtime(sessionId: string): Promise<import('./types').GeminiRuntimeSnapshot>
+    resolveInteraction(sessionId: string, interactionId: string, response: Record<string, JsonValue>): Promise<CodexPendingInteraction>
   }
   claude: {
     runtime(sessionId: string): Promise<ClaudeRuntimeSnapshot>

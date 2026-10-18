@@ -12,7 +12,7 @@ import {
   parseReviewableDiff,
 } from '../lib/code-review'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { IconButton, Loading, SheetCloseButton } from './ui'
 
@@ -189,8 +189,8 @@ function connectionIsCurrent(connection: AgentServerClient, profileId: string | 
 const styles = StyleSheet.create({
   root: { flex: 1 }, header: { minHeight: 64, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8 }, title: { fontSize: 15, fontWeight: '800' },
   unavailable: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 }, unavailableText: { maxWidth: 360, textAlign: 'center', fontSize: 12, lineHeight: 18 },
-  conflictSummary: { minHeight: 27, borderRadius: 6, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  workspace: { flex: 1, flexDirection: 'row' }, files: { width: 260, maxWidth: '34%', borderRightWidth: StyleSheet.hairlineWidth }, file: { minHeight: 54, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 5 }, fileName: { flex: 1, minWidth: 0, gap: 3 },
+  conflictSummary: { minHeight: 27, borderRadius: radius.md, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  workspace: { flex: 1, flexDirection: 'row' }, files: { width: 260, maxWidth: '34%', borderRightWidth: StyleSheet.hairlineWidth }, file: { minHeight: 54, borderRadius: radius.md, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 5 }, fileName: { flex: 1, minWidth: 0, gap: 3 },
   conflictBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 3 },
   diffColumn: { flex: 1, minWidth: 0 }, diff: { flex: 1 }, inlineWarning: { borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 6 },
   line: { minHeight: 20, flexDirection: 'row', alignItems: 'center' }, lineNumber: { width: 40, paddingRight: 8, textAlign: 'right', fontFamily: 'Menlo', fontSize: 10.5 }, code: { fontFamily: 'Menlo', fontSize: 11.5, paddingRight: 12 }, markerLabel: { marginLeft: 8, marginRight: 8, fontSize: 9, fontWeight: '900' },

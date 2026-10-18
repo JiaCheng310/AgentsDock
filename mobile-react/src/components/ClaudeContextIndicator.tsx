@@ -9,7 +9,7 @@ import {
   formatContextPercent,
   parseClaudeContextUsage,
 } from '../lib/claude-context-usage'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { useClaudeRuntime } from './ClaudeRuntimeContext'
 import { IconButton, SheetCloseButton } from './ui'
@@ -143,12 +143,12 @@ const styles = StyleSheet.create({
   indicator: { width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   sheet: { flex: 1 },
   header: { minHeight: 70, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerMark: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  headerMark: { width: 40, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { minWidth: 0, flex: 1 },
   title: { fontSize: 17, fontWeight: '900' },
   subtitle: { marginTop: 2, fontSize: 10.5 },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', alignItems: 'center', padding: 24, gap: 12 },
-  meter: { width: 142, height: 142, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  meter: { width: 142, height: 142, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.round, alignItems: 'center', justifyContent: 'center' },
   percent: { position: 'absolute', fontSize: 18, fontWeight: '900' },
   detail: { textAlign: 'center', fontSize: 14, fontWeight: '700', lineHeight: 20 },
   state: { textAlign: 'center', fontSize: 11.5, lineHeight: 17 },

@@ -9,6 +9,25 @@ const state = { revision: '1111111111111111:1', csrf: 'synthetic-csrf', session:
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('the restricted shared browser bridge', () => {
+  it('scopes Gemini runtime and native approvals to the redeemed chat', async () => {
+    const gemini = { ...state, session: { ...state.session, backend: 'gemini' }, gemini_runtime: { available: true, pending_interactions: [] } }
+    const request = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith('/state')) return new Response(JSON.stringify(gemini))
+      const body = JSON.parse(String(init?.body))
+      return new Response(JSON.stringify({ accepted: true, request_id: body.request_id, action: body.action, result: {} }))
+    })
+    const bridge = createSharedChatBridge(prefix, vi.fn(), vi.fn(), request)
+    const runtimeChanged = vi.fn()
+    bridge.api.events.on('server:provider-runtime', runtimeChanged)
+    await bridge.refresh()
+    expect(runtimeChanged).toHaveBeenCalledWith(expect.objectContaining({ event: expect.objectContaining({ backend: 'gemini', session_id: state.session.id }) }))
+    expect(await bridge.api.gemini!.runtime(state.session.id)).toEqual(gemini.gemini_runtime)
+    await expect(bridge.api.gemini!.runtime('another-chat')).rejects.toThrow('not available')
+    await bridge.api.gemini!.resolveInteraction(state.session.id, 'approval-1', { decision: 'decline' })
+    const call = request.mock.calls.find(([url]) => String(url).endsWith('/controls'))!
+    expect(JSON.parse(String(call[1]?.body))).toMatchObject({ action: 'approval.respond', payload: { backend: 'gemini', id: 'approval-1', response: { decision: 'decline' } } })
+    bridge.close()
+  })
   it('keeps the manual invitation flow available after cookie-only resume is unauthorized', async () => {
     class Stream extends EventTarget { close = vi.fn(); onerror: (() => void) | null = null }
     vi.stubGlobal('EventSource', Stream)

@@ -10,7 +10,7 @@ import { mailHintPending, type MailArrivalCursor, type MailboxCoverage, type Mai
 import { bulletinHintPending, type BulletinHintRefresh } from '@shared/team-bulletin-hints'
 import { applyOpenCodeSessionEvent, openCodeProviderCommandsAvailable } from '@shared/opencode'
 import { t } from '@shared/i18n'
-import { chatBackendChoice, runtimeSelectionError, runtimeSendAdmissionError, sessionRuntimeForNextTurn, selectableChatBackendChoices } from '@shared/runtime-catalog'
+import { chatBackendSelection, runtimeSendAdmissionError, sessionRuntimeForNextTurn, selectableChatBackendChoices } from '@shared/runtime-catalog'
 import { isAsyncCrossChatMessage, isNativeGoalSteerEvent, isNativeSteerTransitionStop, timelineSemanticUnits } from '@shared/semantic-timeline'
 import { turnSendErrorMessage } from '@shared/server-errors'
 import { completedPrefixForkAvailable, RUNNING_FORK_UNAVAILABLE } from '@shared/session-fork'
@@ -262,7 +262,7 @@ interface AppState {
   requestNewChat(): Promise<void>
   updateSession(
     sessionId: string,
-    patch: Partial<Session>,
+    patch: Partial<Session> & { gemini_connect_api?: boolean },
     options?: { allowDuringWorkspaceFlush?: boolean }
   ): Promise<void>
   deleteFolder(folder: string): Promise<void>
@@ -271,6 +271,7 @@ interface AppState {
   markRead(sessionId: string, force?: boolean): Promise<void>
   markUnread(sessionId: string): Promise<void>
   acknowledgeEmergency(sessionId: string, alertId: string): Promise<boolean>
+  dismissEmergencyAlerts(sessionId: string, throughAlertId: string): Promise<boolean>
   importHistory(sessionId: string): Promise<void>
   loadOlder(limit?: number): Promise<number>
   loadOlderForSession(sessionId: string, limit?: number): Promise<number>
@@ -289,8 +290,8 @@ const defaultModals: ModalState = { settings: false, appSettings: false, newChat
 export const NEW_CHAT_DEFAULTS_PREFERENCE_KEY = 'newChatDefaults:v1'
 const DIRECT_CHAT_PLACEHOLDER_PREFERENCE_PREFIX = 'directChatPlaceholder:v1:'
 
-type NewChatPermissionDefaults = Pick<CreateSessionInput, 'claude_permission_mode' | 'cursor_permission_mode' | 'opencode_permission_mode' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer'>
-type NewChatDefaultsInput = Pick<CreateSessionInput, 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort'> & NewChatPermissionDefaults
+type NewChatPermissionDefaults = Pick<CreateSessionInput, 'claude_permission_mode' | 'cursor_permission_mode' | 'opencode_permission_mode' | 'gemini_permission_mode' | 'codex_approval_policy' | 'codex_sandbox_mode' | 'codex_permission_profile' | 'codex_approvals_reviewer'>
+type NewChatDefaultsInput = Pick<CreateSessionInput, 'folder' | 'cwd' | 'backend' | 'codex_provider' | 'provider_connection' | 'model' | 'effort' | 'system_prompt' | 'subagent_limit'> & NewChatPermissionDefaults
 
 export interface NewChatDefaults extends NewChatPermissionDefaults {
   version: 1
@@ -301,14 +302,17 @@ export interface NewChatDefaults extends NewChatPermissionDefaults {
   provider_connection?: CreateSessionInput['provider_connection']
   model: string | null
   effort: string | null
+  system_prompt?: string | null
+  subagent_limit?: number | null
 }
 
-// Only copy the selected provider's permission fields, never instructions,
-// jobs, credentials, provider-session identity or another provider's policy.
+// Only copy the selected provider's permission fields, never jobs,
+// credentials, provider-session identity or another provider's policy.
 export function newChatPermissions(input: NewChatPermissionDefaults, backend: Backend): NewChatPermissionDefaults {
   if (backend === 'claude') return { claude_permission_mode: input.claude_permission_mode ?? null }
   if (backend === 'cursor') return { cursor_permission_mode: input.cursor_permission_mode ?? 'default' }
   if (backend === 'opencode') return { opencode_permission_mode: input.opencode_permission_mode ?? 'default' }
+  if (backend === 'gemini') return { gemini_permission_mode: input.gemini_permission_mode ?? 'default' }
   return {
     codex_approval_policy: input.codex_approval_policy ?? null,
     codex_sandbox_mode: input.codex_sandbox_mode ?? null,
@@ -327,6 +331,8 @@ function normalizedNewChatDefaults(input: NewChatDefaultsInput): NewChatDefaults
     ...(input.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
     model: input.model?.trim() || null,
     effort: input.effort?.trim() || null,
+    system_prompt: input.system_prompt || null,
+    subagent_limit: ['claude', 'codex'].includes(input.backend) ? input.subagent_limit ?? null : null,
     ...newChatPermissions(input, input.backend)
   }
 }
@@ -336,18 +342,21 @@ function parseNewChatDefaults(value: unknown): NewChatDefaults | null {
   const candidate = value as Partial<NewChatDefaults>
   if (
     candidate.version !== 1
-    || !['claude', 'codex', 'cursor', 'opencode'].includes(String(candidate.backend))
+    || !['claude', 'codex', 'cursor', 'opencode', 'gemini'].includes(String(candidate.backend))
     || candidate.codex_provider !== undefined && !['default', 'custom'].includes(candidate.codex_provider)
     || candidate.provider_connection !== undefined && !['default', 'custom'].includes(candidate.provider_connection)
     || typeof candidate.folder !== 'string'
     || typeof candidate.cwd !== 'string'
     || candidate.model !== null && typeof candidate.model !== 'string'
     || candidate.effort !== null && typeof candidate.effort !== 'string'
+    || candidate.system_prompt != null && typeof candidate.system_prompt !== 'string'
+    || candidate.subagent_limit != null && (!Number.isInteger(candidate.subagent_limit) || candidate.subagent_limit < 1)
   ) return null
   const permissions: Record<string, readonly string[]> = {
     claude_permission_mode: ['default', 'acceptEdits', 'plan', 'bypassPermissions', 'dontAsk', 'auto'],
     cursor_permission_mode: ['default', 'full_access', 'plan'],
     opencode_permission_mode: ['default', 'full_access', 'plan'],
+    gemini_permission_mode: ['default', 'autoEdit', 'yolo', 'plan'],
     codex_approval_policy: ['never', 'on-request', 'untrusted'],
     codex_sandbox_mode: ['read-only', 'workspace-write', 'danger-full-access'],
     codex_approvals_reviewer: ['user', 'auto_review', 'guardian_subagent']
@@ -381,7 +390,9 @@ function sessionNewChatDefaults(session: Session, defaultCwd: string): NewChatDe
     codex_provider: session.codex_provider,
     provider_connection: session.provider_connection,
     model: session.model,
-    effort: session.effort
+    effort: session.effort,
+    system_prompt: session.system_prompt,
+    subagent_limit: session.subagent_limit
   })
 }
 
@@ -425,6 +436,7 @@ function directChatPlaceholderFingerprint(session: Session): string {
     claudePermissionMode: session.claude_permission_mode ?? null,
     cursorPermissionMode: session.cursor_permission_mode ?? null,
     ...(session.backend === 'opencode' ? { opencodePermissionMode: session.opencode_permission_mode ?? null } : {}),
+    ...(session.backend === 'gemini' ? { geminiPermissionMode: session.gemini_permission_mode ?? 'default' } : {}),
     providerJobsAccess: session.provider_jobs_access ?? null
   })
 }
@@ -984,6 +996,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       window.agentsDock.events.on('server:timeline', payload => {
         if (!profileEventMatches(payload, get())) return
         const { sessionId, snapshot, source, mode } = payload
+        const authoritativeTail = source === 'server' && mode === 'replace'
+          && payload.authoritativeTail === true && snapshot.historyVerified === true
+        // Settle IPC events from the retired stream before replacing its window.
+        if (authoritativeTail) flushLiveEvents(true)
         const currentSnapshot = get().snapshots[sessionId]
         const discontinuity = mode === 'replace'
           && timelineReplacementIsDiscontinuous(currentSnapshot, snapshot)
@@ -995,7 +1011,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         set(state => {
           const incoming = mode === 'replace'
-            ? replaceSnapshot(state.snapshots[sessionId], snapshot)
+            ? replaceSnapshot(state.snapshots[sessionId], snapshot, authoritativeTail)
             : mergeSnapshots(state.snapshots[sessionId], snapshot)
           const loadingSessionIds = withoutSessionId(state.loadingSessionIds, sessionId)
           const pending = state.pendingTurnSubmissions[sessionId]
@@ -1008,7 +1024,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             loadingSessionId: focusedLoadingSessionId(state.selectedSessionId, loadingSessionIds)
           }
         })
-        if (discontinuity) scheduleTimelineRepair(sessionId, captureProfileScope(get()))
+        if (discontinuity && !authoritativeTail) scheduleTimelineRepair(sessionId, captureProfileScope(get()))
       }),
       window.agentsDock.events.on('server:event', payload => {
         if (profileEventMatches(payload, get())) enqueueLiveEvent(payload.event,
@@ -2188,13 +2204,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (initial.switchingProfileId || initial.creatingChat) return
     const preferenceScope = captureWorkspaceScope(initial)
     if (!preferenceScope) {
-      initial.setModal('newChat', true)
+      set({ error: t('newChat.connectFirst') })
       return
     }
     const profileScope = captureProfileScope(initial)
     // Freeze the initiating pane/settings before the asynchronous preference read.
     const openedDefaults = preferredNewChatDefaults(initial.sessions.filter(session => session.id === initial.selectedSessionId), initial.selectedSessionId, initial.health?.default_cwd?.trim() || '', null)
-    set({ creatingChat: true })
+    set(state => ({ creatingChat: true, modals: { ...state.modals, newChat: false } }))
     try {
       let stored: unknown = null
       try {
@@ -2204,19 +2220,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       if (!workspaceScopeMatches(preferenceScope, get()) || !profileScopeMatches(profileScope, get())) return
       const current = get()
-      const defaults = openedDefaults ?? preferredNewChatDefaults(current.sessions, null, current.health?.default_cwd?.trim() || '', stored)
-      if (!defaults) {
-        set({ creatingChat: false })
-        current.setModal('newChat', true)
-        return
-      }
-      if (
-        !selectableChatBackendChoices(current.health, current.runtimeCatalog).includes(chatBackendChoice(defaults))
-        || runtimeSelectionError(current.health, current.runtimeCatalog, defaults.backend, defaults.model, defaults.provider_connection === 'custom' ? 'custom' : defaults.codex_provider)
-      ) {
-        set({ creatingChat: false })
-        current.setModal('newChat', true)
-        return
+      // Creation opens the composer, not the retired configuration dialog.
+      // Readiness/model checks belong to sending; stale discovery must not
+      // discard the last-opened chat's choices or silently change its account.
+      // For a first-ever chat choose a connected agent when known. With no
+      // catalog yet, create a native placeholder (no runtime is started); its
+      // composer still offers available agents and Add Agent as discovery loads.
+      let defaults = openedDefaults ?? preferredNewChatDefaults(current.sessions, null, current.health?.default_cwd?.trim() || '', stored)
+        ?? normalizedNewChatDefaults({
+          ...chatBackendSelection(selectableChatBackendChoices(current.health, current.runtimeCatalog)[0] ?? 'codex'),
+          folder: 'General', cwd: current.health?.default_cwd?.trim() || '', model: null, effort: null
+        })
+      // Removed connection types are not stale auth: never create another
+      // native-Google Gemini chat from an old saved/opened preference.
+      if (defaults.backend === 'gemini' && defaults.provider_connection !== 'custom') {
+        defaults = { ...defaults,
+          ...chatBackendSelection(selectableChatBackendChoices(current.health, current.runtimeCatalog)[0] ?? 'codex'),
+          model: null, effort: null }
       }
       const input: CreateSessionInput = {
         title: 'New chat',
@@ -2227,7 +2247,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...(defaults.provider_connection === 'custom' ? { provider_connection: 'custom' as const } : {}),
         model: defaults.model,
         effort: defaults.effort,
-        system_prompt: null,
+        system_prompt: defaults.system_prompt ?? null,
+        subagent_limit: defaults.subagent_limit ?? null,
         ...newChatPermissions(defaults, defaults.backend)
       }
       const session = await window.agentsDock.sessions.create(input)
@@ -2493,13 +2514,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const updated = await window.agentsDock.sessions.acknowledgeEmergency(sessionId, alertId)
       if (!profileScopeMatches(scope, get())) return false
-      const [reconciled] = applyPendingSessionPatches([updated])
-      set(state => ({
-        sessions: state.sessions.map(candidate => candidate.id === sessionId ? reconciled : candidate),
-        snapshots: state.snapshots[sessionId]
-          ? { ...state.snapshots, [sessionId]: { ...state.snapshots[sessionId], session: reconciled } }
-          : state.snapshots
-      }))
+      set(state => applyEmergencyReceipt(state, sessionId, updated))
+      return true
+    } catch (error) {
+      if (profileScopeMatches(scope, get())) set({ error: errorMessage(error) })
+      return false
+    }
+  },
+  async dismissEmergencyAlerts(sessionId, throughAlertId) {
+    if (get().switchingProfileId) return false
+    const scope = captureProfileScope(get())
+    try {
+      const updated = await window.agentsDock.sessions.dismissEmergencyAlerts(sessionId, throughAlertId)
+      if (!profileScopeMatches(scope, get())) return false
+      set(state => applyEmergencyReceipt(state, sessionId, updated))
       return true
     } catch (error) {
       if (profileScopeMatches(scope, get())) set({ error: errorMessage(error) })
@@ -4240,6 +4268,21 @@ function mergeFiles(a: AgentFile[], b: AgentFile[]): AgentFile[] {
 function mergeUploadPaths(a: NativeFileRef[], b: NativeFileRef[]): NativeFileRef[] {
   return [...new Map([...a, ...b].map(file => [file.path, file])).values()]
 }
+function applyEmergencyReceipt(state: AppState, sessionId: string, receipt: Session): Pick<AppState, 'sessions' | 'snapshots'> {
+  // Recheck at IPC completion: a newer emergency packet can already be rendered
+  // even when main correctly reconciled the earlier HTTP response.
+  let latest = receipt
+  for (const current of [state.sessions.find(session => session.id === sessionId), state.snapshots[sessionId]?.session]) {
+    if (current && (current.latest_event_seq ?? 0) > (latest.latest_event_seq ?? 0)) latest = current
+  }
+  const [reconciled] = applyPendingSessionPatches([latest])
+  return {
+    sessions: state.sessions.map(candidate => candidate.id === sessionId ? reconciled : candidate),
+    snapshots: state.snapshots[sessionId]
+      ? { ...state.snapshots, [sessionId]: { ...state.snapshots[sessionId], session: reconciled } }
+      : state.snapshots
+  }
+}
 function mergeReadStateReceipt(
   current: Session,
   receipt: Session,
@@ -5015,7 +5058,8 @@ function eventMayRenderInTimeline(event: Event): boolean {
   return event.type === 'error' || event.type.endsWith('_error') || event.is_error === true || Boolean(event.error)
 }
 
-function normalizeSessionPatch(patch: Partial<Session>) { return {
+function normalizeSessionPatch(patch: Partial<Session> & { gemini_connect_api?: boolean }) { return {
+  ...(patch.gemini_connect_api === true ? { gemini_connect_api: true } : {}),
   title: patch.title,
   folder: patch.folder ?? undefined,
   cwd: patch.cwd ?? undefined,
@@ -5033,6 +5077,7 @@ function normalizeSessionPatch(patch: Partial<Session>) { return {
   claude_permission_mode: patch.claude_permission_mode,
   cursor_permission_mode: patch.cursor_permission_mode,
   opencode_permission_mode: patch.opencode_permission_mode,
+  gemini_permission_mode: patch.gemini_permission_mode,
   provider_jobs_access: patch.provider_jobs_access ?? undefined,
   pinned: patch.pinned ?? undefined,
   archived: patch.archived ?? undefined
@@ -5044,7 +5089,7 @@ export function interactiveClientCapabilities(
   selectedSkill = false
 ): string[] {
   const opencode = session?.backend === 'opencode'
-  const capabilities = opencode
+  const capabilities = session?.backend === 'gemini' ? ['gemini_acp_v1'] : opencode
     ? selectedSkill && openCodeProviderCommandsAvailable(health) ? ['opencode_provider_commands_v1'] : []
     : ['codex_interactive_v1', 'codex_goal_steer_v1']
   if (opencode && !supportedCrossChatTargetBackends(health).includes('opencode')) return capabilities

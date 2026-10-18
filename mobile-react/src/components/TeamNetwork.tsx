@@ -15,7 +15,7 @@ import type { AgentServerClient } from '../api/AgentServerClient'
 import { teamNetworkIdempotencyKey, teamNetworkProxyRoute, type TeamNetworkProxyRoute } from '../lib/team-network'
 import { TeamNetworkRequests, type TeamNetworkRequest } from '../lib/team-network-requests'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text, TextInput } from './AppText'
 import { MarkdownContent } from './MarkdownContent'
 import { EmptyState, IconButton } from './ui'
@@ -526,28 +526,28 @@ function ActionButton({ icon: Icon, label, disabled = false, onPress }: { icon: 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { minHeight: 58, paddingHorizontal: 6, paddingVertical: Platform.OS === 'android' ? 5 : 4, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 2 },
-  headerTitle: { flex: 1, minWidth: 0, gap: 1 }, title: { fontSize: 16, fontWeight: '800' }, subtitleRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5 }, statusDot: { width: 6, height: 6, flexShrink: 0, borderRadius: 3 }, subtitle: { flexShrink: 1, fontSize: 10.5 },
+  headerTitle: { flex: 1, minWidth: 0, gap: 1 }, title: { fontSize: 16, fontWeight: '800' }, subtitleRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5 }, statusDot: { width: 6, height: 6, flexShrink: 0, borderRadius: radius.round }, subtitle: { flexShrink: 1, fontSize: 10.5 },
   teamPickerScroller: { flexGrow: 0, flexShrink: 0, maxHeight: 54, borderBottomWidth: StyleSheet.hairlineWidth },
   teamPicker: { minHeight: 54, paddingHorizontal: 10, paddingVertical: 5, gap: 6, alignItems: 'center' },
   tabScroller: { flexGrow: 0, flexShrink: 0, height: 58, borderBottomWidth: StyleSheet.hairlineWidth },
   tabs: { minHeight: 58, paddingHorizontal: 10, paddingVertical: 7, gap: 7, alignItems: 'center' },
-  tab: { minHeight: 44, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, tabText: { fontSize: 11.5, fontWeight: '800' },
-  error: { marginHorizontal: 10, marginTop: 8, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, paddingLeft: 11, flexDirection: 'row', alignItems: 'center', gap: 4 }, errorText: { flex: 1, fontSize: 11, lineHeight: 15 }, dismiss: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  tab: { minHeight: 44, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, tabText: { fontSize: 11.5, fontWeight: '800' },
+  error: { marginHorizontal: 10, marginTop: 8, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 11, flexDirection: 'row', alignItems: 'center', gap: 4 }, errorText: { flex: 1, fontSize: 11, lineHeight: 15 }, dismiss: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   unavailablePage: { flex: 1, paddingHorizontal: 22, paddingTop: 32, alignItems: 'center' },
-  unavailableCard: { width: '100%', maxWidth: 420, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 22, paddingVertical: 24, alignItems: 'center', gap: 7 },
-  unavailableIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
+  unavailableCard: { width: '100%', maxWidth: 420, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 22, paddingVertical: 24, alignItems: 'center', gap: 7 },
+  unavailableIcon: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
   unavailableKicker: { fontSize: 9.5, lineHeight: 13, fontWeight: '800', letterSpacing: 1.1 },
   unavailableTitle: { fontSize: 17, lineHeight: 22, fontWeight: '800', textAlign: 'center' },
   unavailableBody: { maxWidth: 310, fontSize: 12.5, lineHeight: 18, textAlign: 'center' },
-  unavailableRetry: { minWidth: 148, minHeight: 44, marginTop: 8, borderRadius: 10, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  unavailableRetry: { minWidth: 148, minHeight: 44, marginTop: 8, borderRadius: radius.md, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   unavailableRetryText: { color: 'white', fontSize: 12, fontWeight: '800' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 9 },
   cardList: { padding: 12, paddingBottom: 24, gap: 9 },
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 11, gap: 8 }, cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 }, avatar: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, cardHeading: { flex: 1, minWidth: 0, gap: 2 }, cardTitle: { fontSize: 12.5, lineHeight: 17, fontWeight: '800' }, cardMeta: { fontSize: 9.5, lineHeight: 13 }, cardBody: { fontSize: 12, lineHeight: 17 }, unreadDot: { width: 8, height: 8, borderRadius: 4 },
-  composer: { borderTopWidth: StyleSheet.hairlineWidth, padding: 9, flexDirection: 'row', alignItems: 'flex-end', gap: 7 }, composerInput: { flex: 1, minHeight: 44, maxHeight: 130, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 13 }, send: { width: 46, height: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 11, gap: 8 }, cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 }, avatar: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' }, cardHeading: { flex: 1, minWidth: 0, gap: 2 }, cardTitle: { fontSize: 12.5, lineHeight: 17, fontWeight: '800' }, cardMeta: { fontSize: 9.5, lineHeight: 13 }, cardBody: { fontSize: 12, lineHeight: 17 }, unreadDot: { width: 8, height: 8, borderRadius: radius.round },
+  composer: { borderTopWidth: StyleSheet.hairlineWidth, padding: 9, flexDirection: 'row', alignItems: 'flex-end', gap: 7 }, composerInput: { flex: 1, minHeight: 44, maxHeight: 130, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 9, fontSize: 13 }, send: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   mailToolbar: { minHeight: 58, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 }, passiveNote: { paddingHorizontal: 12, paddingBottom: 8, fontSize: 9.5, lineHeight: 13 },
-  detailPage: { padding: 15, paddingBottom: 36, gap: 11 }, detailTitle: { fontSize: 21, lineHeight: 27, fontWeight: '800' }, detailBody: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 12 }, plainBody: { fontSize: 14, lineHeight: 21 }, detailActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  action: { minHeight: 44, alignSelf: 'flex-start', borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, actionText: { fontSize: 11, fontWeight: '800' },
-  directory: { padding: 12, paddingBottom: 32, gap: 10 }, sectionTitleRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }, sectionTitle: { flex: 1, fontSize: 17, fontWeight: '800' }, directoryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 11, gap: 7 }, directoryRow: { minHeight: 40, paddingLeft: 25, flexDirection: 'row', alignItems: 'center', gap: 7 }, directoryName: { flex: 1, fontSize: 11.5, fontWeight: '700' },
-  agentForm: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 10, gap: 8 }, input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 }, backendRow: { flexDirection: 'row', gap: 6 },
+  detailPage: { padding: 15, paddingBottom: 36, gap: 11 }, detailTitle: { fontSize: 21, lineHeight: 27, fontWeight: '800' }, detailBody: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 12 }, plainBody: { fontSize: 14, lineHeight: 21 }, detailActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  action: { minHeight: 44, alignSelf: 'flex-start', borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, actionText: { fontSize: 11, fontWeight: '800' },
+  directory: { padding: 12, paddingBottom: 32, gap: 10 }, sectionTitleRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 }, sectionTitle: { flex: 1, fontSize: 17, fontWeight: '800' }, directoryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 11, gap: 7 }, directoryRow: { minHeight: 40, paddingLeft: 25, flexDirection: 'row', alignItems: 'center', gap: 7 }, directoryName: { flex: 1, fontSize: 11.5, fontWeight: '700' },
+  agentForm: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 10, gap: 8 }, input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 }, backendRow: { flexDirection: 'row', gap: 6 },
 })

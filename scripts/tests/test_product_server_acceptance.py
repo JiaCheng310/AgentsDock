@@ -1131,7 +1131,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
         installed_executables.discard("agentsdock_team_hub")  # directory, not runtime file
         self.assertEqual(installed_executables, package_executables | {"agent_server.py"})
 
-    def staging_case(self, root, version="1.0.11-beta.1"):
+    def staging_case(self, root, version="1.0.11-beta.2"):
         home, work, bundle = root / "account", root / "agentsdock-acceptance-fixture", root / "bundle"
         home.mkdir(mode=0o700)
         work.mkdir(mode=0o700)
@@ -1317,7 +1317,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
 
     def test_root_normalization_contract_binds_both_exact_archives_and_source(self):
         changes = (None, "source", "version", "name", "archive", "hash", "coupled-archive-descriptor", "reviewed-policy", "canonical-source")
-        for version, change in ((version, change) for version in ("1.0.11-beta.1",) for change in changes):
+        for version, change in ((version, change) for version in ("1.0.11-beta.2",) for change in changes):
             with self.subTest(version=version, change=change), tempfile.TemporaryDirectory() as temporary:
                 args, fixture, receipt, config, stage, uv, env = self.staging_case(Path(temporary).resolve(), version)
                 manifest = args.bundle / "legacy/agents-server-manifest.json"
@@ -1347,7 +1347,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
                     receipt["legacyManifestSha256"] = MOD.sha(manifest.read_bytes())
                 if change == "archive": (args.bundle / "legacy" / descriptor["archive"]["name"]).write_bytes(b"different")
                 if change == "reviewed-policy":
-                    with patch.object(MOD, "BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256", "0" * 64), self.assertRaises(RuntimeError):
+                    with patch.object(MOD, "BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256", "0" * 64), self.assertRaises(RuntimeError):
                         MOD.root_normalization_contract(args.bundle, receipt)
                 elif change == "canonical-source":
                     with patch.object(MOD, "ROOT", args.work), self.assertRaises(OSError):
@@ -1355,7 +1355,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
                 elif change:
                     with self.assertRaises(RuntimeError): MOD.root_normalization_contract(args.bundle, receipt)
                 else:
-                    self.assertEqual(MOD.root_normalization_contract(args.bundle, receipt), MOD.BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256)
+                    self.assertEqual(MOD.root_normalization_contract(args.bundle, receipt), MOD.BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256)
 
     def test_root_normalization_never_relaxes_mode_inode_owner_or_contract(self):
         before = {"rootMode": 0o755, "rootIdentity": [1, 2, os.getuid()]}
@@ -1379,25 +1379,27 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
                          "52b6212d6bd00fdf2b071cbd5ec8f01ea16aa43df58f77352dadca17ee96ffc4")
         self.assertEqual(MOD.BETA1101_ROOT_NORMALIZING_INSTALLER_SHA256,
                          "51a6ae6f242476ae4f19712b95ecbaba212b2256e3928d389d8f617a6c367ed7")
-        self.assertEqual(MOD.BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256, MOD.sha((MOD.ROOT / "server/install.sh").read_bytes()))
+        self.assertEqual(MOD.BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256,
+                         "2735b3a5667da36bc040baecf29630b3fab46bedf5277549ebbc53194a0ba293")
+        self.assertEqual(MOD.BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256, MOD.sha((MOD.ROOT / "server/install.sh").read_bytes()))
         # Current installer bytes must not be relabelled as an earlier release
         # or an unreviewed future beta. Their frozen branches retain old pins.
         for version in ("1.0.8-beta.5", "1.0.9", "1.0.9-beta.1", "1.0.11", "1.0.10-beta.7",
                         "1.0.10-beta.1", "1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4",
-                        "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10", "1.0.11-beta.2"):
+                        "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10", "1.0.11-beta.1", "1.0.11-beta.3"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
                 args, _, receipt, *_ = self.staging_case(Path(temporary).resolve(), version)
                 with self.assertRaisesRegex(RuntimeError, "not the reviewed exact implementation"):
                     MOD.root_normalization_contract(args.bundle, receipt)
-        for version in ("1.0.10-beta.5+local", "1.0.10-beta.6+local", "1.0.11-beta.1+local"):
+        for version in ("1.0.10-beta.5+local", "1.0.10-beta.6+local", "1.0.11-beta.2+local"):
             with tempfile.TemporaryDirectory() as temporary:
                 args, _, receipt, *_ = self.staging_case(Path(temporary).resolve(), version)
                 with self.assertRaisesRegex(RuntimeError, "exact accepted source/version"):
                     MOD.root_normalization_contract(args.bundle, receipt)
-        for version in ("1.0.11-beta.1",):
+        for version in ("1.0.11-beta.2",):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
                 args, _, receipt, *_ = self.staging_case(Path(temporary).resolve(), version)
-                self.assertEqual(MOD.root_normalization_contract(args.bundle, receipt), MOD.BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256)
+                self.assertEqual(MOD.root_normalization_contract(args.bundle, receipt), MOD.BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256)
         before = {"rootMode": 0o750, "rootIdentity": [1, 2, os.getuid()]}
         self.assertTrue(MOD.verify_root_normalization(before, {**before, "rootMode": 0o700},
                             MOD.STABLE109_ROOT_NORMALIZING_INSTALLER_SHA256)["signedInstallerRootNormalizationObserved"])
