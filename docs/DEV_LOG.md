@@ -22,7 +22,11 @@
   continuation only reported an interrupted command instead of finishing its
   remaining work. The internal instruction now explicitly asks the agent to
   complete unfinished steps, including a necessary retry after checking effects.
-  Real-provider verification of that final instruction is pending.
+  A later disposable, signed beta.10-to-beta.11 update interrupted a real Codex
+  command. The replacement server retained identity, queued and completed
+  exactly one internal continuation, and the file contained one start and one
+  finish marker. The local app displayed the resumed answer after reload, and
+  a follow-up sent through that app completed on the same chat.
 - Validation: 151 focused server tests, 71 focused desktop tests, TypeScript and
   the desktop production build pass. A disposable named server was upgraded
   with a signed unpublished candidate and completed an ordinary Codex turn.
@@ -32,8 +36,8 @@
   chat and follow-up both completed, and the Updates page resolved the
   published Stable and Beta feeds. Equal-version and local-suffix preflight
   behavior has focused regression coverage. The development app cannot
-  install unpublished updates through its public feed; active-chat
-  continuation still needs a real-provider update test.
+  install unpublished updates through its public feed; the separate signed
+  package test exercised active-chat continuation through the real server.
 - An isolated native update replay exposed an early forced-restart request
   while the server package was still staging. The coordinator now waits for
   an explicit ready state before requesting activation; a regression test
