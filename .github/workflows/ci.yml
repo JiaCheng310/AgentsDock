@@ -120,6 +120,9 @@ jobs:
           echo 'NO_PROXY=github.com,api.github.com,registry.npmjs.org,localhost,127.0.0.1,::1' >> "$GITHUB_ENV"
           /bin/launchctl setenv SSL_CERT_FILE "$network/trust-bundle.pem"
           /bin/launchctl setenv NODE_EXTRA_CA_CERTS "$network/ca.pem"
+          /bin/launchctl setenv NO_PROXY "$NO_PROXY"
+          /bin/launchctl setenv no_proxy "$NO_PROXY"
+          test "$(/bin/launchctl getenv NO_PROXY)" = "$NO_PROXY"
           sudo -n env GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=github-hosted \
             GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
             GITHUB_WORKFLOW_REF="$GITHUB_WORKFLOW_REF" RUNNER_TEMP="$RUNNER_TEMP" \
@@ -219,6 +222,8 @@ jobs:
           cleanup_status=0
           /bin/launchctl unsetenv SSL_CERT_FILE || true
           /bin/launchctl unsetenv NODE_EXTRA_CA_CERTS || true
+          /bin/launchctl unsetenv NO_PROXY || true
+          /bin/launchctl unsetenv no_proxy || true
           if tmux has-session -t '=agentsdock-update-replay-trust' 2>/dev/null; then
             for name in SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE NODE_EXTRA_CA_CERTS NO_PROXY no_proxy; do
               tmux set-environment -gu "$name" || true
