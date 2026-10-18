@@ -67,6 +67,10 @@ const server = createServer({ key: readFileSync(privateKey), cert: readFileSync(
   const host = request.headers.host?.replace(/:443$/, '')
   const url = request.url ? new URL(request.url, `https://${host}`) : null
   const pathName = url?.pathname
+  const route = host === 'registry.npmjs.org' && pathName?.startsWith('/@agentsdock/server/')
+    ? 'npm-archive' : host === 'github.com' && pathName === '/ZhengyiLuo/AgentsDock/releases.atom'
+      ? 'release-feed' : 'other'
+  response.once('finish', () => process.stdout.write(`replay-route ${route} ${response.statusCode}\n`))
   const noCache = url?.search === '' || (pathName?.endsWith('/beta-mac.yml')
     && /^\?noCache=[0-9a-v]{1,16}$/.test(url.search))
   if (!['github.com', 'registry.npmjs.org'].includes(host) || url?.hostname !== host

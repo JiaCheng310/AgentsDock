@@ -59,6 +59,16 @@ const safeMessage = value => typeof value === 'string' ? value.slice(0, 240)
   .replace(/\b[A-Za-z0-9_-]{28,}\b/g, '[opaque]')
   .replace(/(?:\/Users|\/home|\/Volumes|\/tmp)\/[^\s,;:)]+/g, '[path]')
   .replace(/[A-Za-z]:\\[^\s,;:)]+/g, '[path]') : undefined
+const replayRoutes = () => {
+  const path = join(runner, 'coordinated-network/feed.log')
+  if (!existsSync(path)) return {}
+  const counts = {}
+  for (const match of readFileSync(path, 'utf8').matchAll(/^replay-route (npm-archive|release-feed|other) ([0-9]{3})$/gm)) {
+    const key = `${match[1]}:${match[2]}`
+    counts[key] = (counts[key] ?? 0) + 1
+  }
+  return counts
+}
 const safeSnapshot = async () => {
   const appStatus = await client?.evaluate('window.agentsDock.updates.status()').catch(() => null)
   const renderedServerStatus = await client?.evaluate('window.agentsDock.serverUpdates.status()').catch(() => null)
@@ -83,7 +93,8 @@ const safeSnapshot = async () => {
     health: health ? { version: health.server_version,
       update: health.server_update ? { phase: health.server_update.phase,
         targetVersion: health.server_update.target_version } : null,
-      continuationAvailable: health.capabilities?.server_update_continuation_v1?.available === true } : null
+      continuationAvailable: health.capabilities?.server_update_continuation_v1?.available === true } : null,
+    replayRoutes: replayRoutes()
   }
 }
 try {
