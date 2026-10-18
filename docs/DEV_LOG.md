@@ -20,6 +20,11 @@
   authenticated native IPC/HTTP while its shell tool ran, observed the original
   task finish successfully, and then observed the goal become active and
   achieved. The provider session ID stayed unchanged and no stop occurred.
+  A separate native-desktop fixture passed queue cancellation, failed-request
+  retry, chat switching/reopening, and replacement while preserving the original
+  task. English/dark and Chinese/light dialogs and keyboard focus were checked
+  at the supported minimum width. This fixture used synthetic provider state;
+  the live-provider result above was a separate test.
 - Availability: source change and local compiled desktop only. App and server
   updates are both required; no installed app, live service or release changed.
 
