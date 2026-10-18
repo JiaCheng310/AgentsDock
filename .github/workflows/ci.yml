@@ -117,7 +117,8 @@ jobs:
           echo "SSL_CERT_FILE=$network/trust-bundle.pem" >> "$GITHUB_ENV"
           echo "REQUESTS_CA_BUNDLE=$network/trust-bundle.pem" >> "$GITHUB_ENV"
           echo "CURL_CA_BUNDLE=$network/trust-bundle.pem" >> "$GITHUB_ENV"
-          echo 'NO_PROXY=github.com,api.github.com,registry.npmjs.org,localhost,127.0.0.1,::1' >> "$GITHUB_ENV"
+          NO_PROXY='github.com,api.github.com,registry.npmjs.org,localhost,127.0.0.1,::1'
+          echo "NO_PROXY=$NO_PROXY" >> "$GITHUB_ENV"
           /bin/launchctl setenv SSL_CERT_FILE "$network/trust-bundle.pem"
           /bin/launchctl setenv NODE_EXTRA_CA_CERTS "$network/ca.pem"
           /bin/launchctl setenv NO_PROXY "$NO_PROXY"
