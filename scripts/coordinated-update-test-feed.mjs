@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict'
 import { createHash, createPublicKey, verify } from 'node:crypto'
 import { createReadStream, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:https'
+import { connect as connectTcp } from 'node:net'
 import { join, relative } from 'node:path'
 
 const [rootArgument, certificate, privateKey, pidFile] = process.argv.slice(2)
@@ -109,14 +111,37 @@ const server = createServer({ key: readFileSync(privateKey), cert: readFileSync(
 })
 server.headersTimeout = 10_000
 server.requestTimeout = 60_000
-server.listen(443, '127.0.0.1', () => {
-  if (process.getuid?.() === 0) {
-    const owner = statSync(privateKey)
-    assert(owner.uid > 0 && owner.gid > 0, 'A root listener needs a non-root candidate owner.')
-    process.setgroups([])
-    process.setgid(owner.gid)
-    process.setuid(owner.uid)
+// Python's detached update preparation may ignore the runner's temporary
+// hosts route. This loopback-only CONNECT proxy preserves the original npm
+// hostname, SNI, and TLS verification while routing its TCP connection to the
+// exact private feed. It is never installed on a user's machine.
+const registryProxy = createHttpServer((_request, response) => response.writeHead(405).end())
+registryProxy.on('connect', (request, client, head) => {
+  if (!['127.0.0.1', '::ffff:127.0.0.1'].includes(client.remoteAddress)
+    || request.url !== 'registry.npmjs.org:443' || request.headers['proxy-authorization']) {
+    client.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
+    return
   }
-  writeFileSync(pidFile, `${process.pid}\n`, { flag: 'wx', mode: 0o600 })
-  process.stdout.write('ready\n')
+  const upstream = connectTcp(443, '127.0.0.1')
+  upstream.once('connect', () => {
+    client.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+    if (head.length) upstream.write(head)
+    client.pipe(upstream)
+    upstream.pipe(client)
+  })
+  upstream.on('error', () => client.destroy())
+  client.on('error', () => upstream.destroy())
+})
+server.listen(443, '127.0.0.1', () => {
+  registryProxy.listen(18443, '127.0.0.1', () => {
+    if (process.getuid?.() === 0) {
+      const owner = statSync(privateKey)
+      assert(owner.uid > 0 && owner.gid > 0, 'A root listener needs a non-root candidate owner.')
+      process.setgroups([])
+      process.setgid(owner.gid)
+      process.setuid(owner.uid)
+    }
+    writeFileSync(pidFile, `${process.pid}\n`, { flag: 'wx', mode: 0o600 })
+    process.stdout.write('ready\n')
+  })
 })

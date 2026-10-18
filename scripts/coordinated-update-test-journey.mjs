@@ -200,6 +200,8 @@ except Exception as error:
     reason = getattr(error, 'reason', None)
     print('postinstall-probe-failed type=' + type(error).__name__
           + ' reason=' + type(reason).__name__
+          + ' http=' + str(getattr(error, 'code', None))
+          + ' replay=' + str(getattr(error, 'headers', {}).get('X-AgentsDock-Replay'))
           + ' errno=' + str(getattr(reason, 'errno', None))
           + ' verify=' + str(getattr(reason, 'verify_code', None))
           + ' bypass=' + str(urllib.request.proxy_bypass('registry.npmjs.org'))

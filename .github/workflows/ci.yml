@@ -218,6 +218,14 @@ jobs:
           test -f "$network/registry-probe.exit"
           cat "$network/registry-probe.result"
           test "$(cat "$network/registry-probe.exit")" = 0
+      - name: Route detached npm preparation through the verified loopback feed
+        run: |
+          set -euo pipefail
+          test "$(tmux show-environment -g SSL_CERT_FILE)" = "SSL_CERT_FILE=$RUNNER_TEMP/coordinated-network/trust-bundle.pem"
+          tmux set-environment -g HTTPS_PROXY http://127.0.0.1:18443
+          tmux set-environment -g https_proxy http://127.0.0.1:18443
+          tmux set-environment -g NO_PROXY 127.0.0.1,localhost
+          tmux set-environment -g no_proxy 127.0.0.1,localhost
       - name: Click real Update AgentsDock and verify Server first, App second
         run: node scripts/coordinated-update-test-journey.mjs "$RUNNER_TEMP/candidates"
       - name: Remove only this runner's owned routing and trust
@@ -231,7 +239,7 @@ jobs:
           /bin/launchctl unsetenv NO_PROXY || true
           /bin/launchctl unsetenv no_proxy || true
           if tmux has-session -t '=agentsdock-update-replay-trust' 2>/dev/null; then
-            for name in SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE NODE_EXTRA_CA_CERTS NO_PROXY no_proxy; do
+          for name in SSL_CERT_FILE CURL_CA_BUNDLE REQUESTS_CA_BUNDLE NODE_EXTRA_CA_CERTS HTTPS_PROXY https_proxy NO_PROXY no_proxy; do
               tmux set-environment -gu "$name" || true
             done
             tmux kill-session -t '=agentsdock-update-replay-trust' || true
