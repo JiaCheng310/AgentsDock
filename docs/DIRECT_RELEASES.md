@@ -100,6 +100,16 @@ exist on the default branch for manual dispatch, while a dispatch can select the
 reviewed release branch. Registering the workflows does not replace application
 source on a diverged default branch.
 
+The macOS preparation orchestrator is pinned to the dispatched workflow commit,
+separately from the frozen product source. It runs that source's original build
+script. Only an already-accepted outer DMG notarization followed by a recognized
+CloudKit network failure (stapler exit 68, URL error -1005/-1001) is recoverable:
+retry the same DMG ticket download at most four times with bounded delays, validate
+the ticket, and run every original signature, updater and package check. Other
+build failures remain failures. Recovery never re-signs/resubmits the DMG,
+repacks the app, bypasses verification, or publishes. A new preparation run still
+requires its own native build reservation; failed runs consume their reservation.
+
 The public preparation workflow has a separate run counter from the former
 private workflow. Reserve its native build number explicitly using
 `scripts/validate_desktop_build_number.mjs`. Its audited allocation epochs are:

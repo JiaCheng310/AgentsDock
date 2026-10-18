@@ -1,5 +1,15 @@
 # Public development log
 
+## 2026-10-18 — Bound macOS release ticket-download recovery
+
+- Keep product source and signed server/npm candidates frozen independently of
+  the reviewed build orchestrator. Recover only a recognized network failure
+  while attaching an already-accepted outer DMG notarization ticket.
+- Retry the same artifact with bounded delays; require its ticket, Developer ID
+  signature and every original package/updater check before accepting a build.
+  Compilation, test, signing, notarization rejection and other failures still
+  block release. No artifact is published by the recovery helper.
+
 ## 2026-10-18 — Prepare 1.0.11-beta.2
 
 - Integrate current main and the built-in Gemini desktop/server provider with
