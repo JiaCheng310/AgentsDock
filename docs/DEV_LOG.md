@@ -13,8 +13,9 @@
   and smart-group regressions passed. Production-mode Hermes bundles and assets
   exported successfully for both iOS and Android; this is not a signed native
   release or store submission.
-- Installed iPhone simulator checks cover settings navigation, agent marks and
-  API selection, search/keyboard dismissal, and the server drawer. Earlier
+- The final installed iPhone simulator smoke passed three settings-navigation
+  rounds, agent-mark checks, search dismissal, and server-editor back/close.
+  Earlier checks cover API selection through the actual server. Earlier
   repeated light/dark and enlarged-text checks remain applicable. Actual server
   selection was verified without sending model requests. Live provider inference,
   Android-device and tablet acceptance remain unverified. Review candidate only;
@@ -447,6 +448,70 @@
   earlier repeated Settings opening/closing. No server profile was changed
   by these checks. Full regression and device coverage are deferred until the
   UI iteration is complete. Availability: local development preview only.
+
+## 2026-10-17 — Let a Team Space host stop hosting and join another team
+
+- Add a visible **Stop hosting…** action that invokes the existing Host-to-Member
+  operation. Replace the old listener-only control, which left the Host role
+  active and prevented joining another team. Confirmation explains that peer
+  access stops while chats and the original team's stored data remain intact.
+- Retire only the desktop's obsolete managed-host session cache after confirmed
+  demotion. Keep human sign-in records, server-owned teams and peer pairings.
+  Recover a committed stop whose response or follow-up health request failed
+  using explicit authenticated role evidence, retaining the original warning.
+- Clear the old workspace and expose joining; restore a previously joined remote
+  team's workspace when the server resumes that membership. Preserve pending
+  invitations and ignore results belonging to a different selected server.
+- Validation: 1,040 focused desktop checks, TypeScript and production compilation
+  passed. Sixteen isolated server checks and a real TLS lifecycle probe passed.
+  An unrelated filesystem fixture requires its expected POSIX umask; its isolated
+  rerun and the final scoped suite passed with that setting.
+- Native acceptance: reproduced the missing exit in the baseline desktop, then
+  personally exercised the compiled app offscreen with disposable real servers:
+  cancel, failed stop and retry, successful stop, lost response after committed
+  stop, invitation-based joining, and reconnect after renderer reload. Mail sent
+  through native IPC was read on the new host. Reactivating the original host
+  preserved its hub/team identities and saved message. Host approval and original
+  team reactivation used authenticated fixture APIs; provider runtimes were not
+  invoked. No installed apps or production services were changed.
+- Visual acceptance: checked the actual desktop at 1040 × 780 in light and dark
+  appearance, including English and Chinese confirmation, keyboard focus,
+  Escape/cancel, and the recovered stop's dismissible warning and join form.
+- Availability: desktop source and isolated development build only. This uses the
+  existing server host-control contract; no new server deployment is required.
+  Signed-package and other desktop-platform acceptance are not established here.
+
+## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
+
+- Scope known Codex model retirements to native ChatGPT sign-in. Filter the
+  discovered list, configured defaults and fallback options; publish replacement
+  metadata so the desktop does not reinsert an old chat's retired selection.
+  Native API-key authentication and custom endpoints keep their own availability.
+- Migrate an old selection at the next admitted turn, retaining the native
+  conversation ID and history. Preserve supported reasoning levels, record a
+  visible model-change event, and leave running work untouched. Standalone
+  scheduled runs migrate their runtime snapshot without rewriting the parent.
+- Discard the older desktop model-catalog cache on upgrade, rather than retaining
+  its obsolete default until the cache expires. Historical model names remain in
+  history; this change does not rewrite transcripts or hide provider errors.
+- Validation: 244 targeted server checks and 477 targeted desktop checks passed;
+  TypeScript, production compilation and output verification passed. The desktop
+  filesystem fixture suite required its expected POSIX umask; a first run under
+  a restrictive umask failed an unrelated clipboard-directory fixture.
+- Native acceptance: reproduced the obsolete default and reinserted selection in
+  the baseline Electron app. An isolated native development app and real
+  authenticated server then hid that selection, migrated a disposable saved
+  selection on send, and completed two real Codex continuations with the same
+  provider thread and remembered context. Reopening retained history and exactly
+  one migration notice; a new chat using Server default also replied successfully.
+  The QA launcher isolated local-server discovery from existing installations;
+  provider calls, Keychain access and client/server transport were real.
+- API/custom exceptions and scheduled-parent isolation used deterministic fixtures,
+  not live paid endpoints or a long-running production schedule. Native compaction
+  recovery and its error attribution remain separate work tracked in issue #89;
+  this test does not establish recovery of previously failing long contexts.
+- Availability: source branch and isolated development testing only. Both server
+  and desktop updates are needed; no production instance or public release changed.
 
 ## 2026-10-16 — Integrate responsive history maintenance with current main
 

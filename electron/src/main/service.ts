@@ -173,6 +173,7 @@ import { SubagentEventProjector } from './subagent-projection'
 import { mergeTimelineSearchResults } from './search'
 import type { TeamHubConfigureServerRoleInput, TeamHubDiscovery, TeamHubScope, TeamHubServerScope } from '../shared/team-hub'
 import type { TeamHubBootstrapProof, TeamHubBootstrapProofInput } from './team-hub-service'
+import { TeamHubStoppedHostingError } from './team-hub-role-change'
 import type {
   SecurePeerActivateInput,
   SecurePeerApproveInput,
@@ -224,7 +225,9 @@ const FILE_PAGE_LIMIT = 60
 const MAX_AGENT_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
 const AGENT_TEXT_FILE_TIMEOUT_MS = 30_000
 const WORKSPACE_PREVIEW_PROBE_TIMEOUT_MS = 30_000
-const RUNTIME_CATALOG_CACHE_KEY = 'runtimeCatalog:v1'
+// v2 discards pre-retirement-policy catalogs so an app upgrade does not keep
+// an obsolete default/selectable model for the disk cache's full lifetime.
+const RUNTIME_CATALOG_CACHE_KEY = 'runtimeCatalog:v2'
 const SERVER_VERSION_CACHE_KEY = 'serverVersion:v1'
 const SEMANTIC_TIMELINE_CAPABILITY_CACHE_KEY = 'semanticTimelineCapability:v1'
 const RUNTIME_CATALOG_RETRY_MS = 30_000
@@ -879,47 +882,71 @@ export class AppService {
       ...(input.renameOnly === true ? { require_existing_host: true as const } : {}),
       ...(networkName === undefined ? {} : { network_name: networkName })
     }
-    const receipt = input.role === 'host'
-      ? await context.scope.client.enableTeamHubHost(request)
-      : await context.scope.client.disableTeamHubHost(request)
-    this.requireSecurePeerControlContext(context)
-    requireExactTeamHubServerRoleReceipt(receipt, {
-      requestId,
-      serverIdentity: context.expected.serverIdentity,
-      serverInstanceId: context.serverInstanceId,
-      serverName,
-      role: input.role
-    })
-    if (input.renameOnly === true && !['rename', 'already_host'].includes(receipt.operation)) {
-      throw new Error('AgentsServer did not confirm an existing Host rename.')
-    }
+    try {
+      const receipt = input.role === 'host'
+        ? await context.scope.client.enableTeamHubHost(request)
+        : await context.scope.client.disableTeamHubHost(request)
+      this.requireSecurePeerControlContext(context)
+      requireExactTeamHubServerRoleReceipt(receipt, {
+        requestId,
+        serverIdentity: context.expected.serverIdentity,
+        serverInstanceId: context.serverInstanceId,
+        serverName,
+        role: input.role
+      })
+      if (input.renameOnly === true && !['rename', 'already_host'].includes(receipt.operation)) {
+        throw new Error('AgentsServer did not confirm an existing Host rename.')
+      }
 
-    const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
-    this.assertCurrentScope(context.scope)
-    const current = this.teamHubServerScope()
-    if (
-      current.profileId !== context.expected.profileId
-      || current.profileGeneration !== context.expected.profileGeneration
-      || current.serverIdentity !== context.expected.serverIdentity
-      || health.ok !== true
-      || health.server_identity !== context.expected.serverIdentity
-      || health.server_instance_id !== context.serverInstanceId
-    ) throw staleProfileError()
-    const enabledCapability = requireTeamHubHostControlCapability(
-      health.capabilities?.team_hub_host_control_v1
-    )
-    if (!enabledCapability.available || enabledCapability.enabled !== (input.role === 'host')) {
-      throw new Error(enabledCapability.message || 'AgentsServer did not apply the Team Network role.')
+      const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
+      this.assertCurrentScope(context.scope)
+      const current = this.teamHubServerScope()
+      if (
+        current.profileId !== context.expected.profileId
+        || current.profileGeneration !== context.expected.profileGeneration
+        || current.serverIdentity !== context.expected.serverIdentity
+        || health.ok !== true
+        || health.server_identity !== context.expected.serverIdentity
+        || health.server_instance_id !== context.serverInstanceId
+      ) throw staleProfileError()
+      const enabledCapability = requireTeamHubHostControlCapability(
+        health.capabilities?.team_hub_host_control_v1
+      )
+      if (!enabledCapability.available || enabledCapability.enabled !== (input.role === 'host')) {
+        throw new Error(enabledCapability.message || 'AgentsServer did not apply the Team Network role.')
+      }
+      const discovery = parseTeamHubDiscovery(
+        health.capabilities?.team_hub_v1,
+        context.expected.serverIdentity
+      )
+      if (discovery.designatedHost !== (input.role === 'host')) {
+        throw new Error('AgentsServer did not apply the requested Team Network role.')
+      }
+      this.adoptHealth(context.scope, health)
+      return discovery
+    } catch (error) {
+      let stopped = false
+      if (input.role === 'member') {
+        // Demotion may commit before its response, follow-up health read, or
+        // previous-member recovery fails. Confirm the explicit role once;
+        // absent capabilities or cached discovery do not prove a transition.
+        try {
+          this.requireSecurePeerControlContext(context)
+          const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
+          this.requireSecurePeerControlContext(context)
+          const hostControl = requireTeamHubHostControlCapability(health.capabilities?.team_hub_host_control_v1)
+          const hub = health.capabilities?.team_hub_v1
+          if (health.ok === true && health.server_identity === context.expected.serverIdentity
+            && health.server_instance_id === context.serverInstanceId && hostControl.available
+            && hostControl.enabled === false && hub?.designated_host === false) {
+            parseTeamHubDiscovery(hub, context.expected.serverIdentity)
+            this.adoptHealth(context.scope, health)
+            stopped = true
+          }
+        } catch { /* Preserve the mutation error when the actual role is unknown. */ }
+      }
+      throw stopped ? new TeamHubStoppedHostingError(error) : error
     }
-    const discovery = parseTeamHubDiscovery(
-      health.capabilities?.team_hub_v1,
-      context.expected.serverIdentity
-    )
-    if (discovery.designatedHost !== (input.role === 'host')) {
-      throw new Error('AgentsServer did not apply the requested Team Network role.')
-    }
-    this.adoptHealth(context.scope, health)
-    return discovery
   }
 
   /**

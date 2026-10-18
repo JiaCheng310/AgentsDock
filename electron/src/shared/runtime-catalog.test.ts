@@ -479,3 +479,30 @@ describe('runtime diagnostics', () => {
     expect(runtimeDiagnosticCurrentError(diagnostic)).toBe('')
   })
 })
+
+describe('auth-scoped retired model selections', () => {
+  const retired: RuntimeCatalog = { backends: { codex: {
+    models: [{ value: '', label: 'Server default' }, { value: 'gpt-5.5', label: 'GPT-5.5' }, { value: 'gpt-6-luna', label: 'GPT-6-Luna' }],
+    efforts: [{ value: 'high', label: 'High' }],
+    model_replacements: { 'gpt-5.5': 'gpt-6-luna' },
+    custom_provider: { configured: true, available: true, model: 'gpt-5.5', base_url: 'https://api.example/v1',
+      models: [{ value: 'gpt-5.5', label: 'GPT-5.5' }] }
+  } } }
+
+  it('does not reinsert a historical selection or trust a stale model option', () => {
+    const before = JSON.stringify(retired)
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'gpt-5.5').map(o => o.value)).toEqual(['', 'gpt-6-luna'])
+    expect(JSON.stringify(retired)).toBe(before)
+    expect(runtimeCatalogOptions(retired, 'codex', 'efforts', 'high')).toContainEqual({ value: 'high', label: 'High' })
+  })
+
+  it('keeps unknown models and native API-key models unless the server explicitly retires them', () => {
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'other-model').map(o => o.value)).toContain('other-model')
+    const api: RuntimeCatalog = { backends: { codex: { ...retired.backends.codex!, model_replacements: {} } } }
+    expect(runtimeCatalogOptions(api, 'codex', 'models', 'gpt-5.5').map(o => o.value)).toContain('gpt-5.5')
+  })
+
+  it('does not apply native ChatGPT retirement to custom endpoints', () => {
+    expect(runtimeCatalogOptions(retired, 'codex', 'models', 'gpt-5.5', 'custom').map(o => o.value)).toContain('gpt-5.5')
+  })
+})
