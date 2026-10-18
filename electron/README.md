@@ -4,6 +4,15 @@ This directory contains the cross-platform AgentsDock desktop client for
 macOS, Linux, and Windows. The Swift macOS, iOS, and iPadOS applications remain
 in the repository and are not overwritten by the Electron development build.
 
+## Gemini
+
+Gemini is a built-in desktop/server provider; no development flag is required.
+Install `@google/gemini-cli@0.64.0` on the server machine and configure its API in
+**Settings → My Agents → Gemini**. Google/CLI login is not offered. A matching
+server must advertise Gemini support; the card's presence does not mean the CLI
+or API is ready. Mobile support is separate. See
+[setup, supported features and validation](../server/docs/GEMINI_PROVIDER_PREVIEW.md).
+
 ## Local build
 
 From the repository root:
@@ -72,6 +81,14 @@ The app uses a local SQLite cache at the same application-support location.
 Server identity scopes sessions, preferences, timeline rows, read state, jobs,
 files, and pins so aliases for one server share data without contaminating a
 different server.
+
+New chat opens the composer directly, including the first chat on a server.
+It inherits the last-opened chat's agent/connection, model, thinking, permissions,
+workspace, folder, custom instructions and supported subagent limit. Without
+previous settings it prefers an available agent; discovery still loading does
+not reopen the old setup dialog. Before the first message, use the composer's
+Agent picker to switch agents or open My Agents. Credentials, native session
+identity, goals and delegated/job authorization are not copied.
 
 Settings → Server starts with collapsed cards showing each saved server's name,
 URL and connection status. Add server is above the cards. Expand a card for

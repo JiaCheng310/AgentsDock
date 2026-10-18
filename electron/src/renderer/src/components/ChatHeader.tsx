@@ -99,7 +99,8 @@ export function ChatHeader({
     : null
   if (!session) return <header className="chat-header empty"><strong>AgentsDock</strong><div className="header-actions">{sidebarButton}</div></header>
   const save = () => { const clean = title.trim(); if (clean && clean !== session.title) void useAppStore.getState().updateSession(session.id, { title: clean }) }
-  const sessionIdValue = session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id || session.opencode_session_id
+  const sessionIdValue = session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id || session.opencode_session_id || session.gemini_session_id
+  const geminiIdentityPending = session.backend === 'gemini' && !sessionIdValue
   const copySessionId = () => {
     if (!sessionIdValue) return
     void window.agentsDock.native.writeClipboard(sessionIdValue).then(() => {
@@ -143,7 +144,7 @@ export function ChatHeader({
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         </div>
-        <small>session {shortId(sessionIdValue)}{sessionIdValue && <button type="button" className="session-id-copy" title={sessionIdCopied ? t("ui.ChatHeader.ChatHeader.copied_8d525e5") : t("ui.ChatHeader.ChatHeader.copy_session_8b985e2")} aria-label={sessionIdCopied ? t("ui.ChatHeader.ChatHeader.session_copied_673328f") : t("ui.ChatHeader.ChatHeader.copy_session_8b985e2")} onClick={copySessionId}>{sessionIdCopied ? <Check size={12} /> : <Copy size={12} />}</button>}</small>
+        <small title={geminiIdentityPending ? t('gemini.session.pendingDescription') : undefined}>session {geminiIdentityPending ? t('gemini.session.pending') : shortId(sessionIdValue)}{sessionIdValue && <button type="button" className="session-id-copy" title={sessionIdCopied ? t("ui.ChatHeader.ChatHeader.copied_8d525e5") : t("ui.ChatHeader.ChatHeader.copy_session_8b985e2")} aria-label={sessionIdCopied ? t("ui.ChatHeader.ChatHeader.session_copied_673328f") : t("ui.ChatHeader.ChatHeader.copy_session_8b985e2")} onClick={copySessionId}>{sessionIdCopied ? <Check size={12} /> : <Copy size={12} />}</button>}</small>
       </div>
       <div className="header-actions">
         <DropdownMenu.Root open={actionsMenuOpen} onOpenChange={open => {

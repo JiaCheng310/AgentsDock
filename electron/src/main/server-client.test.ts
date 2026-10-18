@@ -271,6 +271,20 @@ describe('Team Mail metadata websocket', () => {
 describe('AgentServerClient Claude session policy', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
+  it('preserves Gemini custom API selection when creating a chat', async () => {
+    const request = vi.fn(async (_input: unknown, init: RequestInit = {}) => {
+      expect(JSON.parse(String(init.body))).toMatchObject({ backend: 'gemini', provider_connection: 'custom' })
+      return new Response(JSON.stringify({ session: { id: 'gemini-chat', title: 'Gemini', folder: 'General', cwd: '/work', backend: 'gemini', provider_connection: 'custom' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', request)
+    const client = new AgentServerClient('http://example.test:7850', 'token')
+    try {
+      expect((await client.createSession({ backend: 'gemini', provider_connection: 'custom', cwd: '/work', title: 'Gemini', folder: 'General' })).backend).toBe('gemini')
+      expect(request).toHaveBeenCalledOnce()
+    } finally { client.dispose() }
+  })
+
   it('includes the additive Claude permission mode when creating a chat', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = []
     vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init: RequestInit = {}) => {

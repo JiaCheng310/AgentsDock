@@ -20,6 +20,7 @@ import { ChatPane } from './components/ChatPane'
 import { ChatSplitView } from './components/ChatSplitView'
 import { CodeReview } from './components/CodeReview'
 import { ClaudeInteractionShelf } from './components/ClaudeInteractionShelf'
+import { GeminiInteractionShelf } from './components/GeminiInteractionShelf'
 import { ClaudeRuntimeProvider } from './components/ClaudeRuntimeContext'
 import { CodexInteractionShelf } from './components/CodexInteractionShelf'
 import { CodexRuntimeProvider } from './components/CodexRuntimeContext'
@@ -834,6 +835,7 @@ function AppWorkspace() {
       <div className="chat-workspace-shelves">
         <CodexInteractionShelf key={`codex-interactions:${selectedRenderKey}`} />
         <ClaudeInteractionShelf key={`claude-interactions:${selectedRenderKey}`} />
+        <GeminiInteractionShelf key={`gemini-interactions:${selectedRenderKey}`} session={selectedSession} />
       </div>
       {selectedSession && <EmergencyTimelineDock
         key={`emergency:${selectedRenderKey}`}

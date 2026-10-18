@@ -8,6 +8,9 @@ export function endpointModelReference(baseURL: string): ModelReference | null {
   if (endpoint.protocol !== 'https:' || endpoint.port || endpoint.username || endpoint.password
     || endpoint.search || endpoint.hash) return null
   const path = endpoint.pathname.replace(/\/$/, '')
+  if (endpoint.hostname === 'generativelanguage.googleapis.com' && ['', '/v1', '/v1beta'].includes(path)) {
+    return { provider: 'Gemini', url: 'https://ai.google.dev/gemini-api/docs/models' }
+  }
   if (endpoint.hostname === 'opencode.ai') {
     if (path === '/zen' || path === '/zen/v1') {
       return { provider: 'OpenCode Zen', url: 'https://opencode.ai/docs/zen/#endpoints' }

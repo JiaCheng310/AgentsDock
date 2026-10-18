@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { formatBytes } from '../../lib/format'
 import { isFileTransferBusy, type FileTransferState } from '../../lib/file-transfer'
-import { usePalette } from '../../theme'
+import { radius, usePalette } from '../../theme'
 import { Text } from '../AppText'
 
 export function FileTransferNotice({ state, onCancel, onDismiss }: { state: FileTransferState | null; onCancel: () => void; onDismiss: () => void }) {
@@ -29,9 +29,9 @@ export function FileTransferNotice({ state, onCancel, onDismiss }: { state: File
 }
 
 const styles = StyleSheet.create({
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingLeft: 10, paddingRight: 4, paddingVertical: 4 },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 10, paddingRight: 4, paddingVertical: 4 },
   body: { flex: 1, gap: 4, paddingVertical: 4 },
   action: { minWidth: 60, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-  track: { height: 3, borderRadius: 2, overflow: 'hidden' },
+  track: { height: 3, borderRadius: radius.round, overflow: 'hidden' },
   fill: { height: 3 },
 })

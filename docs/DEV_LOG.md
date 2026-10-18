@@ -13,8 +13,9 @@
   Goals, other internal work and unsupported runtimes still wait for a safe
   boundary.
 - Validation: targeted restart-recovery and coordinated-update tests run in
-  isolated fixtures. Packaged native app/server update acceptance is pending;
-  this source branch has not changed an installed server or public release.
+  isolated fixtures. A disposable named server was upgraded with the signed
+  unpublished candidate and completed an ordinary Codex turn. Packaged native
+  app/server update acceptance is pending; no public release was changed.
 - A compiled local Electron app from this branch connected to an existing
   test server through the real client/server transport. A disposable Codex
   chat and follow-up both completed, and the Updates page resolved the
@@ -27,6 +28,989 @@
   an explicit ready state before requesting activation; a regression test
   covers staging followed by readiness. Packaged replay of this correction
   remains pending.
+## 2026-10-17 — Make Gemini a built-in provider
+
+- Remove the Gemini preview environment gate from provider registration,
+  capabilities, native import discovery, skills and cross-chat discovery.
+  Compatible desktop clients now show Gemini in My Agents without an opt-in
+  flag. Installation of Gemini CLI 0.64.0 and a configured API connection remain
+  required for sending; Google/CLI sign-in is not offered. Old-client checks
+  and unsupported-feature capabilities remain unchanged.
+- Update setup documentation and preserve the Gemini icon attribution in the
+  standalone server export. Repair integration-test fixtures for the current
+  update-session wrapper, archive rejection helper and per-chat queue recovery;
+  no unrelated production behavior is changed by those fixture corrections.
+- Verification: 169 targeted server tests and 18 native CLI/HTTP tests pass.
+  Desktop TypeScript, 5,246 tests (five skips), eight build/license checks and
+  production compilation pass. A fresh real HTTP server without any feature
+  flag exposes Gemini while correctly rejecting missing runtime/API readiness.
+  Actual offscreen Electron through production IPC/HTTP and the pinned CLI
+  verifies the unconfigured settings card, API setup without an initial model
+  ID, model discovery/default selection, new chat, two turns and reload.
+  Screens inspected; this rerun uses a loopback model, not Google inference.
+  Full server regression and hosted CI remain separate gates. No installed
+  server restart, public release or package publication performed.
+- Integrate main's Codex retired-model selection fix without dropping either
+  side's development-log entries. The post-integration run passes 141 focused
+  server tests and 5,250 desktop tests (five skips), plus TypeScript, eight
+  build/license checks and production compilation. The superseded local full
+  server run was stopped; full-suite validation belongs to the new hosted CI.
+
+## 2026-10-17 — Prepare the Gemini preview for review against current main
+
+- Integrate main's history-responsiveness and desktop recovery updates while
+  retaining Gemini import, title and session-identity coverage. Resolve the
+  additive development-log and session-summary test conflicts without dropping
+  either side's behavior. Gemini remains an opt-in, API-only development preview.
+- Use the approved Chinese term for imported sessions. Update archive-label
+  assertions for both the section and per-session badge, make the clipboard
+  permission fixture independent of umask, and give native Gemini fixtures a
+  canonical workspace path. Align the old skills test with API-only policy
+  while retaining native skill discovery and unchanged terminal-login checks.
+- Clarify provider versus adapter limits: Gemini has native subagents and
+  terminal compression; this integration does not expose managed child
+  lifecycle controls or manual compression. Current ACP Fork returns
+  method-not-found, and unregistered slash commands are ordinary prompts.
+- Verification: 5,246 desktop tests pass with five skips, plus eight build/license
+  checks; TypeScript and production compilation pass. A focused server run
+  passes 246 tests with seven optional native cases skipped. Actual offscreen
+  Electron through production IPC/HTTP and the pinned CLI verifies both native
+  import/API connection entry points, repeated sends, original session IDs and
+  reopening. Chinese/narrow/light and English/dark rendering were inspected.
+  The current integration rerun uses a loopback model fixture, not Google
+  inference; earlier real-API acceptance and remaining release gaps are recorded
+  in the Gemini preview document. No public release or installed-server update.
+
+## 2026-10-17 — Explicit API continuation for native Gemini imports
+
+- Import Chat can explicitly bind Gemini history to its saved API; existing
+  history-only imports gain a localized Connect Gemini API action. The API
+  destination is disclosed before selection. Other providers' import and
+  account-switch restrictions remain unchanged.
+- Preserve the original native UUID, workspace and transcript location. Pinned
+  CLI process-only API auth does not modify the terminal's saved login, copy
+  history or start a replacement session. Busy/queued work, missing history,
+  revoked bindings and managed auth conflicts fail closed; failed persistence
+  rolls back the binding. Forget cannot fall back to Google login.
+- Verification: focused server and desktop regressions, TypeScript and
+  production compilation pass. Six native CLI/HTTP contracts cover import,
+  continuation, Stop/retry, Forget, title compatibility and retained history.
+  Actual offscreen Electron through production IPC/HTTP and Google Developer
+  API verifies both connection entry points, original contextual recall,
+  repeated turns, unchanged native identity and reopen. Light/dark, narrow and
+  Chinese presentation were inspected. The native fixture confirms exact API
+  key headers and unchanged terminal settings; no copied transcript is created.
+- Prepared on the Gemini preview branch for the authorized local desktop/test
+  server update. No public release or merge. External native-history syncing,
+  broader organization policies and platform acceptance remain separate.
+
+## 2026-10-17 — Gemini first-turn summarized titles
+
+- Prefer the native summary; if absent after a successful ordinary turn, make
+  one bounded, tool-free background title request through that chat's own API
+  connection. Auto resolves from its exact native model metadata. Long prompt
+  excerpts retain the ending question as well as the beginning.
+- No hidden chat message, native session or tool invocation is created. Manual
+  names, late native titles, opt-out, connection revocation and identity changes
+  reject stale results. Failure keeps the prompt fallback without repeated usage.
+- Verification: 160 focused server regressions pass, plus a native CLI/HTTP
+  title contract without injected summary. Actual offscreen Electron through
+  production IPC/HTTP and the Google Developer API verifies short English and
+  long Chinese/log naming, visible refresh, repeated turns, stable native identity
+  and reopen. Manual-name and revocation races have focused server coverage.
+  The broader native lifecycle run passed 29 of 30 cases; the legacy Google-login
+  skills case fails identically on the unchanged baseline, independently of
+  this title change. Full provider/release acceptance remains separate.
+- No desktop source changes or public release. Prepared on the Gemini preview
+  branch for the explicitly authorized local test-server update.
+
+## 2026-10-17 — Require real first-turn provider title acceptance
+
+- Tighten the provider checklist: existing native metadata and synthetic title
+  adoption tests do not establish automatic generation. Require an actual App
+  and real-model first-turn check with long pasted input, missing native titles,
+  manual rename protection, repeated turns and reopen.
+- Record Gemini's missing fallback title generator separately from its tested
+  native-summary reader. Align the preview's outstanding acceptance list with
+  the API-only policy; Google/CLI login is intentionally unsupported.
+- Documentation only. No title-generation implementation, chat repair or
+  service change is included; checks are documentation diff/link review.
+
+## 2026-10-17 — Gemini API-only connections and clearer chat errors/archive state
+
+- Gemini's preview now offers API connections only. The CLI remains its runtime;
+  other providers' login choices are unchanged. Old Google-login chat history
+  remains readable, but sends cannot fall back to that account or silently move
+  to an API account. Settings, discovery and send admission agree on this policy.
+- Composer errors are selectable and have a localized copy action. Timeline
+  error cards also support copying. Long command text is preserved rather than
+  truncated, and an empty failed-turn summary no longer hides the actual error.
+- Archived chats have a muted row, archive icon and explicit label, including
+  in search. They remain readable in the collapsible Archived section and are
+  excluded from ordinary chat mention candidates.
+- When the owning Codex resume RPC explicitly rejects the exact native thread
+  as archived, the server mirrors it through the normal AgentsDock archive
+  lifecycle and does not retry through exec. Jobs/routes follow the existing
+  archive policy; provider history is untouched. Stale runs and other errors
+  cannot cause this transition. This is response-driven, not a background scan
+  of native archives or a migration of old error records.
+- Verification: 705 focused desktop tests, TypeScript and production compilation
+  passed. The server suite passed 230 cases with one optional native test skipped;
+  that native test then passed separately. These cover credentials, archive
+  lifecycle, routing and stale-run ownership. Actual offscreen Electron through production IPC/HTTP
+  verifies API-only Settings, copying both error surfaces, legacy-chat recovery
+  navigation, Archive persistence, mention exclusion, reopen, narrow layout,
+  light/dark and Chinese. A native Gemini CLI/loopback endpoint fixture covers
+  real failure propagation; separate Google Developer API Default/Plan sends
+  succeeded. A disposable native Codex archive/resume probe reproduced the
+  exact rejection and retained its native history without a model request.
+- Not published or deployed; existing user services and chats are unchanged.
+
+## 2026-10-17 — Compact Gemini approval actions
+
+- Gemini tool requests now use localized Allow / Deny buttons. Full request
+  details remain available, and approval still applies only to that request.
+  The shared card accepts optional labels; other providers retain their
+  existing controls and approval semantics.
+- Verification: 37 focused desktop tests cover long tool names, English and
+  Chinese, both decisions, ownership, existing Codex controls and Gemini modes.
+  TypeScript and production compilation pass; 39 transport/process regressions
+  pass. Actual offscreen Electron through production IPC/HTTP and the native
+  Gemini CLI verifies Allow executes a disposable write, Deny does not, mode
+  selection, next-turn isolation and five Stop/retry/reopen cycles. Narrow
+  rendering was inspected. These deterministic model replies use a loopback
+  fixture, not Google inference.
+- Prepared on the same Gemini preview branch for the authorized local test
+  update; no public release, push or merge. Google OAuth acceptance remains
+  separate from these tool-policy and lifecycle checks.
+
+## 2026-10-17 — Gemini early Stop/Delete stress fixes
+
+- Reproduced immediate Stop leaving a chat fenced, first at the real process
+  boundary and again through actual offscreen Electron. A process readiness
+  handshake prevents signalling the guard before its handlers exist; startup
+  cancellation retains the process handle for verified cleanup. Stop/Delete
+  now use the Gemini-owned cleanup operation instead of killing its guard
+  through generic tree termination. A failed native exec with no launched
+  provider is not misclassified as surviving tools. Cursor's legacy exit
+  contract is unchanged; unverified cleanup still fails closed.
+- Added early Stop/cancel/exec-failure regressions and repeatable opt-in native
+  long-message stress. Existing cleanup-failure and restart fences remain in
+  place; no old fence is automatically repaired by this change.
+- Actual offscreen desktop, production IPC/HTTP and native CLI: five consecutive
+  Stop/retry/reopen cycles, Default approval and rejection, next-turn policy
+  change, automatic edits, YOLO cancel/confirm, Plan write denial, keyboard
+  operation, narrow/light/dark and Chinese presentation pass. Separate actual
+  desktop journeys verify direct first/repeated new chat, inherited settings,
+  custom-provider switching, native built-in skill activation and repeated
+  picker use, and blocked untrusted handoff followed by an ordinary question.
+  These deterministic flows use a local model fixture, not Google inference.
+- A separate actual desktop Google Developer API run completes Default then
+  Plan with the same native ID. Google OAuth-account acceptance remains open.
+  Four simultaneous native chats complete 40 long-message turns and 40 socket
+  reconnects with exact replies and stable identities. Native history survives
+  deletion. This is bounded regression coverage, not a production load claim.
+- Verification: 377 focused server regressions pass, followed by 39 transport/
+  process tests including two additional failed-exec cases; 41 native CLI/HTTP
+  lifecycle, permissions, skills and API-binding cases pass. Desktop: 5,214
+  tests pass, five skip, plus eight compile/license checks. TypeScript and
+  production compilation pass. Counts overlap and are not a readiness claim.
+- Availability: same Gemini development branch and isolated local test Apps;
+  no existing service, working desktop, credentials or trust settings replaced.
+  No deployment, public release, push or merge. Remaining provider limitations
+  are tracked in the Gemini preview documentation.
+
+## 2026-10-17 — Gemini native permission-mode controls
+
+- Add a localized Gemini permission menu in the desktop composer for both
+  native-login and API chats: Default, Auto Edit, explicit-confirmation YOLO,
+  and Plan once a native workspace handshake reports it enabled. Preserve
+  next-turn semantics and the native session ID; newly created chats inherit
+  the selected Gemini chat's saved mode without copying another provider's
+  sandbox options. Default remains normal native approval policy.
+- Pass native approval flags and confirm the requested ACP mode before the
+  prompt. Preserve native folder trust, tool denies and administrator YOLO
+  restrictions. Disabled Plan fails closed rather than silently running in
+  Default. API profiles preserve native Plan settings without changing login.
+  Shared chats do not gain this administrative permission editor.
+- Keep a mode-change acknowledgement out of assistant replies by correlating
+  the exact pinned CLI notice with the outstanding mode-change RPC. Identical
+  text in an actual model response is still retained.
+- Verification: 85 focused server/protocol/schema/packaging tests pass. Six
+  additional real CLI/HTTP mode cases verify default approvals, auto-edit
+  writes, shell confirmation, YOLO, Plan denial, native tool/admin restrictions,
+  unavailable modes and same-session next-turn changes. The model in those
+  deterministic native tests is a loopback fixture, not Google inference.
+- Desktop regression: 5,214 tests pass, five skip, plus eight compile/license
+  checks. TypeScript and production compilation pass. Five additional native
+  regression cases cover API reconnect, resume, Auto routing, cross-chat and
+  Stop/Delete isolation; these are separate from the live Google acceptance.
+- Actual offscreen Electron with production IPC/HTTP and native Gemini verifies
+  selecting/saving modes, pending approval isolation, denial, automatic writes,
+  YOLO confirmation/cancellation, Plan blocking writes, keyboard focus,
+  light/dark/narrow layouts, English/Chinese and reopening. No internal mode
+  notice appears as an answer. A separate real Google Developer API run through
+  this App completes Default then Plan in the same native session. Google
+  OAuth-account mode acceptance and wider platform/policy coverage remain open.
+- Source only on the Gemini development branch. No existing service or working
+  desktop was replaced; no cleanup fence bypass, existing native trust change, public
+  release or merge. The broader provider acceptance limitations remain.
+
+## 2026-10-16 — Keep Gemini workspace trust separate from sign-in
+
+- Report unavailable communication tools as a workspace/MCP issue, not an
+  invitation to sign in again. Include the exact chat workspace and native
+  trust/settings guidance without changing credentials or granting trust.
+- Do not require a communication tool for every ordinary question merely
+  because a chat has a durable communication permission. Use this turn's
+  validated references and internal delivery purpose. Explicit communication
+  and mailbox wakes still fail before model work when the tool is unavailable;
+  broker authorization, native trust and approval policy are unchanged.
+- Verification: the new real-CLI regression failed before the fix and passes
+  afterward. 82 focused regressions and seven native CLI/HTTP cases cover
+  ordinary follow-up, untrusted sender/recipient, queued cancellation, native
+  denial, unknown targets and busy-recipient retry/deduplication.
+- Actual offscreen Electron with production IPC/HTTP and the real native CLI
+  displays the workspace-specific error, then accepts an ordinary question in
+  the same chat without delivering mail; its answer survives reopening. This
+  isolated check uses a loopback model fixture, not Google authentication or
+  inference. Dependency lock and changed-module compilation checks pass.
+- Availability: source on the Gemini development branch; not deployed or
+  released. Existing development-service cleanup fencing was not bypassed.
+
+## 2026-10-16 — Distinguish Gemini identity, chat access and delivery
+
+- Include Gemini's native identity in detailed session responses and the
+  header's ID/copy fallback. If no resumable native session has been saved,
+  show a localized pending explanation instead of an unexplained dash; never
+  invent a provider ID for a failed first turn.
+- Label a newly granted chat route as communication permission, explicitly not
+  a sent message. Queued user work still waits its turn; native MCP loading
+  failures now explicitly report that no cross-chat message was sent. Folder
+  trust and provider approval policy remain unchanged.
+- Hide Gemini's server-attested automatic mailbox wake input, like Codex and
+  Claude, without hiding real user inputs, agent progress or replies. This
+  removes an empty "You" bubble exposed during actual cross-chat acceptance.
+- Focused verification: 85 server regressions, eight actual CLI/HTTP lifecycle
+  cases and 195 desktop component/projection cases pass; TypeScript and production compile
+  pass. Native tests use a loopback model fixture, including queued sender,
+  cancellation, busy recipient, reply, deduplication, revoked/unknown routes,
+  denied tool approval and untrusted workspaces.
+- Full desktop regression: 5,201 pass, five skip, plus eight compile/license
+  checks. These counts do not substitute for the live-provider acceptance.
+- Live acceptance: actual offscreen Electron with production IPC/HTTP and the
+  real Google API verified queued permission without premature delivery,
+  cancellation, one message each way, native IDs, purple message cards and
+  reopening. Only the requested native communication tools were approved.
+  A second actual-App review verifies no fake user bubble on the receiving
+  mailbox turn and retained messages after reload.
+- Remaining limitation: an extremely early startup Stop left a disposable
+  chat behind a truthful cleanup fence. Its cleanup/race investigation remains
+  open; this acceptance does not establish all lifecycle paths are ready.
+- Availability: Gemini development branch and designated development service
+  (server source `b668e787`), with the corrected development desktop restarted
+  using its existing profile; no public release or merge. Model quota and
+  workspace trust remain distinct.
+
+## 2026-10-16 — Include Gemini native built-in skills
+
+- Discover skills with the pinned native `skills list --all`; its default listing
+  omits built-ins. Parse the native built-in marker as scope metadata rather than
+  part of a skill's name, and show it in the existing composer badge. Keep native
+  trust, disabled-skill and same-name override behavior, opaque selection IDs
+  and file revision checks. Other providers' private skill folders are not
+  advertised as Gemini capabilities.
+- Verification: 43 focused server tests, three real CLI skill contracts, the
+  real HTTP/CLI five-turn resume/Forget/reconnect/Delete contract, and 226
+  composer tests pass. Native contracts use an isolated loopback model fixture;
+  they cover built-in activation, user-skill approval, denied and approved writes,
+  scope precedence, disabled entries and stale selections.
+- Actual offscreen Electron using production IPC/HTTP reproduced the missing
+  built-ins, then selected and activated `skill-creator` through the real CLI,
+  rendered its reply and reopened the picker successfully. That activation run
+  used disposable server state and a loopback model API, not Google inference.
+- Live acceptance: the development service at source `b3759a17` preserved its
+  identity, credentials and existing sessions. Actual offscreen Electron using
+  production IPC/HTTP showed the native local and built-in inventory, selected
+  `skill-creator`, observed successful native activation and rendered the exact
+  requested Google API reply. Reopening the picker retained the built-in skill.
+- Availability: Gemini development branch and designated development service;
+  no public release, merge or mobile changes. This does not implement
+  permission-mode selection or resolve the separate native-login eligibility
+  issue. No client installation was required for this server-side discovery fix.
+
+## 2026-10-16 — Always open new chats directly
+
+- Remove the retired setup modal from the desktop dialog tree and all new-chat
+  fallbacks, including first use and stale/unavailable runtime discovery. Reuse
+  the last-opened chat settings; also retain custom instructions and supported
+  subagent limits. Available agents remain selectable before the first send.
+  Creation errors remain inline; no silent switch from a revoked API to native
+  credentials, and no conversation identity or delegated/job authority copying.
+- Rebind the selected provider when switching between custom API agents before
+  the first turn. Do not reuse another provider's immutable connection ID;
+  first-turn backend locking and credential revocation remain unchanged.
+- Actual offscreen Electron with production IPC/HTTP reproduced the old
+  first-chat modal, then verified direct first creation, eight inherited fields,
+  Claude API to Gemini API switching, model selection, a rendered native CLI
+  reply and repeated creation with the newly selected settings. This run used
+  disposable server state and a loopback model API, not Google inference.
+- Verification: 5,198 desktop tests pass, five skip; eight compile/license checks,
+  TypeScript checks, production compilation and 37 focused server tests pass.
+- Live acceptance: the same offscreen native App used the designated development
+  service at source `8837b925`, created directly, inherited eight settings from
+  a disposable OpenCode API chat, switched to Gemini API in the composer, and
+  received the exact requested response from Google with Auto. Repeating New
+  chat retained Gemini API and Auto. No endpoint credentials were changed.
+- Availability: Gemini development branch and development service; the existing
+  development App was restarted without packaging or changing its selected
+  server. No publication, merge or mobile change. Existing provider-wide
+  acceptance limitations remain unchanged.
+
+## 2026-10-16 — Honor Gemini API Auto and saved model defaults
+
+- Fix API chats showing Auto while admission rejected an empty model. Google's
+  official Developer API now uses the pinned CLI's native `auto` alias; explicit
+  chat choices and immutable connection defaults take precedence. Third-party
+  gateways still require a selected model. Credential isolation and Forget
+  revocation remain enforced; no global login or model setting is rewritten.
+- My Agents and chat catalogs expose the effective default without pretending
+  model discovery or inference succeeded. The runner now passes a saved API
+  model to the CLI even when the chat has no separate override.
+- Verification: 39 settings/runner/admission cases, 72 related model/runtime
+  cases, 39 desktop catalog/settings cases, and two real CLI/loopback-API
+  contracts including native Auto routing pass. The existing real server/CLI
+  five-turn resume/Forget/reconnect/Delete contract also passes. Desktop type
+  checks pass; the unchanged renderer uses its existing production compilation.
+- Actual-app verification: isolated offscreen Electron using production IPC/HTTP
+  against the development service, runtime source `70ed513c`. My Agents showed
+  Auto without a saved model ID; an API-bound empty-model test chat displayed
+  Auto and completed two consecutive real Google requests with exact requested
+  replies. No model/key selection was required and no native-login fallback was
+  used. The fixture chat was created through HTTP before UI sending; the rapid
+  new-chat/provider-switch workflow was not accepted in this check.
+- Availability: Gemini development branch and designated development service;
+  no publication. This validates API Auto, not the separate Google-login quota
+  issue or the remaining provider-wide acceptance checklist.
+
+## 2026-10-16 — Bounded Gemini stress acceptance
+
+- Runtime source `ffe22869`: a development-instance HTTP/WebSocket soak ran for
+  60 seconds with 16 HTTP workers and 16 reconnecting event-stream workers.
+  All 8,515 reads and 1,854 socket catch-ups succeeded; existing history and
+  configuration remained unchanged. This was loopback and empty test chats,
+  not a remote-network/large-history benchmark.
+- A separate disposable server with actual Gemini CLI 0.64.0 and a fake local
+  model API completed four concurrent chats × ten turns, with 134,890-byte
+  streamed Unicode replies and 40 socket reconnects. Text stayed exact, replay
+  produced no duplicate turns, UUIDs stayed isolated/stable, and Delete retained
+  native history. Native repeated-output loop protection remains enabled.
+- Nine additional stream/runner/approval regressions pass. An offscreen native
+  Electron client used production IPC/HTTP against the updated development
+  instance to inspect My Agents and select/cancel the configured Gemini API
+  option in New Chat, without changing credentials or sending model requests.
+- Availability: development test service only; no release/publication. Google
+  account generation remains unaccepted, and full CI/platform, long-duration,
+  real-network and resource-pressure acceptance are still pending.
+
+## 2026-10-16 — Harden Gemini lifecycle and complete shared-chat wiring
+
+- Keep native Gemini identity before visible activity/tool approval. Add an owned
+  parent-death guard and verified-cleanup contract; an unconfirmed cleanup keeps
+  Stop/Delete fenced instead of erasing the chat or reporting false success.
+  Persist that failure fence across restart; loss of the live cleanup handle
+  requires operator verification, not an automatic unlock.
+  Permit only the native loader's exact leading environment-header refresh.
+- Fix native-account skill discovery without an API connection and capability
+  admission for scheduled chat/standalone jobs. Extend the jobs helper's provider
+  selectors. Keep run-bound MCP instructions free of shell authority-file paths.
+- Wire Gemini prompts, approvals and runtime updates through interactive shares.
+  Fix both the shared-state allowlist and the mounted approval shelf refresh.
+  Preserve share-token, CSRF, exact-chat/run and revocation checks.
+- Verification: 88 Gemini cases using actual CLI 0.64.0 and a loopback fake API;
+  247 related server regressions; 83 transport/cleanup/shared-control cases; 29
+  jobs-helper cases; 160 queue/Stop/goal/job regression cases. These batches
+  overlap and are not a unique-test total. Nine release-manifest checks pass.
+  Desktop: 5,193 tests pass, five skip; type checks, production/shared builds
+  and eight package/license checks pass. Native remote Google requests were not
+  retried: real-account eligibility/billing acceptance remains deferred.
+- Actual offscreen desktop acceptance covers API setup, New Chat, composer
+  model selection, skills/approval, repeated resume, live answers and title
+  import. Actual packaged shared-web acceptance covers token entry, native
+  approval, two turns and revoke. English/dark, Chinese/light/narrow and keyboard
+  focus were checked; native HTML-select popup interaction remains unaccepted.
+- Crash-mid-tool/descendant cleanup, failed cleanup, queued Delete, unauthorized
+  and revoked recipients, busy mailbox delivery, idempotent retry, WAV transport
+  and three-chat concurrency have dedicated fixtures. Process sampling is not a
+  security sandbox or a low-memory/load guarantee. Native Fork, native goals,
+  managed subagents, side questions, explicit compaction and later external
+  history reconciliation are not claimed. See the Gemini preview matrix.
+- Availability: source and isolated test builds only; no server deployment,
+  publication or mobile changes. Full repository CI and real-account acceptance
+  remain release gates.
+- The full local server-suite attempt is not a pass: it was stopped after an
+  installer scenario stalled. A separate probe reproduced 22 IPC setup errors
+  where the local test filesystem could not provide private POSIX file modes;
+  those guards were not weakened. The relevant Gemini/adjacent suites above
+  were run with disposable POSIX-backed state.
+
+## 2026-10-16 — Extend the Gemini development preview
+
+- Add live answer snapshots, bounded text/image/audio attachments, native
+  summary adoption and opt-in main-session discovery/initial text import.
+  Preserve manual titles, exact native workspace/identity, ownership exclusion
+  and compatibility with older import clients. Native edits are not reconciled.
+- Fix retry after an empty failed first generation without resetting existing
+  conversations. Preserve native identity after exposed activity, including
+  history-recorder failures; retain partial output on Stop and native tool diffs.
+  CLI mode no longer assumes a custom API connection object exists.
+- Exercise native queue/restart/resume, one-time approvals, denied writes,
+  pending-tool Delete, retained native continuation and cross-chat send/read/
+  reply. Report missing MCP under native folder trust without granting trust.
+  Include new modules in installation and package manifests.
+- Verification uses Gemini CLI 0.64.0, disposable state and a loopback fake model
+  API: 72 Gemini tests and 247 related server regressions pass. Actual offscreen
+  desktop IPC/HTTP acceptance covers API/model settings, skills, repeated sends,
+  live answer delivery and native-title import. Desktop tests: 5,191 pass, five
+  skip; type checking, production compilation, eight package checks and nine
+  server manifest checks pass.
+- Still an opt-in preview, not release-ready. Real-account acceptance is
+  deferred; native Fork, later history reconciliation and remaining optional
+  provider-checklist workflows are not presented as completed. No deployment
+  or publication is part of this validation.
+
+## 2026-10-15 — Use the official Gemini product icon
+
+- Replace the approximate sparkle with Google's unmodified four-colour asset,
+  bundled locally with attribution. Preserve its transparency without showing
+  the fallback underneath, and include the SVG in shared-chat packaging.
+- Actual desktop checks verified the sidebar, composer and new-chat provider
+  picker in dark mode and emulated light/narrow layouts. Type checking,
+  production and shared-renderer builds, 5,189 desktop tests and eight package
+  checks passed; five desktop tests were skipped. The packaged shared-chat
+  asset matches the original, but its live web route was not exercised.
+- Icon-only acceptance does not resolve the Gemini preview's account, billing
+  or provider-checklist limitations. No server deployment or publication.
+
+## 2026-10-15 — Exercise Gemini connections and native skills
+
+- Give Gemini a distinct sparkle mark and correctly name its error notice.
+  Preserve custom endpoint model choices through compact session-list refreshes.
+- Add bounded native skill discovery, opaque per-chat selection/revalidation,
+  and native activation requests with ordinary tool permissions. API profiles
+  reference installed skill assets while keeping login credentials isolated.
+- Real pinned CLI/local API fixtures cover native activation, approve/deny,
+  continuation and cleanup. A skill-follow-up regression found native load-time
+  history normalization; accept only its exact known text/tool transformation
+  while still rejecting unrelated changes and suppressing historical replay.
+  Targeted desktop tests, type checking and production
+  compilation pass. Real desktop sends reached Google's service but eligibility
+  and API billing responses block successful real-account acceptance.
+- This remains an opt-in development preview. Cross-chat, complete streaming
+  parity, titles/import, mobile and the other recorded provider-checklist gates
+  are not accepted merely because basic fixtures pass. Nothing is published.
+
+## 2026-10-15 — Begin an opt-in Gemini provider preview
+
+- Add an experimental desktop/server Gemini CLI adapter behind a development
+  flag, pinned to CLI 0.64.0. Google CLI login and Gemini Developer API credentials
+  remain isolated; ACP is the transport, not a separate login method.
+- Wire My Agents, native model discovery, same-session continuation, bounded
+  approvals and run-bound provider tools. Guard asynchronous native history
+  replay so it cannot be appended as a new response. Forget must not fall back
+  to another account; Delete preserves native history.
+- Actual CLI and HTTP contracts used a loopback fake API and disposable state.
+  Actual offscreen desktop acceptance exercised configuration, displayed model
+  options, manual default selection and two sends through production IPC/HTTP.
+  It caught and fixed a client backend allowlist omission and duplicate replay.
+- Validation: 252 focused desktop tests, TypeScript and production compilation;
+  server batches of 773 lifecycle/authorization regressions, 129 runtime checks,
+  72 provider/transport checks and 20 packaging-manifest checks passed. These
+  batches overlap; they are not a full-suite or real-Google acceptance claim.
+- Not release-ready: real Google account/API, tool/cross-chat/native parity,
+  new-chat dialog and native select-popup acceptance remain pending. Imports,
+  automatic titles, attachments, fork, skills UI and mobile are not included.
+  See the server's Gemini preview record for precise limits and remaining gates.
+## 2026-10-17 - Validate the mobile UI review candidate
+
+- Update rendering-test host mocks for the appearance preference and shared
+  corner tokens. Keep permission and model-selection assertions aligned with
+  provider-aware routing without weakening admission or catalog-isolation checks.
+  This resolves the seven test failures recorded in the preceding UI pass; no
+  additional product UI changes were needed.
+- All 371 mobile UI/source tests and TypeScript passed. Focused provider-mode,
+  client transport, session creation, multi-server store, latest-first sync,
+  preference migration, optimistic mutation, date formatting, runtime-catalog
+  and smart-group regressions passed. Production-mode Hermes bundles and assets
+  exported successfully for both iOS and Android; this is not a signed native
+  release or store submission.
+- The final installed iPhone simulator smoke passed three settings-navigation
+  rounds, agent-mark checks, search dismissal, and server-editor back/close.
+  Earlier checks cover API selection through the actual server. Earlier
+  repeated light/dark and enlarged-text checks remain applicable. Actual server
+  selection was verified without sending model requests. Live provider inference,
+  Android-device and tablet acceptance remain unverified. Review candidate only;
+  no TestFlight upload, deployment or merge is authorized by this validation.
+
+## 2026-10-17 - Show agent marks in mobile chat selection
+
+- Native chat choices now use the agent name without a Native suffix; Custom
+  API choices retain their explicit label. Share a bounded, scrollable picker
+  between the composer and new-chat defaults, with existing agent marks before
+  each name and a trailing selection check. The iOS native menu cannot render
+  these bitmap marks. Preserve provider guards, model reset and reload behavior;
+  dismiss the picker before an action can show an iOS alert.
+- TypeScript and focused regressions passed, including 120 picker interactions
+  across iOS/Android host fixtures, explicit API routing, stale-scope rejection
+  and locked-chat behavior. The installed iPhone simulator passed five rounds of
+  settings, theme, agent-choice and server-drawer navigation, plus search/keyboard
+  dismissal and unsaved server-editor back navigation. Light and dark screenshots,
+  including enlarged text, were reviewed. A disposable chat selected an existing
+  API connection through the real server and was deleted without sending a message.
+  Test preferences were restored; no server credentials were edited.
+- Broader UI regression testing still has seven failures: three host mocks lack
+  Appearance, two theme mocks lack radius, and two source contracts still assume
+  the pre-provider-mode expressions. These are recorded for follow-up, not treated
+  as passing tests. No new interaction failure reproduced in the exercised iOS
+  flows. Physical-device, Android device and tablet acceptance remain unverified.
+  No PR, release build, upload or additional UI fixes in this test pass.
+
+## 2026-10-17 - Distinguish mobile account modes and center server onboarding
+
+- My agents now separates native credentials from configured Custom API
+  connections using the selected server's safe runtime metadata. Mobile does
+  not edit endpoint addresses or keys. Old servers retain native behavior and
+  show an upgrade hint for custom connections.
+- Add native/API choices to new-chat defaults and the existing pre-first-turn
+  agent menu for the mobile client's Codex, Claude and Cursor backends. Send
+  explicit per-chat routing, persist the selected default, isolate API model
+  choices from native catalogs, and keep started chats bound to their original
+  connection. Reject unavailable custom defaults or ignored routing responses
+  rather than silently switching to native. OpenCode remains status-only on
+  mobile; this does not implement another chat backend.
+- Replace the synthetic welcome-chat entry with a centered welcome surface and
+  setup action that opens the existing half-height Add Server drawer. Clear old
+  ephemeral welcome state without deleting real chats or server configuration.
+- Basic validation: TypeScript, focused UI, provider-selection, client transport,
+  session creation, mutation and preference regressions passed. The installed
+  Debug iPhone simulator exercised My agents, the default agent picker, creating
+  a disposable chat and switching it to an already-configured Cursor API through
+  the actual server. Confirmed the returned custom binding and removed only that
+  test chat; no messages, model requests or credential changes were made.
+  A reversible empty-workspace fixture exercised centered onboarding and the
+  real native Add Server drawer; no connection was saved. Light-mode screenshots
+  were reviewed. Live Codex/Claude API runs, Android, tablet and physical-device
+  acceptance remain unverified. Local preview only; no build release or upload.
+
+## 2026-10-17 - Contain mobile server setup badge backgrounds
+
+- Clip the translucent fill of each numbered connection step to its fixed
+  circle. This narrowly guards against a reported light-mode blue rendering
+  artifact without changing inputs, validation or connection behavior.
+- Basic validation: TypeScript and 15 focused checks passed. The badge clipping
+  assertion failed before the change and passed after it. The Debug iPhone
+  simulator exercised drawer expansion, secure dummy-token entry and editor
+  back/reopen in light mode, with no stray line visible. No connection was
+  tested or saved. The original intermittent artifact was not reproduced in
+  the simulator, so confirmation on the reporting physical device remains
+  pending. The independent phone Dev app was refreshed; no release build,
+  native dependency change, dark-mode or Android acceptance in this iteration.
+
+## 2026-10-17 - Simplify mobile settings navigation and agent status
+
+- Open Privacy directly in the browser with an external-link indicator. Keep
+  Android usage analytics in its own settings row. Add a Server shortcut that
+  waits for the iOS settings sheet to dismiss before opening the existing
+  half-height server drawer.
+- Replace Agents & runtime with My agents: Codex, Claude Code, Cursor and
+  OpenCode, matching this branch's desktop inventory. Show green checks only
+  for ready agents on a connected server, mute unavailable entries and keep
+  one server-machine sign-in hint. Recheck refreshes the existing server
+  runtime catalog, suppresses duplicate taps and scopes pending UI state to
+  the current server. Remove the persistent-goals settings control, not the
+  underlying chat feature. This does not enable additional chat backends.
+- Show a Tailscale server hostname only for a connected, configured tailnet
+  domain. No phone VPN/account detection or inference from an IP address.
+- Basic validation: TypeScript, diff whitespace checks and 14 focused tests
+  passed. The Debug iPhone simulator exercised Recheck, four-agent rendering,
+  repeated settings-to-server handoff, browser privacy loading and returning
+  to the app. Light-mode screenshots were reviewed. Refreshed the independent
+  phone Dev app without replacing the release app; physical visual acceptance,
+  Android and tablet checks remain pending. No chats, profiles, provider runs
+  or server settings were changed. Local preview only, no release build.
+
+## 2026-10-17 - Simplify mobile server-editor actions
+
+- Remove the redundant editor Cancel button; retain the header back and close
+  actions. Shorten Add & switch to Add without changing successful connection
+  testing, server creation or automatic activation. Keep Save for edits and the
+  existing-server action when a tested connection is already saved.
+- Basic validation: TypeScript and 26 focused checks passed, including the
+  test/create/switch sequence in a fixture. The Debug iPhone simulator verified
+  the two-button add form, back navigation and closing/reopening. No server
+  profile was created or changed. Android and physical visual checks remain
+  pending; local preview only.
+
+## 2026-10-17 - Move mobile folder indicators to the trailing edge
+
+- Move expand/collapse chevrons after the count at the right of folder headers,
+  including Unread and Running. Keep status dots before the title, whole-row
+  toggling and existing folder actions. Expose the expanded accessibility state.
+- Basic validation: TypeScript and 27 focused checks passed. The Debug iPhone
+  simulator collapsed and expanded a running group and an ordinary folder,
+  restored both, and verified the light-mode layout. Android, tablet and
+  dark-mode/physical visual acceptance remain pending for this small iteration.
+
+## 2026-10-17 - Clarify mobile home buttons and simplify chat dates
+
+- Give the settings, new-chat and server-selector buttons a consistent 1pt
+  outline and themed control surface, with clearer separation in light mode.
+  Preserve their touch targets, actions and the transparent footer fade.
+- Show Today, Yesterday or a date for chat activity; retain the year for dates
+  outside the current year and omit time-of-day. Use a shared, readable tertiary
+  text color. Keep the existing activity timestamp source and chat ordering.
+- Document five typography sizes, four named font weights and semantic palette
+  roles. Migrate home/server text styles to these tokens and add a focused check
+  against literal text metrics, weights and colors in those adopted surfaces.
+  Other legacy screens remain a gradual migration, not a global font rewrite.
+- Basic validation: TypeScript and 57 focused checks passed. Date tests passed
+  in American and Asian time zones, including calendar and DST boundaries. The
+  Debug iPhone simulator exercised settings/theme navigation and the server
+  selector, with light/dark home screenshots reviewed for outlines and dates.
+  Yesterday is fixture-tested; no chat or server data was changed. Android,
+  tablet and physical-device visual acceptance remain pending. Local preview only.
+
+## 2026-10-17 - Group mobile settings and add appearance preferences
+
+- Replace the expanded settings form with App, Server and About category rows.
+  Keep text size, new-chat defaults, runtime diagnostics, supported Codex goal
+  settings, privacy controls and Android updates accessible in detail pages.
+  Back returns to the list; close dismisses the sheet; reopening starts at the
+  list. Server address and token editing remain in server management only.
+- Add System, Light and Dark appearance choices, applied immediately to the app
+  palette and native appearance and saved independently of server profiles.
+  Preserve the latest selection during startup hydration and rapid changes;
+  report local persistence failures without blocking theme selection.
+- Basic validation: TypeScript and 25 focused checks passed. The Debug iPhone
+  simulator exercised category navigation, back/close/reopen, text-size controls,
+  light/dark switching, theme persistence after process restart and following
+  system appearance changes. Light/dark screenshots were reviewed. Android
+  navigation and update availability were fixture-tested only; Android, tablet
+  and physical-device visual acceptance remain pending. No server settings,
+  chats or provider jobs were changed. Local preview only; no release build.
+
+## 2026-10-17 - Prioritize unread and running chats on mobile
+
+- Add temporary Unread (blue dot) and Running (green dot) groups before ordinary
+  sidebar folders, in that order. Each hides when empty. Active chats take
+  precedence over unread classification, appear only once, and retain their
+  saved folder and pin metadata. Archived chats and the local welcome guide
+  remain in their existing sections.
+- Support collapsing each temporary group without persisting it as a folder,
+  adding it as a move destination, or colliding with similarly named real folders.
+  Preserve search and existing chat ordering; manual row reordering remains in
+  ordinary folders.
+- Basic validation: TypeScript and 33 focused checks passed. The Debug iPhone
+  simulator displayed real server activity, marked an empty test chat unread,
+  verified group ordering and collapse/expand, restored its read state, and
+  verified opening an unread chat returns it to its original folder. No messages,
+  provider runs or folders were created. Run-completion transitions and empty
+  groups were fixture-tested; light-mode screenshots were reviewed.
+- Scope: existing unread/read-receipt semantics are unchanged. Visibility gating
+  of automatic read receipts for a selected chat hidden behind the home screen
+  remains a separate follow-up. Android, tablet and dark-mode/physical visual
+  acceptance remain pending. Local preview only; no release or server change.
+
+## 2026-10-17 - Number the server connection fields
+
+- Give the shared add/edit connection form compact blue outlined step numbers
+  for Name (optional), Server URL and Access token. Separate the three field
+  groups with consistent spacing and use short example placeholders. Preserve
+  optional-name handling, secure token entry and connection validation.
+- Basic validation: TypeScript and 26 focused checks passed, including numbered
+  labels and creating a profile without a name in a fixture. The Debug iPhone
+  simulator verified half/full form presentation, input with the software
+  keyboard, back/discard and closing. Light-mode screenshots were reviewed;
+  no connection settings were saved. Android, tablet, dark-mode and physical
+  visual acceptance remain pending for this iteration. Local preview only.
+
+## 2026-10-17 - Open server management at half height
+
+- Present server management at a half-height native detent, with a grabber to
+  expand to full height or collapse again. Reopening starts at half height;
+  retain the separate editor-back and drawer-close actions.
+- Reuse the existing React Native Screens dependency. Keep its presenter mounted
+  during dismissal without intercepting home touches while closed. Let the
+  native form sheet handle keyboard resizing instead of applying duplicate
+  scroll adjustments that can hide the focused input.
+- Basic validation: TypeScript and 25 focused checks passed. The Debug iPhone
+  simulator exercised half/full/collapsed detents, close/reopen, swipe dismissal,
+  current-server selection, unsaved add input with the software keyboard,
+  editor back, the edit menu, folder cancel, and opening from home search.
+  Light/dark screenshots were reviewed. No server settings were saved and no
+  messages or folders were created.
+- Availability: local development preview only. Android, tablet and physical
+  device visual acceptance remain pending. No dependency upgrade, native release,
+  publication or server change.
+
+## 2026-10-17 - Separate server-editor back and drawer close
+
+- Use one fixed header for the server list and its editor. Add and edit show a
+  back arrow with their page title instead of a redundant Servers heading and
+  a second close icon. Back discards the unsaved form and dismisses its keyboard;
+  the single upper-right close action dismisses the entire drawer.
+- Basic validation: TypeScript and 23 focused checks passed. The Debug iPhone
+  simulator exercised adding with unsaved text, returning to the list, reopening
+  an empty form, closing the drawer from the editor, and editing/back navigation.
+  Light-mode screenshots confirmed one title and one close action. No connection
+  settings were saved and no server request contract changed.
+- Availability: local development preview only; dark-mode, Android, tablet and
+  physical-device visual acceptance remain pending for this iteration. No
+  native release, publication or server change.
+
+## 2026-10-17 - Shorten server overflow actions
+
+- Remove Move up and Move down from each server's menu and shorten its remaining
+  actions to Edit and Remove. Keep current-server removal disabled and preserve
+  the confirmation before removing any saved connection. Stored ordering and
+  server persistence are unchanged.
+- Basic validation: TypeScript and 21 focused checks passed. The Debug iPhone
+  simulator verified both menu labels, absence of ordering actions, opening and
+  canceling the editor, and opening and canceling removal confirmation for an
+  inactive profile. No server profiles were modified or removed.
+- Availability: local development preview only; Android and physical-device
+  visual acceptance remain pending. No release or server change.
+
+## 2026-10-17 - Consolidate home actions and open servers directly
+
+- Move New folder beside Search in the top row with a wider gap, removing its
+  separate toolbar row. Make the server name an outlined rounded button while
+  retaining truncation, connection status and the reserved refresh indicator.
+- Open the existing server sheet directly instead of an intermediate popup.
+  Present saved servers as tappable rows with a current-server checkmark and
+  one Add server entry. Keep edit, reorder and confirmed removal in each row's
+  overflow menu; show the connection editor separately from the server list.
+- Close the drawer after successful selection, without reconnecting when the
+  current server is selected. Keep failures visible, and prevent a completed
+  switch from dismissing a newer drawer after its original view was closed.
+  Preserve identity validation and secure credential handling.
+- Basic validation: TypeScript and 45 focused checks passed. The Debug iPhone
+  simulator exercised folder opening/cancel, direct drawer presentation,
+  add/edit/cancel, current-server selection, switching between two saved
+  servers and back, long-name truncation, opening from search, and testing the
+  existing connection through the actual server. Screenshots were reviewed in
+  light mode. No messages, folders or new server profiles were created, and
+  connection settings were not saved or removed.
+- Availability: local development preview only. Failed-switch and stale-view
+  completion paths were fixture-tested. Dark-theme, Android, tablet and physical
+  visual acceptance remain pending for this iteration; no native release,
+  publication or server deployment.
+
+## 2026-10-17 - Close home search after opening a chat
+
+- Close and clear home search after a chat row successfully navigates, including
+  history-result and local welcome rows. Cancel pending search debounce and
+  invalidate stale results through the existing clear-search action. Preserve
+  the query when a history result cannot open or its server scope has changed.
+- Reuse the same cleanup for the close button and empty-search dismissal;
+  ordinary chat navigation still opens immediately without waiting for sync.
+- Basic validation: TypeScript and 27 focused checks passed, including executed
+  callback tests for cleanup, immediate navigation, history success/failure and
+  stale-server completion. The Debug iPhone simulator reproduced the retained
+  search before the change, then verified title search, direct and submitted
+  result selection, back navigation without the search field, and reopening an
+  empty search against the configured server. No messages were sent.
+- Availability: local development preview only. History-result failure and
+  stale-server paths were fixture-tested, not exercised against a failing live
+  server. Android, tablet and physical-device visual acceptance remain pending;
+  no native release, publication or server change.
+
+## 2026-10-17 - Show chat-list refresh beside the server name
+
+- Show a small loading indicator immediately after the active server name
+  during pull-to-refresh, sharing the list's existing profile-scoped refresh
+  state. Clear it when that refresh settles; do not add a minimum animation
+  duration or tie it to background timeline synchronization.
+- Reserve the indicator's space to keep the title stable, expose the busy
+  state to accessibility, and leave server switching available during refresh.
+- Basic validation: TypeScript and 30 focused sidebar, server-profile and
+  profile-safety checks passed. The Debug iPhone simulator exercised a real
+  pull gesture with a one-shot, test-only eight-second delay before the actual
+  session-list request. The indicator remained visible while pending and
+  disappeared after the request returned HTTP 200. Restored the test hook;
+  no production delay, messages or chat mutations were introduced.
+- Follow-up validation: two unmodified, real pull-to-refresh requests returned
+  HTTP 200 before the header and native refresh-control props became false in
+  the same React commit. Simulator video confirmed the native control's closing
+  animation remains visible afterward. This is list-refresh progress, not an
+  indication that independent timeline synchronization has completed. Restored
+  the local timing hooks; no application behavior was changed by this check.
+- Availability: local development preview only. Physical-device visual,
+  Android and tablet acceptance remain pending; no release or server change.
+
+## 2026-10-17 - Let home chats scroll behind the footer fade
+
+- Remove the list viewport's bottom margin so chat rows remain visible behind
+  the transparent portion of the footer gradient instead of ending at a hard
+  horizontal boundary. Use trailing content padding equal to the fade height
+  so the final row can scroll fully above the overlay. Preserve phone-search
+  layout and the independent circular actions.
+- Basic validation: TypeScript and 20 focused sidebar/theme checks passed.
+  The Debug iPhone simulator in dark mode exercised scrolling through the fade
+  and opening/closing Settings; screenshots confirmed progressively fading
+  chat rows underneath the overlay. No messages were sent or chats changed.
+- Availability: local development preview only. No release, server changes or
+  Android/tablet acceptance in this pass.
+
+## 2026-10-17 - Fade home actions and dismiss unused search
+
+- Add a touch-transparent vertical footer gradient, fading from transparent
+  into a darker neutral shade in each theme. Keep the circular action sizes,
+  positions and reserved list space unchanged; reuse existing SVG rendering.
+- Close an empty or whitespace-only home search on blur or an outside tap.
+  Preserve nonempty queries/results, and exclude touches within the search
+  field and its opening button from outside-tap dismissal. Do not capture chat
+  row responders or change session creation/persistence.
+- Basic validation: TypeScript and 59 focused UI checks passed. The Debug iPhone
+  simulator exercised empty/whitespace dismissal, input touches, nonempty query
+  retention after outside taps and submission, and Settings in both themes.
+  Verified that tapping a chat while empty search is open navigates on the first
+  tap and returns without the search field. No messages were sent.
+- Availability: local development preview; refreshed the independent physical
+  iPhone Dev app. Physical visual, Android and tablet acceptance remain pending.
+  No native rebuild, release, server change or publication was performed.
+
+## 2026-10-17 - Use independent circular mobile home actions
+
+- Move New chat from the upper toolbar to a circular bottom-right action;
+  place Settings in a matching bottom-left action. Only the circles have a
+  surface color, with no full-width footer background or divider. Reserve list
+  space above the buttons so they cannot cover chat text or intercept row taps.
+- Retain the existing guarded quick-create flow and hide both actions while
+  phone search is open. Preserve the server-switch and setup guards.
+- Basic validation: TypeScript, 57 focused UI checks and the existing mocked
+  session-creation/fork regressions passed. The Debug iPhone simulator exercised
+  Settings, search opening/closing, direct creation through the configured
+  server, and back navigation without sending a message. Removed only the
+  disposable chat created by this check. Development warnings briefly covered
+  the first UI attempt; the actions were exercised again after dismissal.
+- Confirmed a remaining mobile gap: creating a chat persists it immediately;
+  the client does not yet use the server's per-client empty-placeholder dismissal
+  contract. Returning without sending still retains the row. This change does
+  not implement automatic cleanup or alter existing chats/drafts.
+- Availability: local development preview only. Android and tablet UI acceptance
+  remain pending; no release build, publication or server deployment occurred.
+
+## 2026-10-17 - Simplify mobile home surfaces and dock phone search
+
+- Use the same background for the home list and top safe area. Remove the
+  footer divider and persistent selected-chat background/rail; retain pressed
+  feedback and running/unread status indicators. Settings remains a transparent
+  icon with a circular touch target.
+- Place phone search below the results and immediately above the software
+  keyboard. Closing clears the filter and restores Settings; the keyboard Search
+  action submits the current query and dismisses the keyboard. Keep tablet
+  search at the top and preserve server-generation guards and search debounce.
+- Replace hard-coded component corner radii with shared small, control, sheet
+  and circular tokens, preserving control dimensions and proportional shapes.
+- Basic validation: TypeScript and 31 focused sidebar, theme, server-profile
+  and profile-safety checks passed. The existing Debug iPhone simulator exercised
+  search opening, typing, title/history results through the configured server,
+  no-match results, closing/reopening and Settings opening/closing in light and
+  dark themes. Verified software-keyboard positioning and Search submission.
+  No chat messages were sent or server settings changed.
+- Availability: local development preview only. No server update is required.
+  Android, tablet, full secondary-screen and physical-device visual acceptance
+  are not claimed; broader regression remains deferred for this UI iteration.
+  No native release build or publication was performed.
+
+## 2026-10-17 - Prepare an independent mobile development variant
+
+- Add an opt-in development configuration named AgentsDock Dev with separate
+  app identifiers and URL scheme, leaving the default shipping configuration
+  unchanged. Reject unknown variant names instead of silently selecting the
+  shipping application.
+- Document separate device installation and native regeneration when changing
+  variants. Check the effective Info.plist build version for generated Expo
+  projects, including projects that use a literal rather than an Xcode variable.
+- Validation: eight variant, native metadata and privacy checks plus TypeScript
+  passed. Expo generated the independent iOS project and its distinct URL schemes.
+  Native dependency parity checks and a local iOS Debug build passed. Verified
+  the signed development identifier, bundled JavaScript and device provisioning,
+  then installed and launched the separate app on a physical iPhone. Confirmed
+  that the shipping app remained installed unchanged and the development process
+  stayed running. On-device visual and connected-server acceptance remain pending;
+  no existing app was replaced and no build was uploaded or published.
+
+## 2026-10-17 - Establish mobile visual foundations
+
+- Add shared UI typography roles, spacing and corner-radius tokens. Apply them
+  to primary navigation, server management, settings forms, chat headers,
+  composer surfaces and message metadata without changing their actions.
+- Increase small navigation labels, soften font weights, and give chat rows
+  more breathing room. Use neutral surfaces and message backgrounds while
+  retaining distinct connection, running, unread and error colors.
+- Preserve app-wide text scaling and measured Markdown, code and terminal
+  typography. This is an incremental style pass, not a component-library
+  migration or a redesign of every secondary panel.
+- Basic validation: TypeScript, 31 focused UI/theme checks and the typography
+  regression entrypoint passed. The existing Debug iPhone simulator exercised
+  search typing/clearing, server management, chat opening, input focus and
+  return navigation in light/dark themes, plus repeated Settings opening and
+  closing in light mode. No messages were sent or server profiles changed.
+- Availability: local development preview only. No fresh native release build,
+  Android/device acceptance, full keyboard regression or publication is claimed.
+  Broader testing remains deferred until the UI iteration is complete.
+
+## 2026-10-17 - Simplify the mobile home header
+
+- Replace the homepage brand title and footer counters with one footer Settings
+  action. Keep the existing settings contents and per-chat activity indicators.
+- Move server selection to the top with its original compact typography and
+  connection-status dot. Long names truncate within half the available row;
+  the native server menu remains, without a duplicate URL subtitle.
+- Add a top-right search icon that opens and focuses the search field;
+  closing search clears the filter and dismisses the keyboard.
+- Replace the refresh toolbar button with native list pull-to-refresh using the
+  existing generation-scoped refresh action and a request-bound loading state.
+- Basic validation: TypeScript and 25 focused UI source checks passed. The local
+  iPhone simulator exercised the pull gesture, server menu opening/dismissal,
+  search opening, typing, closing and reopening with the filter cleared, and
+  earlier repeated Settings opening/closing. No server profile was changed
+  by these checks. Full regression and device coverage are deferred until the
+  UI iteration is complete. Availability: local development preview only.
+
+## 2026-10-17 — Let a Team Space host stop hosting and join another team
+
+- Add a visible **Stop hosting…** action that invokes the existing Host-to-Member
+  operation. Replace the old listener-only control, which left the Host role
+  active and prevented joining another team. Confirmation explains that peer
+  access stops while chats and the original team's stored data remain intact.
+- Retire only the desktop's obsolete managed-host session cache after confirmed
+  demotion. Keep human sign-in records, server-owned teams and peer pairings.
+  Recover a committed stop whose response or follow-up health request failed
+  using explicit authenticated role evidence, retaining the original warning.
+- Clear the old workspace and expose joining; restore a previously joined remote
+  team's workspace when the server resumes that membership. Preserve pending
+  invitations and ignore results belonging to a different selected server.
+- Validation: 1,040 focused desktop checks, TypeScript and production compilation
+  passed. Sixteen isolated server checks and a real TLS lifecycle probe passed.
+  An unrelated filesystem fixture requires its expected POSIX umask; its isolated
+  rerun and the final scoped suite passed with that setting.
+- Native acceptance: reproduced the missing exit in the baseline desktop, then
+  personally exercised the compiled app offscreen with disposable real servers:
+  cancel, failed stop and retry, successful stop, lost response after committed
+  stop, invitation-based joining, and reconnect after renderer reload. Mail sent
+  through native IPC was read on the new host. Reactivating the original host
+  preserved its hub/team identities and saved message. Host approval and original
+  team reactivation used authenticated fixture APIs; provider runtimes were not
+  invoked. No installed apps or production services were changed.
+- Visual acceptance: checked the actual desktop at 1040 × 780 in light and dark
+  appearance, including English and Chinese confirmation, keyboard focus,
+  Escape/cancel, and the recovered stop's dismissible warning and join form.
+- Availability: desktop source and isolated development build only. This uses the
+  existing server host-control contract; no new server deployment is required.
+  Signed-package and other desktop-platform acceptance are not established here.
 
 ## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
 

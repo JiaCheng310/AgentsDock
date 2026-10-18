@@ -207,6 +207,8 @@ function normalizeChatDefaults(value: unknown): ChatDefaults {
   const backend = CHAT_BACKENDS.includes(parsed.backend as Backend) ? parsed.backend as Backend : DEFAULT_CHAT_DEFAULTS.backend
   return {
     backend,
+    ...(parsed.codex_provider === 'custom' && backend === 'codex' ? { codex_provider: 'custom' as const } : {}),
+    ...(parsed.provider_connection === 'custom' && (backend === 'claude' || backend === 'cursor') ? { provider_connection: 'custom' as const } : {}),
     model: typeof parsed.model === 'string' ? parsed.model : DEFAULT_CHAT_DEFAULTS.model,
     effort: typeof parsed.effort === 'string' ? parsed.effort : DEFAULT_CHAT_DEFAULTS.effort,
     folder: typeof parsed.folder === 'string' && parsed.folder.trim() ? parsed.folder : DEFAULT_CHAT_DEFAULTS.folder,

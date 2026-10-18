@@ -19,7 +19,7 @@ const platforms: Record<string, string> = {
   darwin: 'macOS (desktop)', win32: 'Windows (desktop)', linux: 'Linux (desktop)'
 }
 const agents: Record<Backend, string> = {
-  codex: 'Codex', claude: 'Claude Code', cursor: 'Cursor', opencode: 'OpenCode'
+  codex: 'Codex', claude: 'Claude Code', cursor: 'Cursor', opencode: 'OpenCode', gemini: 'Gemini CLI'
 }
 
 function value(text: string | null | undefined): string {

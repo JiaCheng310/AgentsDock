@@ -326,6 +326,8 @@ export function registerIpc(
   ))
 
   handle('claude:runtime', sessionId => service.claudeRuntime(sessionId))
+  handle('gemini:runtime', sessionId => service.geminiRuntime(sessionId))
+  handle('gemini:interaction:resolve', (sessionId, interactionId, response) => service.resolveGeminiInteraction(sessionId, interactionId, response))
   handle('claude:goal:set', (sessionId, condition) => service.setClaudeGoal(sessionId, condition))
   handle('claude:goal:clear', sessionId => service.clearClaudeGoal(sessionId))
   handle('claude:context-usage:refresh', sessionId => service.refreshClaudeContextUsage(sessionId))

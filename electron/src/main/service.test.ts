@@ -415,6 +415,16 @@ describe('opening artifact files externally', () => {
 })
 
 describe('session summary merging', () => {
+  it.each(['gemini', 'claude', 'opencode', 'cursor'] as const)('retains %s models through slim polls, but honors Forget and a changed endpoint', backend => {
+    const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
+      models: [{ value: 'test-model', label: 'Test model' }] }
+    const existing: Session = { id: 'chat', title: 'Chat', backend, provider_connection: 'custom', provider_connection_catalog: catalog }
+    const { models: _models, ...summary } = catalog
+    expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: summary }])[0].provider_connection_catalog?.models).toEqual(catalog.models)
+    for (const changed of [{ ...summary, configured: false }, { ...summary, base_url: 'https://second.example' }, { ...summary, models: [] }]) {
+      expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: changed }])[0].provider_connection_catalog?.models ?? []).toEqual([])
+    }
+  })
   it('keeps the retained endpoint model list when a slim summary omits it', () => {
     const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
       models: [{ value: 'first/model', label: 'First' }], model_efforts: { 'first/model': [{ value: 'high', label: 'High' }] } }
@@ -2150,6 +2160,49 @@ describe('embedded Team Hub discovery', () => {
       confirmed: true, server_name: 'Atlas'
     })
   })
+
+  it.each(['request-failed', 'health-failed', 'missing-capability'] as const)(
+    'recovers only explicitly confirmed demotion after %s', async fault => {
+      const { service, scope } = serviceWithCapability({ available: false, designated_host: true })
+      const hostControl = {
+        available: true, enabled: true, can_enable: false, can_disable: true, version: 1,
+        status_path: '/api/admin/team-hub/host', enable_path: '/api/admin/team-hub/host/enable',
+        disable_path: '/api/admin/team-hub/host/disable', message: 'Ready.', action: null
+      }
+      const memberHub = { available: false, designated_host: false, version: 1,
+        base_path: null, hub_id: null, host_server_identity: null, message: 'Member.', action: null }
+      const nextHealth = {
+        ok: true, server_identity: 'server-a', server_instance_id: 'instance-a',
+        capabilities: fault === 'missing-capability' ? {} : {
+          team_hub_v1: memberHub, team_hub_host_control_v1: { ...hostControl, enabled: false }
+        }
+      }
+      const disableTeamHubHost = vi.fn(async (input: { request_id: string }) => {
+        if (fault !== 'health-failed') throw new Error('Host stop response lost.')
+        return { phase: 'complete', request_id: input.request_id, operation: 'disable',
+          server_identity: 'server-a', server_instance_id: 'instance-a', server_name: 'Studio',
+          reconnect_required: false, message: 'Stopped.', team_hub: memberHub }
+      })
+      const health = vi.fn().mockResolvedValue(nextHealth)
+      if (fault === 'health-failed') health.mockRejectedValueOnce(new Error('Health response lost.'))
+      Object.assign(scope.client, { disableTeamHubHost, health })
+      const adoptHealth = vi.fn()
+      Object.assign(service, {
+        health: { ok: true, server_identity: 'server-a', server_instance_id: 'instance-a',
+          capabilities: { team_hub_host_control_v1: hostControl } },
+        readActivityHealth: vi.fn((_scope: unknown, read: () => Promise<Health>) => read()), adoptHealth
+      })
+      await expect(service.configureTeamHubServerRole({
+        profileId: 'profile-a', profileGeneration: 7, serverIdentity: 'server-a'
+      }, { role: 'member', serverName: 'Studio' })).rejects.toMatchObject({
+        name: fault === 'missing-capability' ? 'Error' : 'TeamHubStoppedHostingError',
+        message: fault === 'health-failed' ? 'Health response lost.' : 'Host stop response lost.'
+      })
+      expect(health).toHaveBeenCalledTimes(fault === 'health-failed' ? 2 : 1)
+      if (fault === 'missing-capability') expect(adoptHealth).not.toHaveBeenCalled()
+      else expect(adoptHealth).toHaveBeenCalledWith(scope, nextHealth)
+    }
+  )
 
   it('projects the exact authenticated host capability behind the active server fence', async () => {
     const { service, scope } = serviceWithCapability({
@@ -8472,6 +8525,9 @@ describe('server profile lifecycle', () => {
     mkdirSync(stale, { mode: 0o700 })
     mkdirSync(recent, { mode: 0o700 })
     mkdirSync(unsafe, { mode: 0o755 })
+    // mkdir's requested mode is masked by the process umask. Keep this fixture
+    // genuinely non-private even when the test runner uses a restrictive umask.
+    if (process.platform !== 'win32') chmodSync(unsafe, 0o755)
     mkdirSync(symlinkTarget, { mode: 0o700 })
     symlinkSync(symlinkTarget, symlink)
     writeFileSync(join(stale, 'private.png'), 'stale', { mode: 0o600 })
