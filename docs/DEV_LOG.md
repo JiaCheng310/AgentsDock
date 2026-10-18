@@ -12,7 +12,14 @@
   in-flight provider operation; already-completed side effects can be repeated.
   Goals, other internal work and unsupported runtimes still wait for a safe
   boundary.
-- Validation: 88 focused server tests, 71 focused desktop tests, TypeScript and
+- A live forced-update check found that graceful shutdown can write a stopped
+  terminal event before the replacement process scans abandoned turns. Save
+  the active ordinary run identities in the restart receipt and restore their
+  internal continuation after a matching signed update, including when the
+  update has already completed before startup recovery. Completed turns stay
+  complete; a second startup does not queue another continuation. Real-provider
+  verification of this correction is pending.
+- Validation: 151 focused server tests, 71 focused desktop tests, TypeScript and
   the desktop production build pass. A disposable named server was upgraded
   with a signed unpublished candidate and completed an ordinary Codex turn.
   No public release was changed.
