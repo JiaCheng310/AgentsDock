@@ -19,7 +19,7 @@ import { formatBytes } from '../../lib/format'
 import { fullscreenModalPadding, type FullscreenSafeAreaInsets } from '../../lib/fullscreen-modal-layout'
 import { workspaceFileDepartureDecision } from '../../lib/workspace-file-editing'
 import { client, useAppStore } from '../../store/useAppStore'
-import { usePalette } from '../../theme'
+import { radius, usePalette } from '../../theme'
 import type { WorkspaceEntry, WorkspaceFile, WorkspaceInfo } from '../../types'
 import { Text, TextInput } from '../AppText'
 import { EmptyState, IconButton, SheetCloseButton } from '../ui'
@@ -973,19 +973,19 @@ const styles = StyleSheet.create({
   previewLoading: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', gap: 9 },
   previewProblemTitle: { fontSize: 16, lineHeight: 21, fontWeight: '800', textAlign: 'center' },
   previewProblemBody: { maxWidth: 420, paddingHorizontal: 18, fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  previewRetry: { minHeight: 44, borderRadius: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  previewRetry: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   phoneActions: { minHeight: 52, flexShrink: 0, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   phoneBrowser: { flex: 1, minHeight: 0 },
   browser: { flex: 1, minHeight: 0, paddingHorizontal: 8, paddingTop: 8 },
-  search: { minHeight: 44, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  search: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   searchInput: { flex: 1, minWidth: 0, minHeight: 42, fontSize: 13, paddingVertical: 0 },
   breadcrumbs: { minHeight: 38, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', paddingHorizontal: 4, paddingVertical: 5 },
   breadcrumb: { minHeight: 44, maxWidth: 150, flexDirection: 'row', alignItems: 'center' },
-  inlineError: { borderRadius: 7, padding: 9, marginBottom: 6 },
+  inlineError: { borderRadius: radius.md, padding: 9, marginBottom: 6 },
   browserLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  entry: { minHeight: 52, borderRadius: 7, flexDirection: 'row', alignItems: 'center' },
+  entry: { minHeight: 52, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center' },
   entryOpen: { flex: 1, minWidth: 0, minHeight: 52, paddingLeft: 9, paddingRight: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
   entryActions: { flexShrink: 0, flexDirection: 'row', alignItems: 'center' },
   entryIdentity: { flex: 1, minWidth: 0, gap: 2 },
-  loadMore: { minHeight: 46, borderRadius: 7, marginVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  loadMore: { minHeight: 46, borderRadius: radius.md, marginVertical: 8, alignItems: 'center', justifyContent: 'center' },
 })

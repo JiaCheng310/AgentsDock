@@ -5,7 +5,7 @@ import { ChevronDown, Goal, Pause, Pencil, Play, Trash2 } from 'lucide-react-nat
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { buildCodexGoalInput, formatGoalBudget, goalElapsedSeconds, goalStatusLabel, goalViewState } from '../lib/codex-goals'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import type { CodexGoal, CodexGoalSnapshot, CodexGoalStatus } from '../types'
 import { Text, TextInput } from './AppText'
 import { useCodexRuntime } from './CodexRuntimeContext'
@@ -296,14 +296,14 @@ function GoalAction({ label, accessibilityLabel = label, icon: Icon, disabled, b
 function errorMessage(cause: unknown) { return cause instanceof Error ? cause.message : String(cause) }
 const GOAL_STATUSES: CodexGoalStatus[] = ['active', 'paused', 'blocked', 'usageLimited', 'budgetLimited', 'complete']
 const styles = StyleSheet.create({
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 5, gap: 4, marginBottom: 7 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 9, paddingVertical: 5, gap: 4, marginBottom: 7 },
   grow: { flex: 1, minWidth: 0 },
   summary: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 },
   status: { fontSize: 12, fontWeight: '900' },
   objective: { fontSize: 12, lineHeight: 17 },
   progress: { fontSize: 10.5, lineHeight: 15, fontVariant: ['tabular-nums'] },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  action: { minHeight: 44, minWidth: 44, flexGrow: 1, paddingHorizontal: 10, borderRadius: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  action: { minHeight: 44, minWidth: 44, flexGrow: 1, paddingHorizontal: 10, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   actionLabel: { fontSize: 12, fontWeight: '700' },
   details: { maxHeight: 130 },
   detailContent: { gap: 6, paddingVertical: 5 },
@@ -314,9 +314,9 @@ const styles = StyleSheet.create({
   sheetContent: { padding: 14, paddingBottom: 40, width: '100%', maxWidth: 700, alignSelf: 'center' },
   editor: { gap: 9 },
   fieldLabel: { fontSize: 11.5, fontWeight: '700', marginBottom: 3 },
-  textarea: { minHeight: 100, maxHeight: 180, textAlignVertical: 'top', borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, padding: 10, fontSize: 14 },
-  input: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 10, fontSize: 13 },
-  choice: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  textarea: { minHeight: 100, maxHeight: 180, textAlignVertical: 'top', borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 10, fontSize: 14 },
+  input: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, fontSize: 13 },
+  choice: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusOptions: { gap: 3 },
   budgets: { flexDirection: 'row', gap: 9 },
 })

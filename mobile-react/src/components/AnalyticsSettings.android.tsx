@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, Switch, View } from 'react-native'
 import { ShieldCheck } from 'lucide-react-native'
 import { getAndroidAnalyticsEnabled, setAndroidAnalyticsEnabled } from '../lib/analytics'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 
 export function AnalyticsSettings({ visible }: { visible: boolean }) {
@@ -38,7 +38,7 @@ export function AnalyticsSettings({ visible }: { visible: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  setting: { minHeight: 74, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  setting: { minHeight: 74, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 9 },
   copy: { flex: 1, gap: 3 },
   detail: { fontSize: 10, lineHeight: 14 },
 })

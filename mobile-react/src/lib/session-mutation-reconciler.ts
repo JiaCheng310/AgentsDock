@@ -5,6 +5,8 @@ export const SESSION_MUTATION_FIELDS = [
   'folder',
   'cwd',
   'backend',
+  'codex_provider',
+  'provider_connection',
   'model',
   'effort',
   'system_prompt',

@@ -1,3 +1,4 @@
+import { radius } from '../theme'
 import { MousePointer2 } from 'lucide-react-native'
 import { Image, StyleSheet, View } from 'react-native'
 import type { Backend } from '../types'
@@ -15,6 +16,6 @@ export function BackendMark({ backend, size = 22 }: { backend: Backend; size?: n
 }
 
 const styles = StyleSheet.create({
-  mark: { borderRadius: 6 },
+  mark: { borderRadius: radius.sm },
   cursor: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#151515' },
 })

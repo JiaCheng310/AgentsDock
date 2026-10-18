@@ -4,6 +4,15 @@ This directory contains the shipping iPhone/iPad React Native client. Its bundle
 identifier is `com.zhengyiluo.ZenithDock`, shared with TestFlight; installing a
 development build with this identifier can replace the installed TestFlight app.
 
+For an independent local device preview, set `AGENTSDOCK_APP_VARIANT=development`
+for both Expo prebuild and Metro. This selects **AgentsDock Dev**, app identifiers
+ending in `.dev`, and a separate `agentsdock-dev` URL scheme. The shipping config
+in `app.json` is unchanged. Regenerate native projects when switching variants;
+Expo does not automatically update an existing native project in `run:ios`.
+Before installing, verify the built app has the `.dev` identifier. A physical
+iPhone also needs Apple development signing and a provisioning profile. Expo Go
+cannot host this app's custom native modules; use a locally compiled Debug app.
+
 ## License
 
 AgentsDock's original mobile code is licensed under the
@@ -57,6 +66,10 @@ alone does not authorize an upload. See [Mac parity audit](docs/MAC_PARITY_AUDIT
 for the implemented goal/chat controls and remaining desktop differences.
 
 ## Architecture
+
+Shared visual roles and contribution rules are documented in
+[Mobile design tokens](docs/DESIGN_SYSTEM.md). Use `src/theme.ts` for typography,
+weights, palette, spacing and corners instead of adding per-screen values.
 
 - Expo SDK 57 / React Native 0.86 New Architecture
 - Zustand endpoint-scoped state and bounded AsyncStorage transcript cache

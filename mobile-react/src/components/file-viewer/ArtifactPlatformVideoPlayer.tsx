@@ -1,3 +1,4 @@
+import { radius } from '../../theme'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Download, X } from 'lucide-react-native'
 import type { MobileFileViewerLayout } from '../../lib/file-viewer'
@@ -32,6 +33,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#050506' },
   title: { color: 'white', fontSize: 15, lineHeight: 20, fontWeight: '800', textAlign: 'center' },
   actions: { flexDirection: 'row', gap: 8 },
-  button: { minWidth: 112, minHeight: 44, borderRadius: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
+  button: { minWidth: 112, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
   label: { color: 'white', fontSize: 12, fontWeight: '800' },
 })

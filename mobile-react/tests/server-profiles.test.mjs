@@ -22,19 +22,56 @@ test('first launch presents setup without probing localhost and hands off after 
   assert.match(source, /initialServerProfileDraft\(initialMode, profiles, activeProfileId\)/)
 })
 
-test('server selector permanently exposes profile status, host, and unread count', () => {
-  assert.match(source, /testID="server-profile-selector"/)
-  assert.match(source, /<ServerConnectionDot/)
-  assert.match(source, /profileHostSubtitle\(active\)/)
-  assert.match(source, /<ServerUnreadBadge count=\{active\.cachedUnreadCount\}/)
-  assert.match(source, /<MenuView[\s\S]*?onPressAction=/)
+test('server selector is a compact outlined button that opens the sheet directly', () => {
+  const trigger = source.slice(source.indexOf('export function ServerProfileSelector'), source.indexOf('export function ServerProfilesSheet'))
+  assert.match(trigger, /testID="server-profile-selector"/)
+  assert.match(trigger, /styles\.selectorName, \{ color: colors\.text \}/)
+  assert.match(trigger, /<ServerConnectionDot state=\{switchingProfileId \? 'connecting' : active\?\.connectionState \?\? 'cached'\}/)
+  assert.match(trigger, /numberOfLines=\{1\} ellipsizeMode="tail"/)
+  assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| 'Choose server'/)
+  assert.doesNotMatch(trigger, /ServerUnreadBadge|MenuView|selectorHost/)
+  assert.match(trigger, /return <Pressable/)
+  assert.match(trigger, /onPress=\{onPress\}/)
+  assert.match(trigger, /borderColor: colors\.controlBorder/)
+  assert.match(trigger, /backgroundColor: pressed \? colors\.raised : colors\.controlSurface/)
+  assert.match(source, /selectorName: \{ \.\.\.typography\.label, flexShrink: 1, minWidth: 0, fontWeight: fontWeight\.semibold \}/)
+  assert.match(source, /selector: \{[^\n]*borderRadius: radius\.round[^\n]*borderWidth: 1/)
 })
 
-test('server selector gives the intrinsic native menu label the full measured row width', () => {
-  assert.match(source, /testID="server-profile-selector-container"/)
-  assert.match(source, /selectorContainer: \{ alignSelf: 'stretch', minWidth: 0 \}/)
-  assert.match(source, /onLayout=\{event => setSelectorWidth\(event\.nativeEvent\.layout\.width\)\}/)
-  assert.match(source, /styles\.selector, selectorWidth > 0 && \{ width: selectorWidth \}/)
+test('server name reserves a stable refresh indicator slot without disabling server switching', () => {
+  assert.match(source, /refreshing\?: boolean/)
+  assert.match(source, /refreshing = false/)
+  assert.match(source, /<Text style=\{\[styles\.selectorName[\s\S]*?<View style=\{styles\.selectorRefresh\} pointerEvents="none">\s*\{refreshing \? <ActivityIndicator testID="server-chat-refresh"/)
+  assert.match(source, /selectorRefresh: \{ width: 20, height: 20, flexShrink: 0/)
+  assert.match(source, /busy: Boolean\(switchingProfileId\) \|\| refreshing/)
+  assert.match(source, /const unavailable = disabled \|\| Boolean\(switchingProfileId\)/)
+  assert.match(source, /refreshing \? ' Refreshing chats\.'/)
+})
+
+test('server title respects its container width without shrinking the hit height', () => {
+  assert.match(source, /selector: \{ minHeight: 44, minWidth: 0, maxWidth: '100%', alignSelf: 'flex-start'/)
+  assert.doesNotMatch(source, /selectorWidth|setSelectorWidth/)
+})
+
+test('server drawer starts with tappable rows and add, keeping management behind row actions', () => {
+  assert.match(source, /stackPresentation="formSheet"/)
+  assert.match(source, /!draft \? <View testID="server-profile-list">/)
+  assert.match(source, /testID="server-profile-add"/)
+  assert.match(source, /testID=\{`server-profile-switch-\$\{profile\.id\}`\}/)
+  assert.match(source, /accessibilityState=\{\{ selected: active, disabled, busy: switching \}\}/)
+  assert.match(source, /id: 'edit'[\s\S]*?onEdit\(\)/)
+  assert.doesNotMatch(source, /Saved servers|Each server keeps|Switching replaces|`Identity:|>Active<|label=\{switching \? 'Using/)
+})
+
+test('native server sheet stays mounted through dismissal and reopens at its half-height detent', () => {
+  assert.match(source, /const serverSheetDetents = \[0\.5, 1\]/)
+  assert.match(source, /sheetInitialDetentIndex=\{0\}/)
+  assert.match(source, /sheetGrabberVisible/)
+  assert.match(source, /sheetExpandsWhenScrolledToEdge/)
+  assert.match(source, /automaticallyAdjustKeyboardInsets=\{false\}/)
+  assert.match(source, /pointerEvents=\{visible \? 'box-none' : 'none'\}/)
+  assert.doesNotMatch(appShell, /key=\{`servers:/)
+  assert.doesNotMatch(source, /styles\.grabber/)
 })
 
 test('server switching tracks resolved and thrown failures without swallowing the error', () => {
@@ -64,7 +101,7 @@ test('server removal and identity reset require native confirmation', () => {
 })
 
 test('server management controls retain touch-safe minimum dimensions', () => {
-  assert.match(source, /input: \{ minHeight: 44/)
+  assert.match(source, /input: \{ \.\.\.typography\.body, minHeight: 44/)
   assert.match(source, /primaryButton: \{ minHeight: 44/)
   assert.match(source, /secondaryButton: \{ minHeight: 44/)
   assert.match(source, /moreButton: \{ width: 44, height: 44/)

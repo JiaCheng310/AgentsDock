@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { AppState, Linking, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { Download, ExternalLink, RefreshCw, ShieldCheck, X } from 'lucide-react-native'
 import { useAndroidUpdaterStore } from '../store/useAndroidUpdaterStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 
 export function AndroidUpdateCoordinator() {
@@ -146,17 +146,17 @@ function SmallButton({ label, onPress, disabled, primary, icon: Icon, testID }: 
 
 const styles = StyleSheet.create({
   bannerSlot: { flexShrink: 0, paddingHorizontal: 12, paddingTop: 8 },
-  banner: { width: '100%', maxWidth: 740, minHeight: 58, alignSelf: 'center', borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  banner: { width: '100%', maxWidth: 740, minHeight: 58, alignSelf: 'center', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 8 },
   bannerCopy: { flex: 1, gap: 2 },
   bannerTitle: { fontSize: 12, fontWeight: '800' },
   caption: { fontSize: 10.5, lineHeight: 14 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, padding: 11, gap: 9 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 11, gap: 9 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   cardCopy: { flex: 1, gap: 2 },
   cardTitle: { fontSize: 13, fontWeight: '800' },
   notice: { fontSize: 11, lineHeight: 16 },
   detail: { fontSize: 9.5 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  button: { minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  button: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
 })

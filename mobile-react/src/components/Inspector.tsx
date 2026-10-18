@@ -7,10 +7,11 @@ import { describeJobSchedule, effectiveScheduleKind } from '../lib/job-schedule'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { filesNewestFirst } from '../lib/format'
 import { mobileFileViewerKind } from '../lib/file-viewer'
-import { runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError } from '../lib/runtime-catalog'
+import { runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions } from '../lib/runtime-catalog'
+import { chatBackendChoice, chatBackendLabel, isCustomProvider, providerRuntimeCatalog, providerSelectionError } from '../lib/provider-selection'
 import { PROVIDER_JOBS_ACCESS_MODES, providerJobsAccessDescription, providerJobsAccessLabel, providerJobsAccessState } from '../lib/provider-jobs-access'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, typography, usePalette } from '../theme'
 import type { ProviderJobsAccess, RuntimeOption } from '../types'
 import { Text, TextInput } from './AppText'
 import { MediaGrid } from './MediaGrid'
@@ -185,16 +186,19 @@ export function Inspector({ sessionId, onDigest, onJob, onTerminal, onProcesses,
   }, [])
   useEffect(() => { void refreshJobs(profileGeneration) }, [profileGeneration, refreshJobs, sessionId])
   if (!session) return null
-  const modelOptions = runtimeCatalogOptions(runtime, session.backend, 'models', session.model)
-  const effortOptions = runtimeEffortOptions(runtime, session.backend, session.model, session.effort)
-  const selectionError = runtimeSelectionError(health, runtime, session.backend, session.model)
+  const catalog = providerRuntimeCatalog(runtime, session)
+  const modelOptions = runtimeCatalogOptions(catalog, session.backend, 'models', session.model)
+  const effortOptions = runtimeEffortOptions(catalog, session.backend, session.model, session.effort)
+  const selectionError = providerSelectionError(health, runtime, session)
   const jobsAccess = providerJobsAccessState(session, health)
   const jobsAccessOptions = PROVIDER_JOBS_ACCESS_MODES.map(value => ({ value, label: providerJobsAccessLabel(value) }))
   return <ScrollView pointerEvents={workspaceAdopting ? 'none' : 'auto'} style={[styles.root, { backgroundColor: colors.surface, borderColor: colors.border, opacity: workspaceAdopting ? 0.55 : 1 }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={[styles.card, { backgroundColor: colors.raised }]}>
       <SectionHeader title="Session" />
+      <Text style={[typography.label, { color: colors.muted }]}>{chatBackendLabel(chatBackendChoice(session))}</Text>
       <Field label="Name"><TextInput value={title} onChangeText={setTitle} onBlur={() => { const clean = title.trim(); if (scopeIsCurrent() && clean && clean !== session.title) void update(sessionId, { title: clean }, profileGeneration) }} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} /></Field>
-      <Field label="Model"><ChoiceField title="Model" value={session.model ?? ''} options={modelOptions} onChange={model => { if (scopeIsCurrent()) void update(sessionId, { model, effort: runtimeEffortAfterModelChange(runtime, session.backend, model, session.effort) }, profileGeneration) }} /></Field>
+      <Field label="Model"><ChoiceField title="Model" value={session.model ?? ''} options={modelOptions} onChange={model => { if (scopeIsCurrent()) void update(sessionId, { model, effort: runtimeEffortAfterModelChange(catalog, session.backend, model, session.effort) }, profileGeneration) }} /></Field>
+      {isCustomProvider(session) ? <Field label="Model ID"><TextInput key={`${session.id}:${session.model}`} testID="chat-api-model-id" defaultValue={session.model ?? ''} autoCapitalize="none" autoCorrect={false} placeholder="Server default" placeholderTextColor={colors.muted} onEndEditing={event => { const model = event.nativeEvent.text.trim(); if (scopeIsCurrent() && model !== (session.model ?? '')) void update(sessionId, { model: model || null, effort: null }, profileGeneration) }} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} /></Field> : null}
       {session.backend !== 'cursor' ? <Field label="Effort"><ChoiceField title="Effort" value={session.effort ?? ''} options={effortOptions} onChange={effort => { if (scopeIsCurrent()) void update(sessionId, { effort }, profileGeneration) }} /></Field> : null}
       {selectionError ? <Text accessibilityRole="alert" style={[styles.hint, { color: colors.orange }]}>{selectionError}</Text> : null}
       <Field label="Agent jobs"><ChoiceField title="Agent jobs" disabled={!jobsAccess.available} value={jobsAccess.effective} options={jobsAccessOptions} onChange={value => { if (scopeIsCurrent() && jobsAccess.available) void update(sessionId, { provider_jobs_access: value as ProviderJobsAccess }, profileGeneration) }} /></Field>
@@ -306,17 +310,17 @@ function nextRunLabel(value?: string | null): string { if (!value) return ''; co
 
 const styles = StyleSheet.create({
   root: { flex: 1, minWidth: 290, borderLeftWidth: StyleSheet.hairlineWidth }, content: { padding: 10, gap: 8, paddingBottom: 30 },
-  card: { borderRadius: 7, padding: 8, gap: 7 }, field: { flexDirection: 'row', gap: 8, alignItems: 'center' }, label: { width: 70, fontSize: 10, fontWeight: '700' },
-  input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12 }, multilineInput: { minHeight: 78, maxHeight: 150, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12, textAlignVertical: 'top' },
-  choice: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center' },
-  commandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 }, command: { minWidth: '30%', minHeight: 44, borderRadius: 6, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  card: { borderRadius: radius.md, padding: 8, gap: 7 }, field: { flexDirection: 'row', gap: 8, alignItems: 'center' }, label: { width: 70, fontSize: 10, fontWeight: '700' },
+  input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12 }, multilineInput: { minHeight: 78, maxHeight: 150, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12, textAlignVertical: 'top' },
+  choice: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center' },
+  commandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 }, command: { minWidth: '30%', minHeight: 44, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
   hint: { fontSize: 10, paddingHorizontal: 5, paddingBottom: 5 }, pinRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 5 }, pinIdentity: { flex: 1, minHeight: 44, justifyContent: 'center' },
-  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center' }, loadMore: { minHeight: 44, borderRadius: 5, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  filePageStatus: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, filePageError: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 8 }, filePageRetry: { minWidth: 64, minHeight: 44, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 5 }, filePageHint: { minHeight: 36, paddingHorizontal: 5, textAlign: 'center', textAlignVertical: 'center', fontSize: 10 },
+  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center' }, loadMore: { minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  filePageStatus: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, filePageError: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 8 }, filePageRetry: { minWidth: 64, minHeight: 44, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md }, filePageHint: { minHeight: 36, paddingHorizontal: 5, textAlign: 'center', textAlignVertical: 'center', fontSize: 10 },
   jobBlock: { minHeight: 45 }, jobRow: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 4 },
   jobContent: { minHeight: 44, flex: 1, minWidth: 0, justifyContent: 'center' },
   runJobButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, jobRunStatus: { minHeight: 20, paddingHorizontal: 6, paddingBottom: 4, fontSize: 10, fontWeight: '700' },
-  headerActions: { flexDirection: 'row', alignItems: 'center' }, scheduleJob: { minHeight: 44, borderRadius: 5, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  modalBackdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 30 }, choiceMenu: { width: '100%', maxWidth: 380, maxHeight: '70%', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, padding: 6 }, choiceOption: { minHeight: 44, borderRadius: 5, paddingHorizontal: 12, justifyContent: 'center' },
-  pinPreview: { width: '100%', maxWidth: 680, maxHeight: '78%', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 }, pinPreviewHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center' }, pinPreviewTitle: { flex: 1, fontSize: 14, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' }, scheduleJob: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 30 }, choiceMenu: { width: '100%', maxWidth: 380, maxHeight: '70%', borderRadius: radius.sheet, borderWidth: StyleSheet.hairlineWidth, padding: 6 }, choiceOption: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 12, justifyContent: 'center' },
+  pinPreview: { width: '100%', maxWidth: 680, maxHeight: '78%', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 }, pinPreviewHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center' }, pinPreviewTitle: { flex: 1, fontSize: 14, fontWeight: '800' },
 })

@@ -6,7 +6,7 @@ import { client, useAppStore } from '../store/useAppStore'
 import { loadTeamMentionCandidates, teamAllServersAliasAvailable, teamBulletinAliasAvailable, teamMessagesAvailable, type TeamMentionCandidate } from '../lib/team-references'
 import { teamNetworkProxyRoute } from '../lib/team-network'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text, TextInput } from './AppText'
 import { SheetCloseButton } from './ui'
 
@@ -106,5 +106,5 @@ export function TeamTargetPicker({ visible, width, query, sourceSessionId, refer
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, paddingTop: 18 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth }, heading: { flex: 1 }, title: { fontSize: 20, fontWeight: '700' }, subtitle: { fontSize: 12, marginTop: 4 }, search: { margin: 16, paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }, input: { flex: 1, minHeight: 44, fontSize: 16 }, notice: { padding: 16, gap: 10 }, retry: { minHeight: 44, justifyContent: 'center' }, list: { padding: 16, gap: 10 }, row: { minHeight: 66, padding: 14, gap: 12, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth }, name: { fontSize: 16, fontWeight: '600' },
+  safe: { flex: 1, paddingTop: 18 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth }, heading: { flex: 1 }, title: { fontSize: 20, fontWeight: '700' }, subtitle: { fontSize: 12, marginTop: 4 }, search: { margin: 16, paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }, input: { flex: 1, minHeight: 44, fontSize: 16 }, notice: { padding: 16, gap: 10 }, retry: { minHeight: 44, justifyContent: 'center' }, list: { padding: 16, gap: 10 }, row: { minHeight: 66, padding: 14, gap: 12, flexDirection: 'row', alignItems: 'center', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth }, name: { fontSize: 16, fontWeight: '600' },
 })

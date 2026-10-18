@@ -50,8 +50,10 @@ test('settings and primary selectors expose app-wide text sizing', () => {
 })
 
 test('large app text keeps narrow navigation and chat controls usable', () => {
-  assert.match(sidebar, /<\/View>\s*<View style=\{styles\.actions\}>/)
-  assert.match(sidebar, /actions: \{ minHeight: 44[\s\S]*?justifyContent: 'space-between'/)
+  assert.match(sidebar, /<KeyboardAvoidingView[\s\S]*?style=\{\[styles\.root[\s\S]*?<View style=\{styles\.topRow\}>/)
+  assert.match(sidebar, /topRow: \{ minHeight: 44[^\n]*justifyContent: 'space-between'/)
+  assert.match(sidebar, /serverSelector: \{ flex: 1, maxWidth: '50%', minWidth: 0 \}/)
+  assert.match(dialogs, /settingsRowTitle: \{ \.\.\.typography\.body, flex: 1 \}/)
   assert.match(chatHeader, /<Text style=\{\[styles\.statusLabel[\s\S]*?numberOfLines=\{1\}>\{statusLabel\}<\/Text>/)
   assert.match(chatHeader, /onlineCompact: \{ minWidth: 78/)
   assert.match(timelineRows, /styles\.time[\s\S]*?numberOfLines=\{1\}/)

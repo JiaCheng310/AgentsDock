@@ -16,7 +16,7 @@ import { adaptiveViewerDismissAllowed } from '../../lib/adaptive-file-viewer-sta
 import type { MobileFileViewerLayout } from '../../lib/file-viewer'
 import { clampVideoTime, formatVideoTime, validVideoDuration, videoProgress, videoTimeAtPosition } from '../../lib/video-playback'
 import { isVideoFilled, type VideoContentFitMode } from '../../lib/video-fit'
-import { usePalette } from '../../theme'
+import { radius, usePalette } from '../../theme'
 import { Text } from '../AppText'
 import { SwipeDismissVideoSurface } from '../FullscreenImageViewer'
 
@@ -307,16 +307,16 @@ const styles = StyleSheet.create({
   videoProblemTitle: { color: 'white', fontSize: 16, fontWeight: '800', textAlign: 'center' },
   videoProblemBody: { color: '#b7bbc2', fontSize: 12, textAlign: 'center' },
   videoProblemActions: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  videoProblemButton: { minWidth: 96, minHeight: 44, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
+  videoProblemButton: { minWidth: 96, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
   videoProblemButtonText: { color: 'white', fontSize: 12, lineHeight: 16, fontWeight: '800' },
-  videoTimeline: { position: 'absolute', left: 14, right: 14, bottom: 78, zIndex: 3, minHeight: 52, borderRadius: 12, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#000000dc' },
+  videoTimeline: { position: 'absolute', left: 14, right: 14, bottom: 78, zIndex: 3, minHeight: 52, borderRadius: radius.md, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#000000dc' },
   videoTime: { minWidth: 36, color: 'white', fontSize: 10, lineHeight: 14, fontVariant: ['tabular-nums'], textAlign: 'center' },
   videoTimelineTrack: { flex: 1, height: 48, justifyContent: 'center' },
-  videoRail: { height: 4, borderRadius: 2, backgroundColor: '#ffffff30' },
-  videoBuffered: { position: 'absolute', left: 0, top: 0, height: 4, borderRadius: 2, backgroundColor: '#ffffff55' },
-  videoPlayed: { position: 'absolute', left: 0, top: 0, height: 4, borderRadius: 2, backgroundColor: '#ffffff' },
-  videoThumb: { position: 'absolute', top: -5, width: 14, height: 14, borderRadius: 7, backgroundColor: 'white' },
-  videoPlay: { position: 'absolute', left: '50%', bottom: 14, zIndex: 3, width: 54, height: 54, marginLeft: -27, borderRadius: 27, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  videoZoomControls: { position: 'absolute', top: 10, right: 10, zIndex: 3, height: 44, borderRadius: 22, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000000c9' },
+  videoRail: { height: 4, borderRadius: radius.round, backgroundColor: '#ffffff30' },
+  videoBuffered: { position: 'absolute', left: 0, top: 0, height: 4, borderRadius: radius.round, backgroundColor: '#ffffff55' },
+  videoPlayed: { position: 'absolute', left: 0, top: 0, height: 4, borderRadius: radius.round, backgroundColor: '#ffffff' },
+  videoThumb: { position: 'absolute', top: -5, width: 14, height: 14, borderRadius: radius.round, backgroundColor: 'white' },
+  videoPlay: { position: 'absolute', left: '50%', bottom: 14, zIndex: 3, width: 54, height: 54, marginLeft: -27, borderRadius: radius.round, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  videoZoomControls: { position: 'absolute', top: 10, right: 10, zIndex: 3, height: 44, borderRadius: radius.round, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000000c9' },
   videoZoomButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 })
