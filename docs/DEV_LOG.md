@@ -18,7 +18,11 @@
   internal continuation after a matching signed update, including when the
   update has already completed before startup recovery. Completed turns stay
   complete; a second startup does not queue another continuation. Real-provider
-  verification of this correction is pending.
+  testing confirmed one continuation was queued and launched, but the first
+  continuation only reported an interrupted command instead of finishing its
+  remaining work. The internal instruction now explicitly asks the agent to
+  complete unfinished steps, including a necessary retry after checking effects.
+  Real-provider verification of that final instruction is pending.
 - Validation: 151 focused server tests, 71 focused desktop tests, TypeScript and
   the desktop production build pass. A disposable named server was upgraded
   with a signed unpublished candidate and completed an ordinary Codex turn.
