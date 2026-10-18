@@ -50,6 +50,28 @@ const ownedApp = join(work, 'installation/AgentsDock.app')
 let client = null
 let launched = null
 let keychainCreated = false
+let readServerDiagnostics = null
+const safeSnapshot = async () => {
+  const appStatus = await client?.evaluate('window.agentsDock.updates.status()').catch(() => null)
+  const server = await readServerDiagnostics?.().catch(() => null)
+  const status = server?.status
+  const health = server?.health
+  return {
+    app: appStatus ? { state: appStatus.state, currentVersion: appStatus.currentVersion,
+      availableVersion: appStatus.availableVersion,
+      servers: (appStatus.serverUpdates ?? []).map(item => ({ phase: item.phase,
+        targetVersion: item.targetVersion, operationTargetVersion: item.operationTargetVersion,
+        paused: item.paused === true, operationOwned: item.operationOwned === true })) } : null,
+    server: status ? { phase: status.phase, currentVersion: status.current_version,
+      targetVersion: status.target_version, preparationPhase: status.preparation_phase,
+      whenIdle: status.when_idle === true, blockerCounts: status.blocker_counts,
+      errorCode: status.error_code } : null,
+    health: health ? { version: health.server_version,
+      update: health.server_update ? { phase: health.server_update.phase,
+        targetVersion: health.server_update.target_version } : null,
+      continuationAvailable: health.capabilities?.server_update_continuation_v1?.available === true } : null
+  }
+}
 try {
   for (const [letter, version] of [['a', VERSION_A], ['b', VERSION_B]]) {
     const destination = join(work, letter === 'a' ? 'installation' : 'expected')
@@ -90,6 +112,10 @@ try {
     assert(response.ok, 'Authenticated test server health failed.')
     return response.json()
   }
+  readServerDiagnostics = async () => ({
+    status: await api('GET', '/api/admin/update').catch(() => null),
+    health: await health().catch(() => null)
+  })
   const beforeHealth = await until('Candidate A server healthy', async () => {
     try {
       const value = await health()
@@ -161,7 +187,17 @@ try {
   phase('candidate-b-downloaded-through-exact-feed')
   await client.clickButton(['Update AgentsDock'])
   let serverFirst = false
+  let nextDiagnosticAt = 0
+  let lastDiagnostic = ''
   const upgradedHealth = await until('Server B completes before App replacement', async () => {
+    if (Date.now() >= nextDiagnosticAt) {
+      nextDiagnosticAt = Date.now() + 30_000
+      const snapshot = JSON.stringify(await safeSnapshot())
+      if (snapshot !== lastDiagnostic) {
+        process.stdout.write(`native-replay-state ${snapshot}\n`)
+        lastDiagnostic = snapshot
+      }
+    }
     let value
     try { value = await health() } catch { return null }
     if (value.server_version !== VERSION_B) return null
@@ -202,6 +238,13 @@ try {
   report.appReplacementObserved = true
   report.serverFirstObserved = true
   await writeFile(join(work, 'public-evidence.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
+} catch (error) {
+  report.status = 'failed'
+  report.failedAfter = report.phases.at(-1) ?? 'setup'
+  report.diagnostic = await safeSnapshot()
+  process.stdout.write(`native-replay-final-state ${JSON.stringify(report.diagnostic)}\n`)
+  await writeFile(join(work, 'public-evidence.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
+  throw error
 } finally {
   try { client?.close() } catch { /* The updater may already have exited. */ }
   if (existsSync(ownedApp)) await stopOwned(ownedApp).catch(() => {})
