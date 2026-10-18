@@ -15,7 +15,7 @@ import {
   type CodexPermissionUpdateScope,
 } from '../lib/codex-permission-updates'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import type {
   CodexApprovalPolicy,
   CodexApprovalsReviewer,
@@ -440,15 +440,15 @@ function errorMessage(cause: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  trigger: { height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  trigger: { height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   triggerCompact: { width: COMPOSER_TOOLBAR_TOUCH_SIZE },
   triggerWide: { minWidth: COMPOSER_TOOLBAR_TOUCH_SIZE, maxWidth: 160, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 9 },
-  triggerCompactFace: { width: COMPOSER_PERMISSION_FACE_SIZE, height: COMPOSER_PERMISSION_FACE_SIZE, position: 'relative', borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  triggerWarningDot: { width: 5, height: 5, position: 'absolute', top: 3, right: 3, borderRadius: 3 },
+  triggerCompactFace: { width: COMPOSER_PERMISSION_FACE_SIZE, height: COMPOSER_PERMISSION_FACE_SIZE, position: 'relative', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  triggerWarningDot: { width: 5, height: 5, position: 'absolute', top: 3, right: 3, borderRadius: radius.round },
   triggerText: { minWidth: 0, flexShrink: 1, fontSize: 10.5, fontWeight: '800' },
   sheet: { flex: 1 },
   header: { minHeight: 70, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerMark: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  headerMark: { width: 40, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: '900' },
   subtitle: { marginTop: 2, fontSize: 10.5 },
@@ -458,12 +458,12 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: 14, paddingBottom: 44, gap: 12 },
   field: { gap: 5 },
   label: { fontSize: 10.5, fontWeight: '800' },
-  choice: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  choice: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
   choiceText: { minWidth: 0, flex: 1, fontSize: 13 },
-  options: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 5, gap: 2 },
-  option: { minHeight: 46, borderRadius: 6, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  options: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 5, gap: 2 },
+  option: { minHeight: 46, borderRadius: radius.md, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   optionText: { minWidth: 0, flex: 1, fontSize: 13 },
   hint: { fontSize: 10.5, lineHeight: 15 },
   error: { fontSize: 11, lineHeight: 16 },
-  warning: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 10, fontSize: 11, lineHeight: 16 },
+  warning: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 10, fontSize: 11, lineHeight: 16 },
 })

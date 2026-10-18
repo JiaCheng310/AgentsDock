@@ -7,11 +7,14 @@ const fullDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
 })
-const chatDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+const chatDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
+})
+const chatDateWithYearFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
 })
 
 export function normalizeServerURL(value: string): string {
@@ -139,11 +142,15 @@ export function formatDateTime(value?: string | null): string {
   return fullDateTimeFormatter.format(date)
 }
 
-export function formatChatDateTime(value?: string | null): string {
+export function formatChatDate(value?: string | null, now = new Date()): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return chatDateTimeFormatter.format(date)
+  if (date.toDateString() === now.toDateString()) return 'Today'
+  // Calendar subtraction keeps yesterday correct across DST and month/year boundaries.
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return (date.getFullYear() === now.getFullYear() ? chatDateFormatter : chatDateWithYearFormatter).format(date)
 }
 
 export function errorMessage(error: unknown): string {

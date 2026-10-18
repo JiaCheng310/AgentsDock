@@ -17,7 +17,7 @@ import {
 } from '../lib/cursor-permission-updates'
 import { COMPOSER_PERMISSION_FACE_SIZE, COMPOSER_TOOLBAR_TOUCH_SIZE } from '../lib/composer-toolbar-layout'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import type { CursorPermissionMode, Session } from '../types'
 import { Text } from './AppText'
 import { SheetCloseButton } from './ui'
@@ -225,14 +225,14 @@ function errorMessage(cause: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  trigger: { height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  trigger: { height: COMPOSER_TOOLBAR_TOUCH_SIZE, flexShrink: 0, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   triggerCompact: { width: COMPOSER_TOOLBAR_TOUCH_SIZE },
   triggerWide: { minWidth: COMPOSER_TOOLBAR_TOUCH_SIZE, maxWidth: 160, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 9 },
-  triggerCompactFace: { width: COMPOSER_PERMISSION_FACE_SIZE, height: COMPOSER_PERMISSION_FACE_SIZE, position: 'relative', borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  triggerCompactFace: { width: COMPOSER_PERMISSION_FACE_SIZE, height: COMPOSER_PERMISSION_FACE_SIZE, position: 'relative', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   triggerText: { minWidth: 0, flexShrink: 1, fontSize: 10.5, fontWeight: '800' },
   sheet: { flex: 1 },
   header: { minHeight: 70, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerMark: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  headerMark: { width: 40, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: '900' },
   subtitle: { marginTop: 2, fontSize: 10.5 },
@@ -241,8 +241,8 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: 14, paddingBottom: 44, gap: 10 },
   label: { fontSize: 10.5, fontWeight: '800' },
-  options: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 5, gap: 2 },
-  option: { minHeight: 58, borderRadius: 7, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  options: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 5, gap: 2 },
+  option: { minHeight: 58, borderRadius: radius.md, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 9 },
   optionCopy: { minWidth: 0, flex: 1, gap: 2 },
   optionTitle: { fontSize: 13, fontWeight: '800' },
   optionHelp: { fontSize: 10.5, lineHeight: 15 },

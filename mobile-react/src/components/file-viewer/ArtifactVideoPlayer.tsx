@@ -1,3 +1,4 @@
+import { radius } from '../../theme'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -299,12 +300,12 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 11, padding: 24 },
   loadingStatus: { width: '100%', alignItems: 'center', justifyContent: 'center', gap: 11 },
   loadingTitle: { color: '#d6d8dc', fontSize: 12, lineHeight: 17, fontWeight: '700', textAlign: 'center' },
-  progressRail: { width: '72%', maxWidth: 420, height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: '#ffffff2c' },
-  progressFill: { height: 5, borderRadius: 3, backgroundColor: 'white' },
+  progressRail: { width: '72%', maxWidth: 420, height: 5, overflow: 'hidden', borderRadius: radius.round, backgroundColor: '#ffffff2c' },
+  progressFill: { height: 5, borderRadius: radius.round, backgroundColor: 'white' },
   problem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, backgroundColor: '#050506' },
   problemTitle: { color: 'white', fontSize: 16, fontWeight: '800', textAlign: 'center' },
   problemBody: { color: '#b7bbc2', fontSize: 12, lineHeight: 17, textAlign: 'center' },
   actions: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  button: { minWidth: 96, minHeight: 44, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
+  button: { minWidth: 96, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#23262b' },
   buttonText: { color: 'white', fontSize: 12, lineHeight: 16, fontWeight: '800' },
 })

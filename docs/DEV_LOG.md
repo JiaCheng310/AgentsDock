@@ -1,5 +1,383 @@
 # Public development log
 
+## 2026-10-17 - Contain mobile server setup badge backgrounds
+
+- Clip the translucent fill of each numbered connection step to its fixed
+  circle. This narrowly guards against a reported light-mode blue rendering
+  artifact without changing inputs, validation or connection behavior.
+- Basic validation: TypeScript and 15 focused checks passed. The badge clipping
+  assertion failed before the change and passed after it. The Debug iPhone
+  simulator exercised drawer expansion, secure dummy-token entry and editor
+  back/reopen in light mode, with no stray line visible. No connection was
+  tested or saved. The original intermittent artifact was not reproduced in
+  the simulator, so confirmation on the reporting physical device remains
+  pending. The independent phone Dev app was refreshed; no release build,
+  native dependency change, dark-mode or Android acceptance in this iteration.
+
+## 2026-10-17 - Simplify mobile settings navigation and agent status
+
+- Open Privacy directly in the browser with an external-link indicator. Keep
+  Android usage analytics in its own settings row. Add a Server shortcut that
+  waits for the iOS settings sheet to dismiss before opening the existing
+  half-height server drawer.
+- Replace Agents & runtime with My agents: Codex, Claude Code, Cursor and
+  OpenCode, matching this branch's desktop inventory. Show green checks only
+  for ready agents on a connected server, mute unavailable entries and keep
+  one server-machine sign-in hint. Recheck refreshes the existing server
+  runtime catalog, suppresses duplicate taps and scopes pending UI state to
+  the current server. Remove the persistent-goals settings control, not the
+  underlying chat feature. This does not enable additional chat backends.
+- Show a Tailscale server hostname only for a connected, configured tailnet
+  domain. No phone VPN/account detection or inference from an IP address.
+- Basic validation: TypeScript, diff whitespace checks and 14 focused tests
+  passed. The Debug iPhone simulator exercised Recheck, four-agent rendering,
+  repeated settings-to-server handoff, browser privacy loading and returning
+  to the app. Light-mode screenshots were reviewed. Refreshed the independent
+  phone Dev app without replacing the release app; physical visual acceptance,
+  Android and tablet checks remain pending. No chats, profiles, provider runs
+  or server settings were changed. Local preview only, no release build.
+
+## 2026-10-17 - Simplify mobile server-editor actions
+
+- Remove the redundant editor Cancel button; retain the header back and close
+  actions. Shorten Add & switch to Add without changing successful connection
+  testing, server creation or automatic activation. Keep Save for edits and the
+  existing-server action when a tested connection is already saved.
+- Basic validation: TypeScript and 26 focused checks passed, including the
+  test/create/switch sequence in a fixture. The Debug iPhone simulator verified
+  the two-button add form, back navigation and closing/reopening. No server
+  profile was created or changed. Android and physical visual checks remain
+  pending; local preview only.
+
+## 2026-10-17 - Move mobile folder indicators to the trailing edge
+
+- Move expand/collapse chevrons after the count at the right of folder headers,
+  including Unread and Running. Keep status dots before the title, whole-row
+  toggling and existing folder actions. Expose the expanded accessibility state.
+- Basic validation: TypeScript and 27 focused checks passed. The Debug iPhone
+  simulator collapsed and expanded a running group and an ordinary folder,
+  restored both, and verified the light-mode layout. Android, tablet and
+  dark-mode/physical visual acceptance remain pending for this small iteration.
+
+## 2026-10-17 - Clarify mobile home buttons and simplify chat dates
+
+- Give the settings, new-chat and server-selector buttons a consistent 1pt
+  outline and themed control surface, with clearer separation in light mode.
+  Preserve their touch targets, actions and the transparent footer fade.
+- Show Today, Yesterday or a date for chat activity; retain the year for dates
+  outside the current year and omit time-of-day. Use a shared, readable tertiary
+  text color. Keep the existing activity timestamp source and chat ordering.
+- Document five typography sizes, four named font weights and semantic palette
+  roles. Migrate home/server text styles to these tokens and add a focused check
+  against literal text metrics, weights and colors in those adopted surfaces.
+  Other legacy screens remain a gradual migration, not a global font rewrite.
+- Basic validation: TypeScript and 57 focused checks passed. Date tests passed
+  in American and Asian time zones, including calendar and DST boundaries. The
+  Debug iPhone simulator exercised settings/theme navigation and the server
+  selector, with light/dark home screenshots reviewed for outlines and dates.
+  Yesterday is fixture-tested; no chat or server data was changed. Android,
+  tablet and physical-device visual acceptance remain pending. Local preview only.
+
+## 2026-10-17 - Group mobile settings and add appearance preferences
+
+- Replace the expanded settings form with App, Server and About category rows.
+  Keep text size, new-chat defaults, runtime diagnostics, supported Codex goal
+  settings, privacy controls and Android updates accessible in detail pages.
+  Back returns to the list; close dismisses the sheet; reopening starts at the
+  list. Server address and token editing remain in server management only.
+- Add System, Light and Dark appearance choices, applied immediately to the app
+  palette and native appearance and saved independently of server profiles.
+  Preserve the latest selection during startup hydration and rapid changes;
+  report local persistence failures without blocking theme selection.
+- Basic validation: TypeScript and 25 focused checks passed. The Debug iPhone
+  simulator exercised category navigation, back/close/reopen, text-size controls,
+  light/dark switching, theme persistence after process restart and following
+  system appearance changes. Light/dark screenshots were reviewed. Android
+  navigation and update availability were fixture-tested only; Android, tablet
+  and physical-device visual acceptance remain pending. No server settings,
+  chats or provider jobs were changed. Local preview only; no release build.
+
+## 2026-10-17 - Prioritize unread and running chats on mobile
+
+- Add temporary Unread (blue dot) and Running (green dot) groups before ordinary
+  sidebar folders, in that order. Each hides when empty. Active chats take
+  precedence over unread classification, appear only once, and retain their
+  saved folder and pin metadata. Archived chats and the local welcome guide
+  remain in their existing sections.
+- Support collapsing each temporary group without persisting it as a folder,
+  adding it as a move destination, or colliding with similarly named real folders.
+  Preserve search and existing chat ordering; manual row reordering remains in
+  ordinary folders.
+- Basic validation: TypeScript and 33 focused checks passed. The Debug iPhone
+  simulator displayed real server activity, marked an empty test chat unread,
+  verified group ordering and collapse/expand, restored its read state, and
+  verified opening an unread chat returns it to its original folder. No messages,
+  provider runs or folders were created. Run-completion transitions and empty
+  groups were fixture-tested; light-mode screenshots were reviewed.
+- Scope: existing unread/read-receipt semantics are unchanged. Visibility gating
+  of automatic read receipts for a selected chat hidden behind the home screen
+  remains a separate follow-up. Android, tablet and dark-mode/physical visual
+  acceptance remain pending. Local preview only; no release or server change.
+
+## 2026-10-17 - Number the server connection fields
+
+- Give the shared add/edit connection form compact blue outlined step numbers
+  for Name (optional), Server URL and Access token. Separate the three field
+  groups with consistent spacing and use short example placeholders. Preserve
+  optional-name handling, secure token entry and connection validation.
+- Basic validation: TypeScript and 26 focused checks passed, including numbered
+  labels and creating a profile without a name in a fixture. The Debug iPhone
+  simulator verified half/full form presentation, input with the software
+  keyboard, back/discard and closing. Light-mode screenshots were reviewed;
+  no connection settings were saved. Android, tablet, dark-mode and physical
+  visual acceptance remain pending for this iteration. Local preview only.
+
+## 2026-10-17 - Open server management at half height
+
+- Present server management at a half-height native detent, with a grabber to
+  expand to full height or collapse again. Reopening starts at half height;
+  retain the separate editor-back and drawer-close actions.
+- Reuse the existing React Native Screens dependency. Keep its presenter mounted
+  during dismissal without intercepting home touches while closed. Let the
+  native form sheet handle keyboard resizing instead of applying duplicate
+  scroll adjustments that can hide the focused input.
+- Basic validation: TypeScript and 25 focused checks passed. The Debug iPhone
+  simulator exercised half/full/collapsed detents, close/reopen, swipe dismissal,
+  current-server selection, unsaved add input with the software keyboard,
+  editor back, the edit menu, folder cancel, and opening from home search.
+  Light/dark screenshots were reviewed. No server settings were saved and no
+  messages or folders were created.
+- Availability: local development preview only. Android, tablet and physical
+  device visual acceptance remain pending. No dependency upgrade, native release,
+  publication or server change.
+
+## 2026-10-17 - Separate server-editor back and drawer close
+
+- Use one fixed header for the server list and its editor. Add and edit show a
+  back arrow with their page title instead of a redundant Servers heading and
+  a second close icon. Back discards the unsaved form and dismisses its keyboard;
+  the single upper-right close action dismisses the entire drawer.
+- Basic validation: TypeScript and 23 focused checks passed. The Debug iPhone
+  simulator exercised adding with unsaved text, returning to the list, reopening
+  an empty form, closing the drawer from the editor, and editing/back navigation.
+  Light-mode screenshots confirmed one title and one close action. No connection
+  settings were saved and no server request contract changed.
+- Availability: local development preview only; dark-mode, Android, tablet and
+  physical-device visual acceptance remain pending for this iteration. No
+  native release, publication or server change.
+
+## 2026-10-17 - Shorten server overflow actions
+
+- Remove Move up and Move down from each server's menu and shorten its remaining
+  actions to Edit and Remove. Keep current-server removal disabled and preserve
+  the confirmation before removing any saved connection. Stored ordering and
+  server persistence are unchanged.
+- Basic validation: TypeScript and 21 focused checks passed. The Debug iPhone
+  simulator verified both menu labels, absence of ordering actions, opening and
+  canceling the editor, and opening and canceling removal confirmation for an
+  inactive profile. No server profiles were modified or removed.
+- Availability: local development preview only; Android and physical-device
+  visual acceptance remain pending. No release or server change.
+
+## 2026-10-17 - Consolidate home actions and open servers directly
+
+- Move New folder beside Search in the top row with a wider gap, removing its
+  separate toolbar row. Make the server name an outlined rounded button while
+  retaining truncation, connection status and the reserved refresh indicator.
+- Open the existing server sheet directly instead of an intermediate popup.
+  Present saved servers as tappable rows with a current-server checkmark and
+  one Add server entry. Keep edit, reorder and confirmed removal in each row's
+  overflow menu; show the connection editor separately from the server list.
+- Close the drawer after successful selection, without reconnecting when the
+  current server is selected. Keep failures visible, and prevent a completed
+  switch from dismissing a newer drawer after its original view was closed.
+  Preserve identity validation and secure credential handling.
+- Basic validation: TypeScript and 45 focused checks passed. The Debug iPhone
+  simulator exercised folder opening/cancel, direct drawer presentation,
+  add/edit/cancel, current-server selection, switching between two saved
+  servers and back, long-name truncation, opening from search, and testing the
+  existing connection through the actual server. Screenshots were reviewed in
+  light mode. No messages, folders or new server profiles were created, and
+  connection settings were not saved or removed.
+- Availability: local development preview only. Failed-switch and stale-view
+  completion paths were fixture-tested. Dark-theme, Android, tablet and physical
+  visual acceptance remain pending for this iteration; no native release,
+  publication or server deployment.
+
+## 2026-10-17 - Close home search after opening a chat
+
+- Close and clear home search after a chat row successfully navigates, including
+  history-result and local welcome rows. Cancel pending search debounce and
+  invalidate stale results through the existing clear-search action. Preserve
+  the query when a history result cannot open or its server scope has changed.
+- Reuse the same cleanup for the close button and empty-search dismissal;
+  ordinary chat navigation still opens immediately without waiting for sync.
+- Basic validation: TypeScript and 27 focused checks passed, including executed
+  callback tests for cleanup, immediate navigation, history success/failure and
+  stale-server completion. The Debug iPhone simulator reproduced the retained
+  search before the change, then verified title search, direct and submitted
+  result selection, back navigation without the search field, and reopening an
+  empty search against the configured server. No messages were sent.
+- Availability: local development preview only. History-result failure and
+  stale-server paths were fixture-tested, not exercised against a failing live
+  server. Android, tablet and physical-device visual acceptance remain pending;
+  no native release, publication or server change.
+
+## 2026-10-17 - Show chat-list refresh beside the server name
+
+- Show a small loading indicator immediately after the active server name
+  during pull-to-refresh, sharing the list's existing profile-scoped refresh
+  state. Clear it when that refresh settles; do not add a minimum animation
+  duration or tie it to background timeline synchronization.
+- Reserve the indicator's space to keep the title stable, expose the busy
+  state to accessibility, and leave server switching available during refresh.
+- Basic validation: TypeScript and 30 focused sidebar, server-profile and
+  profile-safety checks passed. The Debug iPhone simulator exercised a real
+  pull gesture with a one-shot, test-only eight-second delay before the actual
+  session-list request. The indicator remained visible while pending and
+  disappeared after the request returned HTTP 200. Restored the test hook;
+  no production delay, messages or chat mutations were introduced.
+- Follow-up validation: two unmodified, real pull-to-refresh requests returned
+  HTTP 200 before the header and native refresh-control props became false in
+  the same React commit. Simulator video confirmed the native control's closing
+  animation remains visible afterward. This is list-refresh progress, not an
+  indication that independent timeline synchronization has completed. Restored
+  the local timing hooks; no application behavior was changed by this check.
+- Availability: local development preview only. Physical-device visual,
+  Android and tablet acceptance remain pending; no release or server change.
+
+## 2026-10-17 - Let home chats scroll behind the footer fade
+
+- Remove the list viewport's bottom margin so chat rows remain visible behind
+  the transparent portion of the footer gradient instead of ending at a hard
+  horizontal boundary. Use trailing content padding equal to the fade height
+  so the final row can scroll fully above the overlay. Preserve phone-search
+  layout and the independent circular actions.
+- Basic validation: TypeScript and 20 focused sidebar/theme checks passed.
+  The Debug iPhone simulator in dark mode exercised scrolling through the fade
+  and opening/closing Settings; screenshots confirmed progressively fading
+  chat rows underneath the overlay. No messages were sent or chats changed.
+- Availability: local development preview only. No release, server changes or
+  Android/tablet acceptance in this pass.
+
+## 2026-10-17 - Fade home actions and dismiss unused search
+
+- Add a touch-transparent vertical footer gradient, fading from transparent
+  into a darker neutral shade in each theme. Keep the circular action sizes,
+  positions and reserved list space unchanged; reuse existing SVG rendering.
+- Close an empty or whitespace-only home search on blur or an outside tap.
+  Preserve nonempty queries/results, and exclude touches within the search
+  field and its opening button from outside-tap dismissal. Do not capture chat
+  row responders or change session creation/persistence.
+- Basic validation: TypeScript and 59 focused UI checks passed. The Debug iPhone
+  simulator exercised empty/whitespace dismissal, input touches, nonempty query
+  retention after outside taps and submission, and Settings in both themes.
+  Verified that tapping a chat while empty search is open navigates on the first
+  tap and returns without the search field. No messages were sent.
+- Availability: local development preview; refreshed the independent physical
+  iPhone Dev app. Physical visual, Android and tablet acceptance remain pending.
+  No native rebuild, release, server change or publication was performed.
+
+## 2026-10-17 - Use independent circular mobile home actions
+
+- Move New chat from the upper toolbar to a circular bottom-right action;
+  place Settings in a matching bottom-left action. Only the circles have a
+  surface color, with no full-width footer background or divider. Reserve list
+  space above the buttons so they cannot cover chat text or intercept row taps.
+- Retain the existing guarded quick-create flow and hide both actions while
+  phone search is open. Preserve the server-switch and setup guards.
+- Basic validation: TypeScript, 57 focused UI checks and the existing mocked
+  session-creation/fork regressions passed. The Debug iPhone simulator exercised
+  Settings, search opening/closing, direct creation through the configured
+  server, and back navigation without sending a message. Removed only the
+  disposable chat created by this check. Development warnings briefly covered
+  the first UI attempt; the actions were exercised again after dismissal.
+- Confirmed a remaining mobile gap: creating a chat persists it immediately;
+  the client does not yet use the server's per-client empty-placeholder dismissal
+  contract. Returning without sending still retains the row. This change does
+  not implement automatic cleanup or alter existing chats/drafts.
+- Availability: local development preview only. Android and tablet UI acceptance
+  remain pending; no release build, publication or server deployment occurred.
+
+## 2026-10-17 - Simplify mobile home surfaces and dock phone search
+
+- Use the same background for the home list and top safe area. Remove the
+  footer divider and persistent selected-chat background/rail; retain pressed
+  feedback and running/unread status indicators. Settings remains a transparent
+  icon with a circular touch target.
+- Place phone search below the results and immediately above the software
+  keyboard. Closing clears the filter and restores Settings; the keyboard Search
+  action submits the current query and dismisses the keyboard. Keep tablet
+  search at the top and preserve server-generation guards and search debounce.
+- Replace hard-coded component corner radii with shared small, control, sheet
+  and circular tokens, preserving control dimensions and proportional shapes.
+- Basic validation: TypeScript and 31 focused sidebar, theme, server-profile
+  and profile-safety checks passed. The existing Debug iPhone simulator exercised
+  search opening, typing, title/history results through the configured server,
+  no-match results, closing/reopening and Settings opening/closing in light and
+  dark themes. Verified software-keyboard positioning and Search submission.
+  No chat messages were sent or server settings changed.
+- Availability: local development preview only. No server update is required.
+  Android, tablet, full secondary-screen and physical-device visual acceptance
+  are not claimed; broader regression remains deferred for this UI iteration.
+  No native release build or publication was performed.
+
+## 2026-10-17 - Prepare an independent mobile development variant
+
+- Add an opt-in development configuration named AgentsDock Dev with separate
+  app identifiers and URL scheme, leaving the default shipping configuration
+  unchanged. Reject unknown variant names instead of silently selecting the
+  shipping application.
+- Document separate device installation and native regeneration when changing
+  variants. Check the effective Info.plist build version for generated Expo
+  projects, including projects that use a literal rather than an Xcode variable.
+- Validation: eight variant, native metadata and privacy checks plus TypeScript
+  passed. Expo generated the independent iOS project and its distinct URL schemes.
+  Native dependency parity checks and a local iOS Debug build passed. Verified
+  the signed development identifier, bundled JavaScript and device provisioning,
+  then installed and launched the separate app on a physical iPhone. Confirmed
+  that the shipping app remained installed unchanged and the development process
+  stayed running. On-device visual and connected-server acceptance remain pending;
+  no existing app was replaced and no build was uploaded or published.
+
+## 2026-10-17 - Establish mobile visual foundations
+
+- Add shared UI typography roles, spacing and corner-radius tokens. Apply them
+  to primary navigation, server management, settings forms, chat headers,
+  composer surfaces and message metadata without changing their actions.
+- Increase small navigation labels, soften font weights, and give chat rows
+  more breathing room. Use neutral surfaces and message backgrounds while
+  retaining distinct connection, running, unread and error colors.
+- Preserve app-wide text scaling and measured Markdown, code and terminal
+  typography. This is an incremental style pass, not a component-library
+  migration or a redesign of every secondary panel.
+- Basic validation: TypeScript, 31 focused UI/theme checks and the typography
+  regression entrypoint passed. The existing Debug iPhone simulator exercised
+  search typing/clearing, server management, chat opening, input focus and
+  return navigation in light/dark themes, plus repeated Settings opening and
+  closing in light mode. No messages were sent or server profiles changed.
+- Availability: local development preview only. No fresh native release build,
+  Android/device acceptance, full keyboard regression or publication is claimed.
+  Broader testing remains deferred until the UI iteration is complete.
+
+## 2026-10-17 - Simplify the mobile home header
+
+- Replace the homepage brand title and footer counters with one footer Settings
+  action. Keep the existing settings contents and per-chat activity indicators.
+- Move server selection to the top with its original compact typography and
+  connection-status dot. Long names truncate within half the available row;
+  the native server menu remains, without a duplicate URL subtitle.
+- Add a top-right search icon that opens and focuses the search field;
+  closing search clears the filter and dismisses the keyboard.
+- Replace the refresh toolbar button with native list pull-to-refresh using the
+  existing generation-scoped refresh action and a request-bound loading state.
+- Basic validation: TypeScript and 25 focused UI source checks passed. The local
+  iPhone simulator exercised the pull gesture, server menu opening/dismissal,
+  search opening, typing, closing and reopening with the filter cleared, and
+  earlier repeated Settings opening/closing. No server profile was changed
+  by these checks. Full regression and device coverage are deferred until the
+  UI iteration is complete. Availability: local development preview only.
+
 ## 2026-10-16 — Integrate responsive history maintenance with current main
 
 - Move provider-history preparation outside chat admission locks, retaining

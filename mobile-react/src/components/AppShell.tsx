@@ -13,7 +13,7 @@ import { isServerSetupRequired, shouldPresentServerSetup } from '../lib/first-la
 import { fullscreenModalTopPadding } from '../lib/fullscreen-modal-layout'
 import { profileNamespace } from '../lib/server-profiles'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { ChatScreen } from './ChatScreen'
 import { ClaudeMcpDialog } from './ClaudeMcpDialog'
 import { AndroidUpdateCoordinator } from './AndroidUpdater'
@@ -78,11 +78,11 @@ function AppShellContent() {
   const createServerProfile = useAppStore(state => state.createServerProfile)
   const updateServerProfile = useAppStore(state => state.updateServerProfile)
   const removeServerProfile = useAppStore(state => state.removeServerProfile)
-  const reorderServerProfiles = useAppStore(state => state.reorderServerProfiles)
   const switchServerProfile = useAppStore(state => state.switchServerProfile)
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [inspectorVisible, setInspectorVisible] = useState(true)
   const [settings, setSettings] = useState(false)
+  const settingsNextServerGeneration = useRef<number | null>(null)
   const [teamNetwork, setTeamNetwork] = useState(false)
   const [setupDismissed, setSetupDismissed] = useState(true)
   const setupNextMode = useRef<'edit-active' | null>(null)
@@ -145,9 +145,22 @@ function AppShellContent() {
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
   const openSettings = useCallback(() => {
+    settingsNextServerGeneration.current = null
     setSettings(true)
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
+  const finishSettingsDismissal = useCallback(() => {
+    const generation = settingsNextServerGeneration.current
+    settingsNextServerGeneration.current = null
+    if (generation != null && generation === useAppStore.getState().profileGeneration) setServers('manage')
+  }, [])
+  const openServersFromSettings = useCallback(() => {
+    settingsNextServerGeneration.current = profileGeneration
+    setSettings(false)
+    requestAnimationFrame(dismissAppKeyboard)
+    // iOS must finish dismissing its native page sheet before presenting another.
+    if (Platform.OS !== 'ios') requestAnimationFrame(finishSettingsDismissal)
+  }, [finishSettingsDismissal, profileGeneration])
   const openTeamNetwork = useCallback(() => {
     setTeamNetwork(true)
     requestAnimationFrame(dismissAppKeyboard)
@@ -288,6 +301,7 @@ function AppShellContent() {
     dismissAppKeyboard()
     setMobileChatOpen(false)
     setSettings(false)
+    settingsNextServerGeneration.current = null
     setTeamNetwork(false)
     setOptions(false)
     setSearch(false)
@@ -358,7 +372,7 @@ function AppShellContent() {
   if (!initialized) return <View style={[styles.fill, { backgroundColor: colors.background }]}><Loading label="Starting AgentsDock" /></View>
 
   const connectionKey = `${activeProfileId ?? 'none'}:${profileGeneration}`
-  const sidebar = <Sidebar key={`sidebar:${connectionKey}`} profiles={serverProfileItems} activeProfileId={activeProfileId} switchingProfileId={switchingProfileId} onSwitchServer={switchServer} onAddServer={() => openServers('add')} onManageServers={() => openServers('manage')} onSettings={openSettings} onNewChat={() => void quickNewChat()} onOpenChat={() => { trackEvent('chat_opened'); openMobileChat() }} />
+  const sidebar = <Sidebar key={`sidebar:${connectionKey}`} compact={compact} profiles={serverProfileItems} activeProfileId={activeProfileId} switchingProfileId={switchingProfileId} onAddServer={() => openServers('add')} onManageServers={() => openServers('manage')} onSettings={openSettings} onNewChat={() => void quickNewChat()} onOpenChat={() => { trackEvent('chat_opened'); openMobileChat() }} />
   const chat = selected
     ? <ChatScreen key={`${connectionKey}:${selected.id}`} sessionId={selected.id} compact={compact} inlineInspectorAvailable={chatLayout.inlineInspectorAvailable} onBack={closeMobileChat} onOptions={openOptions} onSearch={openSearch} onToggleInspector={() => setInspectorVisible(value => !value)} onReview={openReview} onSetupServer={() => openServers('add')} onOpenMcp={() => openClaudeMcp(selected.id)} />
     : <NoChat connecting={connecting} onSettings={() => openServers('manage')} />
@@ -382,7 +396,6 @@ function AppShellContent() {
       onDidDismiss={finishSetupDismissal}
     />
     <ServerProfilesSheet
-      key={`servers:${servers ?? 'closed'}`}
       visible={servers != null}
       initialMode={servers ?? 'manage'}
       profiles={serverProfileItems}
@@ -425,10 +438,9 @@ function AppShellContent() {
         serverIdentity: patch.serverIdentity,
         resetServerIdentity: patch.resetServerIdentity,
       })}
-      onReorderProfiles={reorderServerProfiles}
       onRemoveProfile={removeServerProfile}
     />
-    <SettingsDialog key={`settings:${connectionKey}`} visible={modalScopeCurrent && settings} onClose={() => setSettings(false)} />
+    <SettingsDialog key={`settings:${connectionKey}`} visible={modalScopeCurrent && settings} onClose={() => setSettings(false)} onOpenServers={openServersFromSettings} onDidDismiss={finishSettingsDismissal} />
     <TeamNetwork key={`team-network:${connectionKey}`} visible={modalScopeCurrent && teamNetwork} onClose={() => setTeamNetwork(false)} />
     <ClaudeMcpDialog key={`claude-mcp:${connectionKey}:${mcpSessionId ?? 'closed'}`} visible={modalScopeCurrent && mcpSessionId != null && mcpSessionId === selected?.id} sessionId={mcpSessionId} onClose={() => setMcpSessionId(null)} />
     <SearchDialog visible={modalScopeCurrent && search && !isWelcomeSession(selected?.id)} sessionId={selected?.id} onClose={() => setSearch(false)} />
@@ -494,8 +506,8 @@ function NoChat({ connecting, onSettings }: { connecting: boolean; onSettings: (
 const styles = StyleSheet.create({
   fill: { flex: 1 }, workspace: { flex: 1, flexDirection: 'row' }, chat: { flex: 1, minWidth: 0 }, mobileChatPane: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 2 },
   errorSlot: { flexShrink: 0, paddingHorizontal: 12, paddingVertical: 8 },
-  error: { width: '100%', minHeight: 50, maxWidth: 740, alignSelf: 'center', borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  error: { width: '100%', minHeight: 50, maxWidth: 740, alignSelf: 'center', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 7 },
   errorContent: { flex: 1, minWidth: 0, paddingVertical: 3, gap: 4 }, errorText: { fontSize: 12 },
-  errorAction: { minHeight: 44, alignSelf: 'flex-start', minWidth: 112, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' }, errorActionText: { fontSize: 12, fontWeight: '800' },
-  modalGrabber: { alignSelf: 'center', width: 36, height: 5, marginTop: 7, borderRadius: 3, backgroundColor: '#8a8a8a88' }, modalTop: { minHeight: 64, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4, flexDirection: 'row', alignItems: 'center' }, modalTitle: { flex: 1, fontSize: 16, fontWeight: '800' }, connectionSettings: { position: 'absolute', alignSelf: 'center', top: '58%', minHeight: 44, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  errorAction: { minHeight: 44, alignSelf: 'flex-start', minWidth: 112, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' }, errorActionText: { fontSize: 12, fontWeight: '800' },
+  modalGrabber: { alignSelf: 'center', width: 36, height: 5, marginTop: 7, borderRadius: radius.round, backgroundColor: '#8a8a8a88' }, modalTop: { minHeight: 64, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4, flexDirection: 'row', alignItems: 'center' }, modalTitle: { flex: 1, fontSize: 16, fontWeight: '800' }, connectionSettings: { position: 'absolute', alignSelf: 'center', top: '58%', minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
 })

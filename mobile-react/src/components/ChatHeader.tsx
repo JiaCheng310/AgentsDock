@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { Image } from 'expo-image'
 import { ArrowLeft, Ellipsis, FolderOpen, PanelRight, RefreshCw, Search, Server } from 'lucide-react-native'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, spacing, typography, usePalette } from '../theme'
 import { runtimeSummary } from '../lib/format'
 import { isWelcomeSession } from '../lib/welcome-session'
 import { Text } from './AppText'
@@ -64,14 +64,14 @@ export function ChatHeader({ sessionId, compact, inlineInspectorAvailable, onBac
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  titleWrap: { flex: 1, minWidth: 0, paddingLeft: 4 }, title: { fontSize: 16, fontWeight: '800' }, subtitle: { fontSize: 10.5, marginTop: 3 },
-  online: { minHeight: 44, borderRadius: 8, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0 },
-  onlineCompact: { minWidth: 78, paddingHorizontal: 9 },
-  statusLabel: { fontSize: 11, fontWeight: '700', flexShrink: 0 },
-  dot: { width: 9, height: 9, borderRadius: 5, flexShrink: 0 },
+  root: { minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  titleWrap: { flex: 1, minWidth: 0, paddingLeft: spacing.xs }, title: { ...typography.title, fontWeight: '600' }, subtitle: { ...typography.caption, marginTop: spacing.xs },
+  online: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, flexShrink: 0 },
+  onlineCompact: { minWidth: 78, paddingHorizontal: spacing.sm },
+  statusLabel: { ...typography.caption, fontWeight: '600', flexShrink: 0 },
+  dot: { width: 9, height: 9, borderRadius: radius.round, flexShrink: 0 },
   spinner: { width: 20, height: 20, flexShrink: 0 },
-  welcomeIcon: { width: 32, height: 32, borderRadius: 7, flexShrink: 0 },
-  setup: { minHeight: 44, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0 },
-  setupText: { color: 'white', fontSize: 12, fontWeight: '800' },
+  welcomeIcon: { width: 32, height: 32, borderRadius: radius.md, flexShrink: 0 },
+  setup: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, flexShrink: 0 },
+  setupText: { ...typography.label, color: 'white', fontWeight: '600' },
 })

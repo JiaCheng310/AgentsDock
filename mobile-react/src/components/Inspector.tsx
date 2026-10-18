@@ -10,7 +10,7 @@ import { mobileFileViewerKind } from '../lib/file-viewer'
 import { runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError } from '../lib/runtime-catalog'
 import { PROVIDER_JOBS_ACCESS_MODES, providerJobsAccessDescription, providerJobsAccessLabel, providerJobsAccessState } from '../lib/provider-jobs-access'
 import { useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import type { ProviderJobsAccess, RuntimeOption } from '../types'
 import { Text, TextInput } from './AppText'
 import { MediaGrid } from './MediaGrid'
@@ -306,17 +306,17 @@ function nextRunLabel(value?: string | null): string { if (!value) return ''; co
 
 const styles = StyleSheet.create({
   root: { flex: 1, minWidth: 290, borderLeftWidth: StyleSheet.hairlineWidth }, content: { padding: 10, gap: 8, paddingBottom: 30 },
-  card: { borderRadius: 7, padding: 8, gap: 7 }, field: { flexDirection: 'row', gap: 8, alignItems: 'center' }, label: { width: 70, fontSize: 10, fontWeight: '700' },
-  input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12 }, multilineInput: { minHeight: 78, maxHeight: 150, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12, textAlignVertical: 'top' },
-  choice: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center' },
-  commandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 }, command: { minWidth: '30%', minHeight: 44, borderRadius: 6, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  card: { borderRadius: radius.md, padding: 8, gap: 7 }, field: { flexDirection: 'row', gap: 8, alignItems: 'center' }, label: { width: 70, fontSize: 10, fontWeight: '700' },
+  input: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12 }, multilineInput: { minHeight: 78, maxHeight: 150, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 8, paddingVertical: 8, fontSize: 12, textAlignVertical: 'top' },
+  choice: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center' },
+  commandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 }, command: { minWidth: '30%', minHeight: 44, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
   hint: { fontSize: 10, paddingHorizontal: 5, paddingBottom: 5 }, pinRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 5 }, pinIdentity: { flex: 1, minHeight: 44, justifyContent: 'center' },
-  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center' }, loadMore: { minHeight: 44, borderRadius: 5, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  filePageStatus: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, filePageError: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 5, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 8 }, filePageRetry: { minWidth: 64, minHeight: 44, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 5 }, filePageHint: { minHeight: 36, paddingHorizontal: 5, textAlign: 'center', textAlignVertical: 'center', fontSize: 10 },
+  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center' }, loadMore: { minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  filePageStatus: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, filePageError: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingLeft: 9, flexDirection: 'row', alignItems: 'center', gap: 8 }, filePageRetry: { minWidth: 64, minHeight: 44, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md }, filePageHint: { minHeight: 36, paddingHorizontal: 5, textAlign: 'center', textAlignVertical: 'center', fontSize: 10 },
   jobBlock: { minHeight: 45 }, jobRow: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 4 },
   jobContent: { minHeight: 44, flex: 1, minWidth: 0, justifyContent: 'center' },
   runJobButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, jobRunStatus: { minHeight: 20, paddingHorizontal: 6, paddingBottom: 4, fontSize: 10, fontWeight: '700' },
-  headerActions: { flexDirection: 'row', alignItems: 'center' }, scheduleJob: { minHeight: 44, borderRadius: 5, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  modalBackdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 30 }, choiceMenu: { width: '100%', maxWidth: 380, maxHeight: '70%', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, padding: 6 }, choiceOption: { minHeight: 44, borderRadius: 5, paddingHorizontal: 12, justifyContent: 'center' },
-  pinPreview: { width: '100%', maxWidth: 680, maxHeight: '78%', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 }, pinPreviewHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center' }, pinPreviewTitle: { flex: 1, fontSize: 14, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' }, scheduleJob: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: 30 }, choiceMenu: { width: '100%', maxWidth: 380, maxHeight: '70%', borderRadius: radius.sheet, borderWidth: StyleSheet.hairlineWidth, padding: 6 }, choiceOption: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 12, justifyContent: 'center' },
+  pinPreview: { width: '100%', maxWidth: 680, maxHeight: '78%', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 }, pinPreviewHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center' }, pinPreviewTitle: { flex: 1, fontSize: 14, fontWeight: '800' },
 })

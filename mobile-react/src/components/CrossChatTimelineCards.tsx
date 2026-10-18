@@ -15,7 +15,7 @@ import type {
   Event,
 } from '../types'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { MarkdownContent } from './MarkdownContent'
 
@@ -1509,21 +1509,21 @@ function CardAction({ testID, label, onPress, destructive = false, disabled = fa
 
 const styles = StyleSheet.create({
   asyncMessage: { minWidth: 0, marginHorizontal: 14, marginVertical: 8 },
-  asyncMessageSurface: { minWidth: 0, maxWidth: 760, paddingVertical: 10, paddingHorizontal: 13, borderWidth: 1, borderRadius: 10 },
+  asyncMessageSurface: { minWidth: 0, maxWidth: 760, paddingVertical: 10, paddingHorizontal: 13, borderWidth: 1, borderRadius: radius.md },
   asyncMessageHeader: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 7 },
   asyncMessageTitle: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   referenceList: { gap: 6, marginTop: 8 },
-  referenceChip: { minHeight: 44, borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  referenceChip: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
   referenceText: { flex: 1, minWidth: 0, fontSize: 11.5, lineHeight: 16 },
   referenceStrong: { fontWeight: '800' },
-  card: { marginHorizontal: 14, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { marginHorizontal: 14, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardHeader: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
   heading: { flex: 1, minWidth: 0, gap: 3 },
   title: { fontSize: 12, lineHeight: 16, fontWeight: '800' },
   meta: { fontSize: 10, lineHeight: 14 },
   detail: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, paddingVertical: 10, gap: 8 },
   detailText: { fontSize: 12, lineHeight: 17 },
-  body: { borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  body: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   bodyText: { paddingHorizontal: 10, paddingTop: 9, paddingBottom: 8, fontSize: 11.5, lineHeight: 17, fontFamily: 'Menlo' },
   showMore: { minHeight: 44, paddingHorizontal: 10, justifyContent: 'center' },
   showMoreText: { fontSize: 11, fontWeight: '800' },
@@ -1532,17 +1532,17 @@ const styles = StyleSheet.create({
   inlineError: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 7 },
   errorText: { flex: 1, fontSize: 10.5, lineHeight: 15 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  action: { minHeight: 44, maxWidth: '100%', borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center' },
+  action: { minHeight: 44, maxWidth: '100%', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center' },
   actionText: { fontSize: 11, fontWeight: '800' },
   conversationShadow: {
     marginHorizontal: 14,
     marginVertical: 8,
-    borderRadius: 7,
+    borderRadius: radius.md,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 12,
     elevation: 5,
   },
-  conversationCard: { position: 'relative', overflow: 'hidden', borderRadius: 7, borderWidth: 1 },
+  conversationCard: { position: 'relative', overflow: 'hidden', borderRadius: radius.md, borderWidth: 1 },
   conversationAccent: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 3 },
   conversationLayout: { minWidth: 0, flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 10 },
   conversationIcon: { width: 18, flexShrink: 0, alignItems: 'center', paddingTop: 1 },
@@ -1567,7 +1567,7 @@ const styles = StyleSheet.create({
   conversationLegHeader: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   conversationSpeakerRow: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
   conversationSpeaker: { minWidth: 0, flexShrink: 1, fontSize: 9.5, lineHeight: 14, fontWeight: '800' },
-  conversationCurrentDot: { width: 5, height: 5, flexShrink: 0, borderRadius: 999 },
+  conversationCurrentDot: { width: 5, height: 5, flexShrink: 0, borderRadius: radius.round },
   conversationLegTime: { flexShrink: 0, fontSize: 9, lineHeight: 13, fontVariant: ['tabular-nums'] },
   conversationBody: { minWidth: 0, fontSize: 12, lineHeight: 19 },
   conversationPlaceholder: { marginTop: 6, fontSize: 9, lineHeight: 13 },
