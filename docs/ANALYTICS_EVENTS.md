@@ -8,10 +8,11 @@ Every desktop event has the same small app-owned envelope:
 
 - a random per-install identifier used for aggregate unique-install and retention counts;
 - a coarse platform value: `mac`, `windows`, `linux`, or `desktop`;
+- selected provider-related events may include a fixed `backend` value: `codex`, `claude`, `cursor`, `opencode`, or `gemini` (never model names, connection names, endpoints or accounts);
 - the event time; and
 - the Mixpanel project token used to route the event.
 
-Some operations include an event-specific `success` boolean, as listed below. The runtime sanitizer discards every other property. A successful request is not proof that an agent completed its work or that an update finished installing. Network failures mean the client could not confirm the result, not necessarily that the server made no change.
+Some operations include an event-specific `success` boolean and selected events allow the fixed `backend` enum, as listed below. The runtime sanitizer discards every other property and rejects unknown event names. A successful request is not proof that an agent completed its work or that an update finished installing. Network failures mean the client could not confirm the result, not necessarily that the server made no change.
 
 Never add message or prompt text, chat/job/agent/folder names, skill or command names, file names or contents, paths or working directories, URLs or access tokens, session/chat/job/route IDs, schedule expressions, exact run times, or destination metadata. The client posts directly with IP collection disabled, omits credentials and referrer data, and does not use SDK autocapture or session replay.
 
@@ -22,7 +23,7 @@ Never add message or prompt text, chat/job/agent/folder names, skill or command 
 | Event | Emitted when | Event-specific properties |
 | --- | --- | --- |
 | `app_launched` | The Electron renderer mounts. | None |
-| `chat_created` | A quick-create or new-chat request succeeds. | None |
+| `chat_created` | A quick-create or new-chat request succeeds. | `backend` |
 | `chat_opened` | A session becomes newly visible in a chat pane. This can result from navigation or restoration, not only a mouse click. | None |
 | `split_view_opened` | The chat layout transitions from one visible chat to two distinct visible chats. Replacing a chat in an already-open split does not count. | None |
 | `chat_forked` | Creating a fork of an existing chat succeeds. | None |
@@ -32,11 +33,11 @@ Never add message or prompt text, chat/job/agent/folder names, skill or command 
 | `chat_share_snapshot_created` | Creating a view-only chat snapshot succeeds. Clipboard or browser-opening failures after creation do not change this outcome. | None |
 | `chat_share_interactive_created` | Creating an interactive shared-chat session succeeds. Clipboard or browser-opening failures after creation do not change this outcome. | None |
 | `chat_share_revoked` | Revoking an existing snapshot or interactive share succeeds. | None |
-| `chat_resumed` | A single external provider session is successfully resumed, including resume by session ID. Selecting an already-imported AgentsDock chat does not count. | None |
+| `chat_resumed` | A single external provider session is successfully resumed, including resume by session ID. Selecting an already-imported AgentsDock chat does not count. | `backend` |
 | `chats_bulk_imported` | At least one chat succeeds through the multi-select import workflow. A single-session Resume action no longer emits this event. | `success: true` |
-| `message_sent` | A composer message is accepted or queued successfully. | None |
-| `message_queued` | The server accepts a submitted message into its queue, including a message subsequently steered. Companion to, not a replacement for, `message_sent`. | None |
-| `message_steered` | A direct steering submission is accepted or a newly queued submission is successfully promoted by the send-now path. A refused/cancelled promotion does not count. | None |
+| `message_sent` | A composer message is accepted or queued successfully. | `backend` |
+| `message_queued` | The server accepts a submitted message into its queue, including a message subsequently steered. Companion to, not a replacement for, `message_sent`. | `backend` |
+| `message_steered` | A direct steering submission is accepted or a newly queued submission is successfully promoted by the send-now path. A refused/cancelled promotion does not count. | `backend` |
 | `slash_skill_used` | An accepted message uses a provider inventory item classified as a skill. | None |
 | `slash_command_used` | An accepted message uses a provider inventory item classified as a non-skill command. | None |
 | `builtin_slash_command_used` | A built-in slash-menu action is selected. Measures selection, not successful completion. No command name is sent. | None |
@@ -86,10 +87,10 @@ Never add message or prompt text, chat/job/agent/folder names, skill or command 
 | `side_chat_message_submitted` | One explicit side-chat submission settles. Current servers acknowledge submission before the answer; legacy servers return the answer in this request. No replay/history synchronization is counted. | `success` |
 | `side_chat_stop_requested` | An explicit Stop request settles. Closing/clearing the UI and automatic cleanup do not count. | `success` |
 | `provider_settings_opened` | The My Agents settings page opens. | None |
-| `provider_connection_tested` | An explicit custom API connection check settles. Passive discovery is excluded. | `success` |
-| `provider_connection_saved` | Saving custom API credentials/configuration settles. Only the success flag is sent, never the provider URL, key, account or model. | `success` |
-| `provider_connection_forgotten` | A confirmed Forget endpoint operation settles. | `success` |
-| `provider_default_model_saved` | Saving a custom API default model settles. The selected model is not sent. | `success` |
+| `provider_connection_tested` | An explicit custom API connection check settles. Passive discovery is excluded. | `success`, `backend` |
+| `provider_connection_saved` | Saving custom API credentials/configuration settles. Only the success flag and built-in provider family are sent, never the provider URL, key, account or model. | `success`, `backend` |
+| `provider_connection_forgotten` | A confirmed Forget endpoint operation settles. | `success`, `backend` |
+| `provider_default_model_saved` | Saving a custom API default model settles. The selected model is not sent. | `success`, `backend` |
 | `goal_saved` | A user-requested Codex or Claude goal create/update request settles. This is not goal completion. | `success` |
 | `goal_cleared` | A user-requested goal-clear request settles. | `success` |
 | `goal_paused` | A user-requested native Codex goal-pause request settles. | `success` |
@@ -132,6 +133,35 @@ iOS/iPadOS analytics remain disabled. Team Network instrumentation is unchanged.
 | `connection_tested` | A server connection test finishes. | `success` |
 | `server_added` | Adding a server profile finishes. | `success` |
 | `server_switched` | Explicitly switching to a server from Settings or the sidebar finishes. Automatic and superseded switches do not count. | `success` |
+
+## Desktop additions (October 2026)
+
+| Event | Emitted when | Event-specific properties |
+| --- | --- | --- |
+| `chat_agent_changed` | Explicit new-chat Agent choice changes after server confirmation. Not inherited defaults. | `backend` |
+| `chat_model_changed` | An explicit model patch is confirmed different. Not Agent resets, startup, model retirement migration or history refresh. | `backend` |
+| `chat_permission_mode_changed` | An explicit permission patch changes a confirmed value; multi-field Codex changes count once. Not a tool approval or permission-profile name. | `backend` |
+| `imported_chat_api_connected` | An explicit Gemini native-history API binding/import returns a confirmed result. Already-imported and unconfirmed bulk results do not count. | `backend`, `success` |
+| `chat_archived` | An explicit archive patch changes the confirmed state. | None |
+| `chat_unarchived` | An explicit unarchive/folder-move patch restores a previously archived chat. | None |
+| `workspace_files_opened` | A user opens the Files panel via its tab or file-open action. Not startup restoration, repeated selection or history refresh. | None |
+| `file_open_requested` | The native open-file/open-link request settles. Success means the native request resolved, not that the person read the file. | `success` |
+| `language_changed` | User selects a different language in Settings. Not Follow-system OS changes or preference replay. Does not assert persistence. | None |
+| `chat_font_changed` | User changes chat size/typeface in Settings or the native menu. No value is recorded. Not restoration or a no-op. Does not assert persistence. | None |
+| `error_details_copied` | User's explicit Copy error request settles. Never includes copied text. | `success` |
+| `issue_report_opened` | The prefilled report URL is handed off to the browser, or that request fails. Does not mean an issue was submitted. Never includes the URL/prefilled fields. | `success` |
+| `server_restart_requested` | Explicit validated restart reaches the native restart call, including a separately confirmed force retry. | None |
+| `server_restart_reconnected` | That restart's bootstrap and hydration finish or fail while it still owns the connection. Superseded responses do not count. Not automatic reconnect or upgrade completion. | `success` |
+
+The existing `chat_created`, `chat_resumed`, `message_sent`, `message_queued`,
+`message_steered`, `provider_connection_tested`, `provider_connection_saved`,
+`provider_connection_forgotten`, and `provider_default_model_saved` events now
+also allow the fixed `backend` enum. Existing event names and counting boundaries
+remain unchanged. `message_sent` includes accepted queue submissions; queue/steer
+events are subsets, not additional messages to sum. Older builds lack `backend`;
+missing values must not be interpreted as an unknown provider or zero adoption.
+No actual model, permission mode, language, font, file, server, error or content
+value is uploaded. Team Network and the hidden QR entry are unchanged.
 
 ## Shared-browser events
 

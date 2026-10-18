@@ -39,6 +39,25 @@ describe('analytics privacy configuration', () => {
     expect(payload[0].properties.distinct_id).toBe('existing-install-id')
   })
 
+  it('allowlists provider families only on intended events and drops all other metadata', async () => {
+    const request = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', request)
+    const analytics = await loadAnalytics()
+    for (const backend of analytics.ANALYTICS_BACKENDS) {
+      analytics.trackEvent('message_sent', { backend, model: 'secret', path: '/private', title: 'secret' } as never)
+    }
+    analytics.trackEvent('chat_created', { backend: 'custom-private-endpoint' } as never)
+    analytics.trackEvent('file_open_requested', { backend: 'codex', success: false })
+    analytics.trackEvent('private-arbitrary-event' as never)
+    const events = request.mock.calls.map(([, init]) => JSON.parse(init.body)[0])
+    expect(events).toHaveLength(7)
+    expect(events.slice(0, 5).map(event => event.properties.backend)).toEqual(analytics.ANALYTICS_BACKENDS)
+    expect(events[5].properties).not.toHaveProperty('backend')
+    expect(events[6].properties).not.toHaveProperty('backend')
+    for (const event of events) expect(Object.keys(event.properties).every(key => ['token', 'time', 'platform', 'distinct_id', 'success', 'backend'].includes(key))).toBe(true)
+    expect(JSON.stringify(events)).not.toMatch(/secret|private|endpoint/)
+  })
+
   it('keeps the runtime event catalog in parity with the documented catalog', async () => {
     const analytics = await loadAnalytics()
     const documentation = readFileSync(resolve(process.cwd(), '../docs/ANALYTICS_EVENTS.md'), 'utf8')

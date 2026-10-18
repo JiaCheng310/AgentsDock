@@ -9,6 +9,7 @@ import type { AppUpdateStatus, AppUpdateTrack, Backend, BulkImportSessionItem, B
 import { cursorLocalSessionImportSupported, geminiLocalSessionImportSupported, localSessionImportKey, localSessionImportSupported } from '@shared/local-session-import'
 import { opencodeBackendAvailable, opencodeBackendUnavailableReason, chatBackendChoice, chatBackendSelection, codexCustomProviderAvailable, cursorBackendAvailable, cursorBackendUnavailableReason, runtimeCatalogOptions, runtimeEffortAfterModelChange, runtimeEffortOptions, runtimeSelectionError, selectableChatBackendChoices, selectableChatBackends, type ChatBackendChoice } from '@shared/runtime-catalog'
 import { trackEvent, trackOperation } from '../lib/analytics'
+import { trackImportedAPIResults } from '../lib/session-analytics'
 import { readAppearance, setAppearanceMode, type AppearanceMode } from '../lib/appearance'
 import { t, useLanguagePreference, type LanguagePreference } from '../lib/i18n'
 import { canonicalizeLocalRouteHints, chatMentionTrigger, chatReferenceDisplayText, currentRouteHintReference, insertChatReference, parseStoredChatReferences, reconcileChatReferences, routeHintMentionsAvailable, supportedCrossChatTargetBackends, validChatReferences, type ChatMentionTrigger } from '../lib/chat-references'
@@ -602,7 +603,12 @@ export function AppSettingsDialog({ serverSettings, serverUpdates, onServerUpdat
             <div className="app-settings-list">
               <label className="app-settings-row">
                 <strong className="app-settings-row-title">{t('language.label')}</strong>
-                <select className="app-settings-select" aria-label={t('language.label')} value={language.preference} onChange={event => void language.setPreference(event.currentTarget.value as LanguagePreference)}>
+                <select className="app-settings-select" aria-label={t('language.label')} value={language.preference} onChange={event => {
+                  const next = event.currentTarget.value as LanguagePreference
+                  if (next === language.preference) return
+                  void language.setPreference(next)
+                  trackEvent('language_changed')
+                }}>
                   <option value="system">{t('language.system')}</option>
                   {localeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
@@ -3009,10 +3015,10 @@ export function SessionDialog({ mode }: { mode: 'newChat' | 'resume' }) {
       const input = { title: title.trim() || 'New chat', folder: folder.trim() || 'General', cwd: cwd.trim(), backend, codex_provider, provider_connection, model: model || null, effort: effort || null, system_prompt: systemPrompt.trim() || null, ...permissions }
       const session = mode === 'resume' ? await window.agentsDock.sessions.resume({ ...input, providerId: providerId.trim() }) : await window.agentsDock.sessions.create(input)
       if (mode === 'newChat') {
-        trackEvent('chat_created')
+        trackEvent('chat_created', { backend: session.backend })
         await Promise.all([saveNewChatDefaults(preferenceScope, input), markNewChatPlaceholder(preferenceScope, session)]).catch(() => undefined)
       } else {
-        trackEvent('chat_resumed')
+        trackEvent('chat_resumed', { backend: session.backend })
       }
       await useAppStore.getState().refreshSessions(); useAppStore.getState().setModal(mode, false); await useAppStore.getState().selectSession(session.id)
     } catch (error) { useAppStore.getState().setError(message(error)) } finally { setSaving(false) }
@@ -3305,6 +3311,7 @@ export function ImportChatsDialog() {
       const outcome = await window.agentsDock.sessions.bulkImport(items)
       if (!currentImportDialogRequest(origin, epoch, requestEpoch.current)) return
       setResults(outcome)
+      trackImportedAPIResults(items, outcome)
       if (outcome.some(result => result.ok)) trackEvent('chats_bulk_imported', { success: true })
       if (outcome.every(result => result.ok)) {
         setImporting(false)
@@ -3364,8 +3371,10 @@ export function ImportChatsDialog() {
       }])
       if (!currentImportDialogScope(origin, epoch, requestEpoch.current)) return
       const result = outcome[0]
+      trackImportedAPIResults([{ backend: match.backend, provider_session_id: match.providerId,
+        ...(match.backend === 'gemini' && useGeminiAPI ? { provider_connection: 'custom' as const } : {}) }], outcome)
       if (!result?.ok || !result.session_id) throw new Error(result?.error || 'The selected provider session could not be resumed.')
-      trackEvent('chat_resumed')
+      trackEvent('chat_resumed', { backend: match.backend })
       await finishResumeById(result.session_id, origin, epoch)
     } catch (error) {
       if (currentImportDialogScope(origin, epoch, requestEpoch.current)) setResumeError(message(error))
@@ -3419,7 +3428,7 @@ export function ImportChatsDialog() {
         providerId
       })
       if (!currentImportDialogScope(origin, epoch, requestEpoch.current)) return
-      trackEvent('chat_resumed')
+      trackEvent('chat_resumed', { backend: session.backend })
       await finishResumeById(session.id, origin, epoch)
     } catch (error) {
       if (currentImportDialogScope(origin, epoch, requestEpoch.current)) setResumeError(message(error))

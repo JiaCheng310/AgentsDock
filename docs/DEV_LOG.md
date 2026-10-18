@@ -1,5 +1,37 @@
 # Public development log
 
+## 2026-10-17 — Refresh privacy-limited desktop and sharing metrics
+
+- Integrate current main into the existing sharing-analytics work, preserving
+  Gemini support, native report forms, and updated server packaging. Retain the
+  two share-mode selection events and three narrowly scoped shared-web events.
+- Add confirmed Agent/model/permission changes, imported Gemini API binding,
+  archive/restore, Files-panel entry, native file-open outcomes, explicit server
+  restart request/reconnection, language/font changes, and diagnostic-copy and
+  issue-form request outcomes. Existing provider usage/configuration events can
+  carry only a fixed built-in provider family, never a model/endpoint/name.
+- Keep Team Network instrumentation unchanged. Do not count initialization,
+  restored settings, automatic model migration, stale profile responses, or
+  rejected session patches as successful user changes. Document accepted
+  messages separately from completed provider work and restart requests
+  separately from verified reconnection. Update the catalog and privacy source.
+- Validation base: main `4ef55959`; development Electron build, not a release
+  package. Type checking and desktop/shared-web builds pass. Targeted Electron
+  regression suites: 939 passed; sharing and packaging Python suites: 116 passed.
+- Hands-on surface: isolated native offscreen Electron, actual authenticated
+  local AgentsServer routes, separate browser partition. Exercised new chat,
+  Agent selection, Codex/Claude permission changes, model selection,
+  archive/restore, Files opening, unavailable-file feedback, language selection,
+  error copying, blocked external issue navigation, and both share modes.
+  Redeemed tokens in the browser and verified reload/reconnection deduplication,
+  no shared-browser install identifier, and an interactive Codex prompt/reply.
+  Captured event envelopes locally; production analytics delivery was blocked.
+- Remaining acceptance: actual Mixpanel ingestion, Gemini API-binding with
+  credentials, managed restart success, native font-menu input, and successful
+  external-file/application launch were not exercised end-to-end. Provider
+  resume across sharing modes is not an acceptance claim of this change.
+  These are source changes only: no deployment, release, or privacy-site publish.
+
 ## 2026-10-03 — Point issue reporting to the maintained repository
 
 - Correct the server README's issue-report link to ZhengyiLuo/AgentsDock.
