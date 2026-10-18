@@ -26,10 +26,10 @@ const root = await realpath(candidateRoot)
 assert(relative(runner, root) && !relative(runner, root).startsWith('..'), 'Candidate input must be under RUNNER_TEMP.')
 const work = join(runner, 'coordinated-update-native')
 await mkdir(work, { mode: 0o700 })
-const home = join(work, 'home')
-await mkdir(home, { mode: 0o700 })
 const logs = createWriteStream(join(work, 'private-native.log'), { flags: 'wx', mode: 0o600 })
-const childEnv = { ...process.env, HOME: home, AGENTSDOCK_DISABLE_ANALYTICS: '1',
+// launchd restarts use the runner account's real HOME. The entire hosted VM is
+// disposable; redirecting HOME here would make the installer and service disagree.
+const childEnv = { ...process.env, AGENTSDOCK_DISABLE_ANALYTICS: '1',
   npm_config_cache: join(work, 'npm-cache'), UV_CACHE_DIR: join(work, 'uv-cache') }
 const report = { kind: 'unpublished-native-update-replay', from: VERSION_A, to: VERSION_B,
   sourceA: 'a5cadf72c125f1bd0a2c8c2ab2409ed4cfd5d8cd',
@@ -71,6 +71,13 @@ try {
   assert(setup.server_url === 'http://127.0.0.1:7851' && setup.server_version === VERSION_A
     && /^[a-f0-9]{32,128}$/.test(setup.access_token), 'Fresh test service differs from candidate A.')
   const token = setup.access_token
+  const api = async (method, path, body) => {
+    const response = await fetch(`http://127.0.0.1:7851${path}`, {
+      method, headers: { 'X-AgentsDock-Token': token, 'Content-Type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(5_000) })
+    assert(response.ok, `Authenticated test Server ${method} failed (${response.status}).`)
+    return response.json()
+  }
   const health = async () => {
     const response = await fetch('http://127.0.0.1:7851/api/health', {
       headers: { 'X-AgentsDock-Token': token }, signal: AbortSignal.timeout(2_000) })
@@ -84,6 +91,11 @@ try {
     } catch { return null }
   })
   assert(typeof beforeHealth.server_identity === 'string' && beforeHealth.server_identity.length >= 8)
+  const saved = await api('POST', '/api/sessions', { backend: 'codex', cwd: work,
+    title: 'Disposable update history', auto_title_enabled: false, import_history: false,
+    provider_jobs_access: 'blocked' })
+  const savedId = saved.session?.id
+  assert(typeof savedId === 'string' && savedId.length >= 8, 'Test chat was not saved.')
   phase('candidate-a-managed-server-running')
   const profileDirectory = join(work, 'profile')
   await mkdir(profileDirectory, { mode: 0o700 })
@@ -146,6 +158,9 @@ try {
   assert(serverFirst, 'App replacement preceded observed server activation.')
   assert(upgradedHealth.server_identity === beforeHealth.server_identity,
     'Managed update changed the server identity.')
+  const preserved = await api('GET', `/api/sessions/${encodeURIComponent(savedId)}`)
+  assert(preserved.session?.id === savedId && preserved.session.title === 'Disposable update history',
+    'Saved test chat was not preserved by the managed update.')
   phase('server-b-activated-before-app-replacement')
   client.close()
   client = null
@@ -170,6 +185,7 @@ try {
   phase('reopened-app-and-server-identity-preserved')
   report.status = 'passed'
   report.serverIdentityPreserved = true
+  report.savedChatPreserved = true
   report.appReplacementObserved = true
   report.serverFirstObserved = true
   await writeFile(join(work, 'public-evidence.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
