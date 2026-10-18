@@ -51,6 +51,11 @@ on:
         required: true
         default: false
         type: boolean
+      replay_zip_only:
+        description: Test-only macOS updater ZIP on the disposable coordinated-replay branch; never create a release draft
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: agentsdock-direct-release
@@ -83,6 +88,11 @@ jobs:
           test "$GITHUB_REPOSITORY" = ZhengyiLuo/AgentsDock
           [[ "$GITHUB_REF" = refs/heads/main || "$GITHUB_REF" = refs/heads/release/* ]] || { echo "Release workflow requires main or release/*." >&2; exit 1; }
           git check-ref-format "$GITHUB_REF"
+          if [[ "${{ inputs.replay_zip_only }}" == true ]]; then
+            test "$GITHUB_REF" = refs/heads/release/recoverable-update-mac-replay-20261018
+            test "${{ inputs.track }}" = beta
+            test "${{ inputs.artifacts_only }}" = false
+          fi
 
       - id: build-number
         name: Validate the explicit native build reservation
@@ -148,7 +158,7 @@ jobs:
           retention-days: 14
 
       - name: Require release-write access for draft creation
-        if: ${{ !inputs.artifacts_only }}
+        if: ${{ !inputs.artifacts_only && !inputs.replay_zip_only }}
         env:
           GH_TOKEN: ${{ secrets.AGENTSDOCK_RELEASE_TOKEN }}
         run: |
@@ -158,7 +168,7 @@ jobs:
 
       - name: Require a version newer than every public desktop release
         env:
-          GH_TOKEN: ${{ inputs.artifacts_only && github.token || secrets.AGENTSDOCK_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ (inputs.artifacts_only || inputs.replay_zip_only) && github.token || secrets.AGENTSDOCK_RELEASE_TOKEN }}
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_TRACK: ${{ inputs.track }}
         run: |
@@ -259,6 +269,44 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: ./scripts/build_electron_release.sh
 
+      - name: Verify test-only updater ZIP even if outer DMG stapling failed
+        id: replay_zip_verification
+        if: ${{ always() && inputs.replay_zip_only }}
+        env:
+          REPLAY_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/release/recoverable-update-mac-replay-20261018
+          ZIP="electron/dist-release/AgentsDock-$REPLAY_VERSION-mac-universal.zip"
+          META=electron/dist-release/beta-mac.yml
+          test -s "$ZIP"
+          test -s "$ZIP.blockmap"
+          test -s "$META"
+          /usr/bin/awk '
+            /^  - url: .*\.dmg$/ { skipping_dmg = 1; next }
+            skipping_dmg && (/^  - url:/ || /^path:/) { skipping_dmg = 0 }
+            !skipping_dmg { print }
+          ' "$META" > "$META.tmp"
+          /bin/mv "$META.tmp" "$META"
+          JS_YAML="$(/usr/bin/find electron/node_modules/.pnpm -path '*/node_modules/js-yaml/index.js' -print -quit)"
+          test -f "$JS_YAML"
+          node - "$JS_YAML" "$META" "$ZIP" "$REPLAY_VERSION" <<'NODE'
+          const fs = require('fs'), crypto = require('crypto')
+          const [yamlPath, metadataPath, zipPath, version] = process.argv.slice(2)
+          const yaml = require(require('path').resolve(yamlPath))
+          const metadata = yaml.load(fs.readFileSync(metadataPath, 'utf8'))
+          const bytes = fs.readFileSync(zipPath)
+          const digest = crypto.createHash('sha512').update(bytes).digest('base64')
+          if (metadata.version !== version || metadata.path !== `AgentsDock-${version}-mac-universal.zip`
+            || metadata.sha512 !== digest || metadata.files?.filter(item => item.url === metadata.path).length !== 1
+            || metadata.files.some(item => item.url?.endsWith('.dmg'))) process.exit(1)
+          NODE
+          mkdir -p "$RUNNER_TEMP/replay-zip-app"
+          /usr/bin/ditto -x -k "$ZIP" "$RUNNER_TEMP/replay-zip-app"
+          APP="$RUNNER_TEMP/replay-zip-app/AgentsDock.app"
+          /usr/bin/codesign --verify --deep --strict "$APP"
+          /usr/sbin/spctl --assess --type execute "$APP"
+
       - name: Remove temporary Apple signing credentials
         if: ${{ always() }}
         run: |
@@ -270,6 +318,7 @@ jobs:
           exit "$CLEANUP_STATUS"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ !inputs.replay_zip_only }}
         with:
           name: AgentsDock-${{ inputs.version }}-macos-verified
           path: |
@@ -278,8 +327,19 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() && inputs.replay_zip_only && steps.replay_zip_verification.outcome == 'success' }}
+        with:
+          name: AgentsDock-${{ inputs.version }}-macos-replay-zip
+          path: |
+            electron/dist-release/AgentsDock-*-mac-universal.zip
+            electron/dist-release/AgentsDock-*-mac-universal.zip.blockmap
+            electron/dist-release/beta-mac.yml
+          if-no-files-found: error
+          retention-days: 7
+
   build-linux-x64:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && !inputs.replay_zip_only
     needs: validate-request
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -357,7 +417,7 @@ jobs:
           retention-days: 14
 
   build-linux-arm64:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && !inputs.replay_zip_only
     needs: validate-request
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
@@ -436,7 +496,7 @@ jobs:
           retention-days: 14
 
   build-windows-x64:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && !inputs.replay_zip_only
     needs: validate-request
     environment: direct-production
     runs-on: windows-2025
@@ -561,7 +621,7 @@ jobs:
           retention-days: 14
 
   create-draft:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && !inputs.artifacts_only
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ZhengyiLuo/AgentsDock' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && !inputs.artifacts_only && !inputs.replay_zip_only
     needs:
       - validate-request
       - build-macos
