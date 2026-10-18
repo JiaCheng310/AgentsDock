@@ -415,6 +415,16 @@ describe('opening artifact files externally', () => {
 })
 
 describe('session summary merging', () => {
+  it.each(['gemini', 'claude', 'opencode', 'cursor'] as const)('retains %s models through slim polls, but honors Forget and a changed endpoint', backend => {
+    const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
+      models: [{ value: 'test-model', label: 'Test model' }] }
+    const existing: Session = { id: 'chat', title: 'Chat', backend, provider_connection: 'custom', provider_connection_catalog: catalog }
+    const { models: _models, ...summary } = catalog
+    expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: summary }])[0].provider_connection_catalog?.models).toEqual(catalog.models)
+    for (const changed of [{ ...summary, configured: false }, { ...summary, base_url: 'https://second.example' }, { ...summary, models: [] }]) {
+      expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: changed }])[0].provider_connection_catalog?.models ?? []).toEqual([])
+    }
+  })
   it('keeps the retained endpoint model list when a slim summary omits it', () => {
     const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
       models: [{ value: 'first/model', label: 'First' }], model_efforts: { 'first/model': [{ value: 'high', label: 'High' }] } }
@@ -8515,6 +8525,9 @@ describe('server profile lifecycle', () => {
     mkdirSync(stale, { mode: 0o700 })
     mkdirSync(recent, { mode: 0o700 })
     mkdirSync(unsafe, { mode: 0o755 })
+    // mkdir's requested mode is masked by the process umask. Keep this fixture
+    // genuinely non-private even when the test runner uses a restrictive umask.
+    if (process.platform !== 'win32') chmodSync(unsafe, 0o755)
     mkdirSync(symlinkTarget, { mode: 0o700 })
     symlinkSync(symlinkTarget, symlink)
     writeFileSync(join(stale, 'private.png'), 'stale', { mode: 0o600 })

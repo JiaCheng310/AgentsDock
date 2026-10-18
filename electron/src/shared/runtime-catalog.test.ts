@@ -17,8 +17,33 @@ import {
   runtimeDiagnosticNeedsAttention,
   runtimeModelLockReason,
   runtimeSelectionError,
+  runtimeSendAdmissionError,
   selectableChatBackends,
 } from './runtime-catalog'
+
+it('offers only Gemini API even when the server advertises cached Google login', () => {
+  const health: Health = { ok: true, capabilities: {
+    gemini_backend: { available: true, version: 1, required: false, message: 'Gemini API', action: null }, provider_connections_v1: { per_chat: true }
+  } }
+  const catalog: RuntimeCatalog = { backends: { gemini: {
+    models: [{ value: 'auto', label: 'Auto' }], efforts: [], native_credentials_present: true,
+    custom_provider: { configured: true, available: true, model: 'auto', base_url: 'https://example.test', models: [], efforts: [] }
+  } } }
+  expect(selectableChatBackendChoices(health, catalog)).toEqual(['gemini-custom'])
+  expect(runtimeSendAdmissionError(health, 'gemini', 'default')).toMatch(/API connections only/)
+  expect(runtimeSendAdmissionError(health, 'gemini', 'custom')).toBeNull()
+  // Existing native identity remains distinct; history is not silently rebound.
+  expect(chatBackendChoice({ backend: 'gemini', provider_connection: 'default' })).toBe('gemini')
+  expect(selectableChatBackendChoices({ ok: true }, catalog)).not.toContain('gemini-custom')
+  for (const custom_provider of [
+    { configured: false, available: false, model: null, base_url: null },
+    { configured: true, available: false, model: 'auto', base_url: 'https://example.test' },
+  ]) {
+    expect(selectableChatBackendChoices(health, { backends: { gemini: {
+      ...catalog.backends.gemini, custom_provider,
+    } } })).not.toContain('gemini-custom')
+  }
+})
 
 const validCatalog: RuntimeCatalog = {
   backends: {

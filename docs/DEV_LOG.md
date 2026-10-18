@@ -1,5 +1,508 @@
 # Public development log
 
+## 2026-10-17 — Make Gemini a built-in provider
+
+- Remove the Gemini preview environment gate from provider registration,
+  capabilities, native import discovery, skills and cross-chat discovery.
+  Compatible desktop clients now show Gemini in My Agents without an opt-in
+  flag. Installation of Gemini CLI 0.64.0 and a configured API connection remain
+  required for sending; Google/CLI sign-in is not offered. Old-client checks
+  and unsupported-feature capabilities remain unchanged.
+- Update setup documentation and preserve the Gemini icon attribution in the
+  standalone server export. Repair integration-test fixtures for the current
+  update-session wrapper, archive rejection helper and per-chat queue recovery;
+  no unrelated production behavior is changed by those fixture corrections.
+- Verification: 169 targeted server tests and 18 native CLI/HTTP tests pass.
+  Desktop TypeScript, 5,246 tests (five skips), eight build/license checks and
+  production compilation pass. A fresh real HTTP server without any feature
+  flag exposes Gemini while correctly rejecting missing runtime/API readiness.
+  Actual offscreen Electron through production IPC/HTTP and the pinned CLI
+  verifies the unconfigured settings card, API setup without an initial model
+  ID, model discovery/default selection, new chat, two turns and reload.
+  Screens inspected; this rerun uses a loopback model, not Google inference.
+  Full server regression and hosted CI remain separate gates. No installed
+  server restart, public release or package publication performed.
+- Integrate main's Codex retired-model selection fix without dropping either
+  side's development-log entries. The post-integration run passes 141 focused
+  server tests and 5,250 desktop tests (five skips), plus TypeScript, eight
+  build/license checks and production compilation. The superseded local full
+  server run was stopped; full-suite validation belongs to the new hosted CI.
+
+## 2026-10-17 — Prepare the Gemini preview for review against current main
+
+- Integrate main's history-responsiveness and desktop recovery updates while
+  retaining Gemini import, title and session-identity coverage. Resolve the
+  additive development-log and session-summary test conflicts without dropping
+  either side's behavior. Gemini remains an opt-in, API-only development preview.
+- Use the approved Chinese term for imported sessions. Update archive-label
+  assertions for both the section and per-session badge, make the clipboard
+  permission fixture independent of umask, and give native Gemini fixtures a
+  canonical workspace path. Align the old skills test with API-only policy
+  while retaining native skill discovery and unchanged terminal-login checks.
+- Clarify provider versus adapter limits: Gemini has native subagents and
+  terminal compression; this integration does not expose managed child
+  lifecycle controls or manual compression. Current ACP Fork returns
+  method-not-found, and unregistered slash commands are ordinary prompts.
+- Verification: 5,246 desktop tests pass with five skips, plus eight build/license
+  checks; TypeScript and production compilation pass. A focused server run
+  passes 246 tests with seven optional native cases skipped. Actual offscreen
+  Electron through production IPC/HTTP and the pinned CLI verifies both native
+  import/API connection entry points, repeated sends, original session IDs and
+  reopening. Chinese/narrow/light and English/dark rendering were inspected.
+  The current integration rerun uses a loopback model fixture, not Google
+  inference; earlier real-API acceptance and remaining release gaps are recorded
+  in the Gemini preview document. No public release or installed-server update.
+
+## 2026-10-17 — Explicit API continuation for native Gemini imports
+
+- Import Chat can explicitly bind Gemini history to its saved API; existing
+  history-only imports gain a localized Connect Gemini API action. The API
+  destination is disclosed before selection. Other providers' import and
+  account-switch restrictions remain unchanged.
+- Preserve the original native UUID, workspace and transcript location. Pinned
+  CLI process-only API auth does not modify the terminal's saved login, copy
+  history or start a replacement session. Busy/queued work, missing history,
+  revoked bindings and managed auth conflicts fail closed; failed persistence
+  rolls back the binding. Forget cannot fall back to Google login.
+- Verification: focused server and desktop regressions, TypeScript and
+  production compilation pass. Six native CLI/HTTP contracts cover import,
+  continuation, Stop/retry, Forget, title compatibility and retained history.
+  Actual offscreen Electron through production IPC/HTTP and Google Developer
+  API verifies both connection entry points, original contextual recall,
+  repeated turns, unchanged native identity and reopen. Light/dark, narrow and
+  Chinese presentation were inspected. The native fixture confirms exact API
+  key headers and unchanged terminal settings; no copied transcript is created.
+- Prepared on the Gemini preview branch for the authorized local desktop/test
+  server update. No public release or merge. External native-history syncing,
+  broader organization policies and platform acceptance remain separate.
+
+## 2026-10-17 — Gemini first-turn summarized titles
+
+- Prefer the native summary; if absent after a successful ordinary turn, make
+  one bounded, tool-free background title request through that chat's own API
+  connection. Auto resolves from its exact native model metadata. Long prompt
+  excerpts retain the ending question as well as the beginning.
+- No hidden chat message, native session or tool invocation is created. Manual
+  names, late native titles, opt-out, connection revocation and identity changes
+  reject stale results. Failure keeps the prompt fallback without repeated usage.
+- Verification: 160 focused server regressions pass, plus a native CLI/HTTP
+  title contract without injected summary. Actual offscreen Electron through
+  production IPC/HTTP and the Google Developer API verifies short English and
+  long Chinese/log naming, visible refresh, repeated turns, stable native identity
+  and reopen. Manual-name and revocation races have focused server coverage.
+  The broader native lifecycle run passed 29 of 30 cases; the legacy Google-login
+  skills case fails identically on the unchanged baseline, independently of
+  this title change. Full provider/release acceptance remains separate.
+- No desktop source changes or public release. Prepared on the Gemini preview
+  branch for the explicitly authorized local test-server update.
+
+## 2026-10-17 — Require real first-turn provider title acceptance
+
+- Tighten the provider checklist: existing native metadata and synthetic title
+  adoption tests do not establish automatic generation. Require an actual App
+  and real-model first-turn check with long pasted input, missing native titles,
+  manual rename protection, repeated turns and reopen.
+- Record Gemini's missing fallback title generator separately from its tested
+  native-summary reader. Align the preview's outstanding acceptance list with
+  the API-only policy; Google/CLI login is intentionally unsupported.
+- Documentation only. No title-generation implementation, chat repair or
+  service change is included; checks are documentation diff/link review.
+
+## 2026-10-17 — Gemini API-only connections and clearer chat errors/archive state
+
+- Gemini's preview now offers API connections only. The CLI remains its runtime;
+  other providers' login choices are unchanged. Old Google-login chat history
+  remains readable, but sends cannot fall back to that account or silently move
+  to an API account. Settings, discovery and send admission agree on this policy.
+- Composer errors are selectable and have a localized copy action. Timeline
+  error cards also support copying. Long command text is preserved rather than
+  truncated, and an empty failed-turn summary no longer hides the actual error.
+- Archived chats have a muted row, archive icon and explicit label, including
+  in search. They remain readable in the collapsible Archived section and are
+  excluded from ordinary chat mention candidates.
+- When the owning Codex resume RPC explicitly rejects the exact native thread
+  as archived, the server mirrors it through the normal AgentsDock archive
+  lifecycle and does not retry through exec. Jobs/routes follow the existing
+  archive policy; provider history is untouched. Stale runs and other errors
+  cannot cause this transition. This is response-driven, not a background scan
+  of native archives or a migration of old error records.
+- Verification: 705 focused desktop tests, TypeScript and production compilation
+  passed. The server suite passed 230 cases with one optional native test skipped;
+  that native test then passed separately. These cover credentials, archive
+  lifecycle, routing and stale-run ownership. Actual offscreen Electron through production IPC/HTTP
+  verifies API-only Settings, copying both error surfaces, legacy-chat recovery
+  navigation, Archive persistence, mention exclusion, reopen, narrow layout,
+  light/dark and Chinese. A native Gemini CLI/loopback endpoint fixture covers
+  real failure propagation; separate Google Developer API Default/Plan sends
+  succeeded. A disposable native Codex archive/resume probe reproduced the
+  exact rejection and retained its native history without a model request.
+- Not published or deployed; existing user services and chats are unchanged.
+
+## 2026-10-17 — Compact Gemini approval actions
+
+- Gemini tool requests now use localized Allow / Deny buttons. Full request
+  details remain available, and approval still applies only to that request.
+  The shared card accepts optional labels; other providers retain their
+  existing controls and approval semantics.
+- Verification: 37 focused desktop tests cover long tool names, English and
+  Chinese, both decisions, ownership, existing Codex controls and Gemini modes.
+  TypeScript and production compilation pass; 39 transport/process regressions
+  pass. Actual offscreen Electron through production IPC/HTTP and the native
+  Gemini CLI verifies Allow executes a disposable write, Deny does not, mode
+  selection, next-turn isolation and five Stop/retry/reopen cycles. Narrow
+  rendering was inspected. These deterministic model replies use a loopback
+  fixture, not Google inference.
+- Prepared on the same Gemini preview branch for the authorized local test
+  update; no public release, push or merge. Google OAuth acceptance remains
+  separate from these tool-policy and lifecycle checks.
+
+## 2026-10-17 — Gemini early Stop/Delete stress fixes
+
+- Reproduced immediate Stop leaving a chat fenced, first at the real process
+  boundary and again through actual offscreen Electron. A process readiness
+  handshake prevents signalling the guard before its handlers exist; startup
+  cancellation retains the process handle for verified cleanup. Stop/Delete
+  now use the Gemini-owned cleanup operation instead of killing its guard
+  through generic tree termination. A failed native exec with no launched
+  provider is not misclassified as surviving tools. Cursor's legacy exit
+  contract is unchanged; unverified cleanup still fails closed.
+- Added early Stop/cancel/exec-failure regressions and repeatable opt-in native
+  long-message stress. Existing cleanup-failure and restart fences remain in
+  place; no old fence is automatically repaired by this change.
+- Actual offscreen desktop, production IPC/HTTP and native CLI: five consecutive
+  Stop/retry/reopen cycles, Default approval and rejection, next-turn policy
+  change, automatic edits, YOLO cancel/confirm, Plan write denial, keyboard
+  operation, narrow/light/dark and Chinese presentation pass. Separate actual
+  desktop journeys verify direct first/repeated new chat, inherited settings,
+  custom-provider switching, native built-in skill activation and repeated
+  picker use, and blocked untrusted handoff followed by an ordinary question.
+  These deterministic flows use a local model fixture, not Google inference.
+- A separate actual desktop Google Developer API run completes Default then
+  Plan with the same native ID. Google OAuth-account acceptance remains open.
+  Four simultaneous native chats complete 40 long-message turns and 40 socket
+  reconnects with exact replies and stable identities. Native history survives
+  deletion. This is bounded regression coverage, not a production load claim.
+- Verification: 377 focused server regressions pass, followed by 39 transport/
+  process tests including two additional failed-exec cases; 41 native CLI/HTTP
+  lifecycle, permissions, skills and API-binding cases pass. Desktop: 5,214
+  tests pass, five skip, plus eight compile/license checks. TypeScript and
+  production compilation pass. Counts overlap and are not a readiness claim.
+- Availability: same Gemini development branch and isolated local test Apps;
+  no existing service, working desktop, credentials or trust settings replaced.
+  No deployment, public release, push or merge. Remaining provider limitations
+  are tracked in the Gemini preview documentation.
+
+## 2026-10-17 — Gemini native permission-mode controls
+
+- Add a localized Gemini permission menu in the desktop composer for both
+  native-login and API chats: Default, Auto Edit, explicit-confirmation YOLO,
+  and Plan once a native workspace handshake reports it enabled. Preserve
+  next-turn semantics and the native session ID; newly created chats inherit
+  the selected Gemini chat's saved mode without copying another provider's
+  sandbox options. Default remains normal native approval policy.
+- Pass native approval flags and confirm the requested ACP mode before the
+  prompt. Preserve native folder trust, tool denies and administrator YOLO
+  restrictions. Disabled Plan fails closed rather than silently running in
+  Default. API profiles preserve native Plan settings without changing login.
+  Shared chats do not gain this administrative permission editor.
+- Keep a mode-change acknowledgement out of assistant replies by correlating
+  the exact pinned CLI notice with the outstanding mode-change RPC. Identical
+  text in an actual model response is still retained.
+- Verification: 85 focused server/protocol/schema/packaging tests pass. Six
+  additional real CLI/HTTP mode cases verify default approvals, auto-edit
+  writes, shell confirmation, YOLO, Plan denial, native tool/admin restrictions,
+  unavailable modes and same-session next-turn changes. The model in those
+  deterministic native tests is a loopback fixture, not Google inference.
+- Desktop regression: 5,214 tests pass, five skip, plus eight compile/license
+  checks. TypeScript and production compilation pass. Five additional native
+  regression cases cover API reconnect, resume, Auto routing, cross-chat and
+  Stop/Delete isolation; these are separate from the live Google acceptance.
+- Actual offscreen Electron with production IPC/HTTP and native Gemini verifies
+  selecting/saving modes, pending approval isolation, denial, automatic writes,
+  YOLO confirmation/cancellation, Plan blocking writes, keyboard focus,
+  light/dark/narrow layouts, English/Chinese and reopening. No internal mode
+  notice appears as an answer. A separate real Google Developer API run through
+  this App completes Default then Plan in the same native session. Google
+  OAuth-account mode acceptance and wider platform/policy coverage remain open.
+- Source only on the Gemini development branch. No existing service or working
+  desktop was replaced; no cleanup fence bypass, existing native trust change, public
+  release or merge. The broader provider acceptance limitations remain.
+
+## 2026-10-16 — Keep Gemini workspace trust separate from sign-in
+
+- Report unavailable communication tools as a workspace/MCP issue, not an
+  invitation to sign in again. Include the exact chat workspace and native
+  trust/settings guidance without changing credentials or granting trust.
+- Do not require a communication tool for every ordinary question merely
+  because a chat has a durable communication permission. Use this turn's
+  validated references and internal delivery purpose. Explicit communication
+  and mailbox wakes still fail before model work when the tool is unavailable;
+  broker authorization, native trust and approval policy are unchanged.
+- Verification: the new real-CLI regression failed before the fix and passes
+  afterward. 82 focused regressions and seven native CLI/HTTP cases cover
+  ordinary follow-up, untrusted sender/recipient, queued cancellation, native
+  denial, unknown targets and busy-recipient retry/deduplication.
+- Actual offscreen Electron with production IPC/HTTP and the real native CLI
+  displays the workspace-specific error, then accepts an ordinary question in
+  the same chat without delivering mail; its answer survives reopening. This
+  isolated check uses a loopback model fixture, not Google authentication or
+  inference. Dependency lock and changed-module compilation checks pass.
+- Availability: source on the Gemini development branch; not deployed or
+  released. Existing development-service cleanup fencing was not bypassed.
+
+## 2026-10-16 — Distinguish Gemini identity, chat access and delivery
+
+- Include Gemini's native identity in detailed session responses and the
+  header's ID/copy fallback. If no resumable native session has been saved,
+  show a localized pending explanation instead of an unexplained dash; never
+  invent a provider ID for a failed first turn.
+- Label a newly granted chat route as communication permission, explicitly not
+  a sent message. Queued user work still waits its turn; native MCP loading
+  failures now explicitly report that no cross-chat message was sent. Folder
+  trust and provider approval policy remain unchanged.
+- Hide Gemini's server-attested automatic mailbox wake input, like Codex and
+  Claude, without hiding real user inputs, agent progress or replies. This
+  removes an empty "You" bubble exposed during actual cross-chat acceptance.
+- Focused verification: 85 server regressions, eight actual CLI/HTTP lifecycle
+  cases and 195 desktop component/projection cases pass; TypeScript and production compile
+  pass. Native tests use a loopback model fixture, including queued sender,
+  cancellation, busy recipient, reply, deduplication, revoked/unknown routes,
+  denied tool approval and untrusted workspaces.
+- Full desktop regression: 5,201 pass, five skip, plus eight compile/license
+  checks. These counts do not substitute for the live-provider acceptance.
+- Live acceptance: actual offscreen Electron with production IPC/HTTP and the
+  real Google API verified queued permission without premature delivery,
+  cancellation, one message each way, native IDs, purple message cards and
+  reopening. Only the requested native communication tools were approved.
+  A second actual-App review verifies no fake user bubble on the receiving
+  mailbox turn and retained messages after reload.
+- Remaining limitation: an extremely early startup Stop left a disposable
+  chat behind a truthful cleanup fence. Its cleanup/race investigation remains
+  open; this acceptance does not establish all lifecycle paths are ready.
+- Availability: Gemini development branch and designated development service
+  (server source `b668e787`), with the corrected development desktop restarted
+  using its existing profile; no public release or merge. Model quota and
+  workspace trust remain distinct.
+
+## 2026-10-16 — Include Gemini native built-in skills
+
+- Discover skills with the pinned native `skills list --all`; its default listing
+  omits built-ins. Parse the native built-in marker as scope metadata rather than
+  part of a skill's name, and show it in the existing composer badge. Keep native
+  trust, disabled-skill and same-name override behavior, opaque selection IDs
+  and file revision checks. Other providers' private skill folders are not
+  advertised as Gemini capabilities.
+- Verification: 43 focused server tests, three real CLI skill contracts, the
+  real HTTP/CLI five-turn resume/Forget/reconnect/Delete contract, and 226
+  composer tests pass. Native contracts use an isolated loopback model fixture;
+  they cover built-in activation, user-skill approval, denied and approved writes,
+  scope precedence, disabled entries and stale selections.
+- Actual offscreen Electron using production IPC/HTTP reproduced the missing
+  built-ins, then selected and activated `skill-creator` through the real CLI,
+  rendered its reply and reopened the picker successfully. That activation run
+  used disposable server state and a loopback model API, not Google inference.
+- Live acceptance: the development service at source `b3759a17` preserved its
+  identity, credentials and existing sessions. Actual offscreen Electron using
+  production IPC/HTTP showed the native local and built-in inventory, selected
+  `skill-creator`, observed successful native activation and rendered the exact
+  requested Google API reply. Reopening the picker retained the built-in skill.
+- Availability: Gemini development branch and designated development service;
+  no public release, merge or mobile changes. This does not implement
+  permission-mode selection or resolve the separate native-login eligibility
+  issue. No client installation was required for this server-side discovery fix.
+
+## 2026-10-16 — Always open new chats directly
+
+- Remove the retired setup modal from the desktop dialog tree and all new-chat
+  fallbacks, including first use and stale/unavailable runtime discovery. Reuse
+  the last-opened chat settings; also retain custom instructions and supported
+  subagent limits. Available agents remain selectable before the first send.
+  Creation errors remain inline; no silent switch from a revoked API to native
+  credentials, and no conversation identity or delegated/job authority copying.
+- Rebind the selected provider when switching between custom API agents before
+  the first turn. Do not reuse another provider's immutable connection ID;
+  first-turn backend locking and credential revocation remain unchanged.
+- Actual offscreen Electron with production IPC/HTTP reproduced the old
+  first-chat modal, then verified direct first creation, eight inherited fields,
+  Claude API to Gemini API switching, model selection, a rendered native CLI
+  reply and repeated creation with the newly selected settings. This run used
+  disposable server state and a loopback model API, not Google inference.
+- Verification: 5,198 desktop tests pass, five skip; eight compile/license checks,
+  TypeScript checks, production compilation and 37 focused server tests pass.
+- Live acceptance: the same offscreen native App used the designated development
+  service at source `8837b925`, created directly, inherited eight settings from
+  a disposable OpenCode API chat, switched to Gemini API in the composer, and
+  received the exact requested response from Google with Auto. Repeating New
+  chat retained Gemini API and Auto. No endpoint credentials were changed.
+- Availability: Gemini development branch and development service; the existing
+  development App was restarted without packaging or changing its selected
+  server. No publication, merge or mobile change. Existing provider-wide
+  acceptance limitations remain unchanged.
+
+## 2026-10-16 — Honor Gemini API Auto and saved model defaults
+
+- Fix API chats showing Auto while admission rejected an empty model. Google's
+  official Developer API now uses the pinned CLI's native `auto` alias; explicit
+  chat choices and immutable connection defaults take precedence. Third-party
+  gateways still require a selected model. Credential isolation and Forget
+  revocation remain enforced; no global login or model setting is rewritten.
+- My Agents and chat catalogs expose the effective default without pretending
+  model discovery or inference succeeded. The runner now passes a saved API
+  model to the CLI even when the chat has no separate override.
+- Verification: 39 settings/runner/admission cases, 72 related model/runtime
+  cases, 39 desktop catalog/settings cases, and two real CLI/loopback-API
+  contracts including native Auto routing pass. The existing real server/CLI
+  five-turn resume/Forget/reconnect/Delete contract also passes. Desktop type
+  checks pass; the unchanged renderer uses its existing production compilation.
+- Actual-app verification: isolated offscreen Electron using production IPC/HTTP
+  against the development service, runtime source `70ed513c`. My Agents showed
+  Auto without a saved model ID; an API-bound empty-model test chat displayed
+  Auto and completed two consecutive real Google requests with exact requested
+  replies. No model/key selection was required and no native-login fallback was
+  used. The fixture chat was created through HTTP before UI sending; the rapid
+  new-chat/provider-switch workflow was not accepted in this check.
+- Availability: Gemini development branch and designated development service;
+  no publication. This validates API Auto, not the separate Google-login quota
+  issue or the remaining provider-wide acceptance checklist.
+
+## 2026-10-16 — Bounded Gemini stress acceptance
+
+- Runtime source `ffe22869`: a development-instance HTTP/WebSocket soak ran for
+  60 seconds with 16 HTTP workers and 16 reconnecting event-stream workers.
+  All 8,515 reads and 1,854 socket catch-ups succeeded; existing history and
+  configuration remained unchanged. This was loopback and empty test chats,
+  not a remote-network/large-history benchmark.
+- A separate disposable server with actual Gemini CLI 0.64.0 and a fake local
+  model API completed four concurrent chats × ten turns, with 134,890-byte
+  streamed Unicode replies and 40 socket reconnects. Text stayed exact, replay
+  produced no duplicate turns, UUIDs stayed isolated/stable, and Delete retained
+  native history. Native repeated-output loop protection remains enabled.
+- Nine additional stream/runner/approval regressions pass. An offscreen native
+  Electron client used production IPC/HTTP against the updated development
+  instance to inspect My Agents and select/cancel the configured Gemini API
+  option in New Chat, without changing credentials or sending model requests.
+- Availability: development test service only; no release/publication. Google
+  account generation remains unaccepted, and full CI/platform, long-duration,
+  real-network and resource-pressure acceptance are still pending.
+
+## 2026-10-16 — Harden Gemini lifecycle and complete shared-chat wiring
+
+- Keep native Gemini identity before visible activity/tool approval. Add an owned
+  parent-death guard and verified-cleanup contract; an unconfirmed cleanup keeps
+  Stop/Delete fenced instead of erasing the chat or reporting false success.
+  Persist that failure fence across restart; loss of the live cleanup handle
+  requires operator verification, not an automatic unlock.
+  Permit only the native loader's exact leading environment-header refresh.
+- Fix native-account skill discovery without an API connection and capability
+  admission for scheduled chat/standalone jobs. Extend the jobs helper's provider
+  selectors. Keep run-bound MCP instructions free of shell authority-file paths.
+- Wire Gemini prompts, approvals and runtime updates through interactive shares.
+  Fix both the shared-state allowlist and the mounted approval shelf refresh.
+  Preserve share-token, CSRF, exact-chat/run and revocation checks.
+- Verification: 88 Gemini cases using actual CLI 0.64.0 and a loopback fake API;
+  247 related server regressions; 83 transport/cleanup/shared-control cases; 29
+  jobs-helper cases; 160 queue/Stop/goal/job regression cases. These batches
+  overlap and are not a unique-test total. Nine release-manifest checks pass.
+  Desktop: 5,193 tests pass, five skip; type checks, production/shared builds
+  and eight package/license checks pass. Native remote Google requests were not
+  retried: real-account eligibility/billing acceptance remains deferred.
+- Actual offscreen desktop acceptance covers API setup, New Chat, composer
+  model selection, skills/approval, repeated resume, live answers and title
+  import. Actual packaged shared-web acceptance covers token entry, native
+  approval, two turns and revoke. English/dark, Chinese/light/narrow and keyboard
+  focus were checked; native HTML-select popup interaction remains unaccepted.
+- Crash-mid-tool/descendant cleanup, failed cleanup, queued Delete, unauthorized
+  and revoked recipients, busy mailbox delivery, idempotent retry, WAV transport
+  and three-chat concurrency have dedicated fixtures. Process sampling is not a
+  security sandbox or a low-memory/load guarantee. Native Fork, native goals,
+  managed subagents, side questions, explicit compaction and later external
+  history reconciliation are not claimed. See the Gemini preview matrix.
+- Availability: source and isolated test builds only; no server deployment,
+  publication or mobile changes. Full repository CI and real-account acceptance
+  remain release gates.
+- The full local server-suite attempt is not a pass: it was stopped after an
+  installer scenario stalled. A separate probe reproduced 22 IPC setup errors
+  where the local test filesystem could not provide private POSIX file modes;
+  those guards were not weakened. The relevant Gemini/adjacent suites above
+  were run with disposable POSIX-backed state.
+
+## 2026-10-16 — Extend the Gemini development preview
+
+- Add live answer snapshots, bounded text/image/audio attachments, native
+  summary adoption and opt-in main-session discovery/initial text import.
+  Preserve manual titles, exact native workspace/identity, ownership exclusion
+  and compatibility with older import clients. Native edits are not reconciled.
+- Fix retry after an empty failed first generation without resetting existing
+  conversations. Preserve native identity after exposed activity, including
+  history-recorder failures; retain partial output on Stop and native tool diffs.
+  CLI mode no longer assumes a custom API connection object exists.
+- Exercise native queue/restart/resume, one-time approvals, denied writes,
+  pending-tool Delete, retained native continuation and cross-chat send/read/
+  reply. Report missing MCP under native folder trust without granting trust.
+  Include new modules in installation and package manifests.
+- Verification uses Gemini CLI 0.64.0, disposable state and a loopback fake model
+  API: 72 Gemini tests and 247 related server regressions pass. Actual offscreen
+  desktop IPC/HTTP acceptance covers API/model settings, skills, repeated sends,
+  live answer delivery and native-title import. Desktop tests: 5,191 pass, five
+  skip; type checking, production compilation, eight package checks and nine
+  server manifest checks pass.
+- Still an opt-in preview, not release-ready. Real-account acceptance is
+  deferred; native Fork, later history reconciliation and remaining optional
+  provider-checklist workflows are not presented as completed. No deployment
+  or publication is part of this validation.
+
+## 2026-10-15 — Use the official Gemini product icon
+
+- Replace the approximate sparkle with Google's unmodified four-colour asset,
+  bundled locally with attribution. Preserve its transparency without showing
+  the fallback underneath, and include the SVG in shared-chat packaging.
+- Actual desktop checks verified the sidebar, composer and new-chat provider
+  picker in dark mode and emulated light/narrow layouts. Type checking,
+  production and shared-renderer builds, 5,189 desktop tests and eight package
+  checks passed; five desktop tests were skipped. The packaged shared-chat
+  asset matches the original, but its live web route was not exercised.
+- Icon-only acceptance does not resolve the Gemini preview's account, billing
+  or provider-checklist limitations. No server deployment or publication.
+
+## 2026-10-15 — Exercise Gemini connections and native skills
+
+- Give Gemini a distinct sparkle mark and correctly name its error notice.
+  Preserve custom endpoint model choices through compact session-list refreshes.
+- Add bounded native skill discovery, opaque per-chat selection/revalidation,
+  and native activation requests with ordinary tool permissions. API profiles
+  reference installed skill assets while keeping login credentials isolated.
+- Real pinned CLI/local API fixtures cover native activation, approve/deny,
+  continuation and cleanup. A skill-follow-up regression found native load-time
+  history normalization; accept only its exact known text/tool transformation
+  while still rejecting unrelated changes and suppressing historical replay.
+  Targeted desktop tests, type checking and production
+  compilation pass. Real desktop sends reached Google's service but eligibility
+  and API billing responses block successful real-account acceptance.
+- This remains an opt-in development preview. Cross-chat, complete streaming
+  parity, titles/import, mobile and the other recorded provider-checklist gates
+  are not accepted merely because basic fixtures pass. Nothing is published.
+
+## 2026-10-15 — Begin an opt-in Gemini provider preview
+
+- Add an experimental desktop/server Gemini CLI adapter behind a development
+  flag, pinned to CLI 0.64.0. Google CLI login and Gemini Developer API credentials
+  remain isolated; ACP is the transport, not a separate login method.
+- Wire My Agents, native model discovery, same-session continuation, bounded
+  approvals and run-bound provider tools. Guard asynchronous native history
+  replay so it cannot be appended as a new response. Forget must not fall back
+  to another account; Delete preserves native history.
+- Actual CLI and HTTP contracts used a loopback fake API and disposable state.
+  Actual offscreen desktop acceptance exercised configuration, displayed model
+  options, manual default selection and two sends through production IPC/HTTP.
+  It caught and fixed a client backend allowlist omission and duplicate replay.
+- Validation: 252 focused desktop tests, TypeScript and production compilation;
+  server batches of 773 lifecycle/authorization regressions, 129 runtime checks,
+  72 provider/transport checks and 20 packaging-manifest checks passed. These
+  batches overlap; they are not a full-suite or real-Google acceptance claim.
+- Not release-ready: real Google account/API, tool/cross-chat/native parity,
+  new-chat dialog and native select-popup acceptance remain pending. Imports,
+  automatic titles, attachments, fork, skills UI and mobile are not included.
+  See the server's Gemini preview record for precise limits and remaining gates.
 ## 2026-10-17 - Validate the mobile UI review candidate
 
 - Update rendering-test host mocks for the appearance preference and shared

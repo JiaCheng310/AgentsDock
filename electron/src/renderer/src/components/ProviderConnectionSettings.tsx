@@ -31,7 +31,7 @@ export function ProviderConnectionSettings({ backend, ...props }: Props & { back
   const [reload, setReload] = useState(0)
   const [baseURL, setBaseURL] = useState('')
   const [protocol, setProtocol] = useState<ConnectionProtocol>('anthropic')
-  const [authHeader, setAuthHeader] = useState<'bearer' | 'x-api-key'>('bearer')
+  const [authHeader, setAuthHeader] = useState<EndpointDraft['authHeader']>('bearer')
   const [hasKey, setHasKey] = useState(false)
   const key = useRef<HTMLInputElement | null>(null)
   const serial = useRef(0)
@@ -79,6 +79,10 @@ export function ProviderConnectionSettings({ backend, ...props }: Props & { back
     setBaseURL(backend === 'cursor' ? 'https://api2.cursor.sh' : draft?.baseURL ?? saved?.base_url ?? (backend === 'claude' ? 'https://api.anthropic.com' : ''))
     setProtocol(backend === 'cursor' ? 'cursor' : backend === 'claude' ? 'anthropic' : draft?.protocol ?? saved?.protocol ?? 'chat_completions')
     setAuthHeader(backend === 'cursor' ? 'bearer' : draft?.authHeader ?? saved?.auth_header ?? (backend === 'claude' ? 'x-api-key' : 'bearer')); setOpen(true)
+    if (backend === 'gemini') {
+      setBaseURL(draft?.baseURL ?? saved?.base_url ?? 'https://generativelanguage.googleapis.com')
+      setProtocol('gemini'); setAuthHeader('x-goog-api-key')
+    }
   }
   async function operate(action: Exclude<ConnectionAction, 'get'>) {
     if (busy || !saved || !props.connected || !props.profileId) return
@@ -104,7 +108,7 @@ export function ProviderConnectionSettings({ backend, ...props }: Props & { back
       if (owns(n, scope)) { clearKey(); setBusy(false) }
     }
   }
-  const name = backend === 'cursor' ? 'Cursor' : backend === 'claude' ? 'Claude Code' : 'OpenCode'
+  const name = backend === 'gemini' ? 'Gemini' : backend === 'cursor' ? 'Cursor' : backend === 'claude' ? 'Claude Code' : 'OpenCode'
   const editable = props.connected && Boolean(props.profileId) && Boolean(saved) && !busy
   const verified = props.connected && !busy && !open && !error && saved?.configured === true && saved?.last_result === 'verified'
   useEffect(() => { props.onStatus?.(verified) }, [verified, props.onStatus])
@@ -142,14 +146,15 @@ export function ProviderConnectionSettings({ backend, ...props }: Props & { back
         {backend === 'opencode' && <small>{t('connections.openCodeEndpointHelp')}{' '}<a href="https://opencode.ai/docs/zen/" onClick={event => { event.preventDefault(); void window.agentsDock.native.openExternal('https://opencode.ai/docs/zen/') }}>{t('connections.readMore')}</a></small>}
         {backend !== 'cursor' && <>
         <div className="provider-connection-field"><label htmlFor={`${id}-protocol`}>{t('connections.protocol')} <span aria-hidden="true" className="provider-field-requirement">{t('connections.required')}</span></label>
-          <select id={`${id}-protocol`} aria-label={t('connections.protocol')} required value={protocol} disabled={busy || backend === 'claude'} onChange={e => updateDraft({ protocol: e.target.value as ConnectionProtocol, authHeader: e.target.value === 'anthropic' ? 'x-api-key' : 'bearer' })}>
+          <select id={`${id}-protocol`} aria-label={t('connections.protocol')} required value={protocol} disabled={busy || backend === 'claude' || backend === 'gemini'} onChange={e => updateDraft({ protocol: e.target.value as ConnectionProtocol, authHeader: e.target.value === 'anthropic' ? 'x-api-key' : 'bearer' })}>
+            {backend === 'gemini' && <option value="gemini">Gemini Developer API</option>}
             <option value="chat_completions">OpenAI Chat Completions</option><option value="responses">OpenAI Responses</option><option value="anthropic">Anthropic Messages</option>
           </select>
           {backend === 'opencode' && <small>{t('connections.protocolHelp')}</small>}
         </div>
         <div className="provider-connection-field"><label htmlFor={`${id}-auth`}>{t('connections.authHeader')} <span aria-hidden="true" className="provider-field-requirement">{t('connections.required')}</span></label>
           <select id={`${id}-auth`} aria-label={t('connections.authHeader')} required value={authHeader} disabled={busy || protocol !== 'anthropic'} onChange={e => updateDraft({ authHeader: e.target.value as 'bearer' | 'x-api-key' })}>
-            <option value="bearer">Bearer</option>{protocol === 'anthropic' && <option value="x-api-key">x-api-key</option>}
+            <option value="bearer">Bearer</option>{protocol === 'anthropic' && <option value="x-api-key">x-api-key</option>}{protocol === 'gemini' && <option value="x-goog-api-key">x-goog-api-key</option>}
           </select>
         </div></>}
         <div className="provider-connection-field"><label htmlFor={`${id}-key`}>{t('connections.key')} <span aria-hidden="true" className="provider-field-requirement">{t('connections.required')}</span></label>

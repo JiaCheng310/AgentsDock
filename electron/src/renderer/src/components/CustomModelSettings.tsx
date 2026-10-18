@@ -48,7 +48,7 @@ export function CustomModelSettings({ backend, active, onSaved, verifyOnSelect =
         { model: model || null, expected_revision: catalog.revision }))
       if (serial.current !== request) return
       setCatalog({ ...catalog, ...result })
-      if (verifyOnSelect && verifier && (backend === 'claude' || backend === 'opencode')) {
+      if (verifyOnSelect && verifier && (backend === 'claude' || backend === 'opencode' || backend === 'gemini')) {
         await verifier.request({ profileId, profileGeneration }, backend, 'check', { expected_revision: Number(result.revision) })
         if (serial.current !== request) return
       }

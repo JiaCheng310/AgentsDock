@@ -278,6 +278,10 @@ const api: AgentsDockAPI = {
       ipcRenderer.invoke('codex:background-terminals:clean', sessionId, input)
     )
   },
+  gemini: {
+    runtime: sessionId => ipcRenderer.invoke('gemini:runtime', sessionId),
+    resolveInteraction: (sessionId, interactionId, response) => ipcRenderer.invoke('gemini:interaction:resolve', sessionId, interactionId, response)
+  },
   claude: {
     runtime: sessionId => ipcRenderer.invoke('claude:runtime', sessionId),
     setGoal: (sessionId, condition) => ipcRenderer.invoke('claude:goal:set', sessionId, condition),
