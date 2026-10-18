@@ -95,7 +95,8 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
         force_restart: true, force_confirmation_required: true }
     } }))
     f.clients.a.ensureServerUpdate.mockResolvedValue({ phase: 'pending', current_version: '1.1.0-beta.1',
-      target_version: '1.2.0-beta.2', server_identity: 'server-a', server_instance_id: 'boot-a', schedule_id: scheduleId })
+      target_version: '1.2.0-beta.2', server_identity: 'server-a', server_instance_id: 'boot-a',
+      schedule_id: scheduleId, preparation_phase: 'ready' })
     f.clients.a.restartServer.mockImplementation(async request => {
       f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2',
         capabilities: { server_updates: { available: true, version: 12 } } }))
@@ -112,6 +113,35 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     expect(f.manager.status()[0].phase).toBe('current')
   })
 
+  it('waits for staging to finish before requesting a forced restart', async () => {
+    const f = fixture()
+    const capabilities = { server_updates: { available: true, version: 12 },
+      server_update_ensure_v1: { available: true, version: 1 },
+      server_update_continuation_v1: { available: true, version: 1 },
+      server_restart: { available: true, required: false, version: 2, message: 'Ready', action: null,
+        force_restart: true, force_confirmation_required: true } }
+    f.clients.a.health.mockResolvedValue(health('a', { capabilities }))
+    let prepared = false
+    f.clients.a.ensureServerUpdate.mockImplementation(async () => ({ phase: 'pending',
+      current_version: '1.1.0-beta.1', target_version: '1.2.0-beta.2',
+      server_identity: 'server-a', server_instance_id: 'boot-a', schedule_id: 'a'.repeat(32),
+      preparation_phase: prepared ? 'ready' : 'staging' }))
+    f.clients.a.restartServer.mockImplementation(async request => {
+      f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2', capabilities }))
+      return { phase: 'accepted', request_id: request.request_id,
+        update_schedule_id: request.expected_update_schedule_id, message: 'Restart accepted.' }
+    })
+    const installation = f.manager.prepareForInstall(signed(), '1.2.0-beta.2')
+    await vi.waitFor(() => expect(f.clients.a.ensureServerUpdate).toHaveBeenCalled())
+    expect(f.manager.status()[0].phase).toBe('pending')
+    expect(f.clients.a.restartServer).not.toHaveBeenCalled()
+    prepared = true
+    await f.manager.reconcileAll()
+    await installation
+    expect(f.clients.a.restartServer).toHaveBeenCalledOnce()
+    expect(f.manager.status()[0].phase).toBe('current')
+  })
+
   it('retries an ambiguous force response with the same durable request ID', async () => {
     const f = fixture()
     const capabilities = { server_updates: { available: true, version: 12 },
@@ -122,7 +152,7 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     f.clients.a.health.mockResolvedValue(health('a', { capabilities }))
     f.clients.a.ensureServerUpdate.mockResolvedValue({ phase: 'pending', current_version: '1.1.0-beta.1',
       target_version: '1.2.0-beta.2', server_identity: 'server-a', server_instance_id: 'boot-a',
-      schedule_id: 'a'.repeat(32) })
+      schedule_id: 'a'.repeat(32), preparation_phase: 'ready' })
     f.clients.a.restartServer.mockRejectedValueOnce(new Error('connection lost'))
       .mockImplementationOnce(async request => {
         f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2', capabilities }))

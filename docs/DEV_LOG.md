@@ -22,6 +22,11 @@
   behavior has focused regression coverage. The development app cannot
   install updates, and the connected test server lacks the new continuation
   protocol, so no active-chat update or native installation was accepted.
+- An isolated native update replay exposed an early forced-restart request
+  while the server package was still staging. The coordinator now waits for
+  an explicit ready state before requesting activation; a regression test
+  covers staging followed by readiness. Packaged replay of this correction
+  remains pending.
 
 ## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
 

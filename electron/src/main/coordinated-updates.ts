@@ -397,7 +397,8 @@ export class CoordinatedUpdateManager {
         patch({ phase: 'blocked', message: 'Update response belongs to another server instance. Reconnect to reconcile it.' })
         return
       }
-      if (this.preparingInstall && status.phase === 'pending' && status.schedule_id && target
+      if (this.preparingInstall && status.phase === 'pending' && status.preparation_phase === 'ready'
+        && status.schedule_id && target
         && Date.now() >= (previousReceipt?.forceRetryAt ?? 0)
         && this.options.profiles().find(candidate => candidate.serverIdentity === profile.serverIdentity)?.id === profile.id
         && legacyUpdateCapabilityVersion(health) >= 12
