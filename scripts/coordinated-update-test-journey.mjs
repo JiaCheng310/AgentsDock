@@ -138,7 +138,14 @@ try {
   assert(initial.currentVersion === VERSION_A && initial.channel === 'direct' && initial.track === 'beta')
   phase('candidate-a-app-and-server-connected')
   await openMigrationUpdateSettings(client)
-  await client.clickButton(['Check for updates'])
+  const checkAdmission = await until('Native update check admission', async () => {
+    const status = await client.evaluate('window.agentsDock.updates.status()')
+    if (status.state === 'disabled') throw new Error('Packaged App updater is disabled.')
+    if (status.state === 'downloaded') return 'already-downloaded'
+    if (['idle', 'not-available', 'error'].includes(status.state)) return 'check'
+    return null
+  }, 8 * 60_000)
+  if (checkAdmission === 'check') await client.clickButton(['Check for updates'])
   const downloaded = await until('Candidate B downloaded', async () => {
     const status = await client.evaluate('window.agentsDock.updates.status()')
     if (status.state === 'error' || status.state === 'disabled') throw new Error(`Native updater ${status.state}`)
