@@ -15,6 +15,13 @@
 - Validation: targeted restart-recovery and coordinated-update tests run in
   isolated fixtures. Packaged native app/server update acceptance is pending;
   this source branch has not changed an installed server or public release.
+- A compiled local Electron app from this branch connected to an existing
+  test server through the real client/server transport. A disposable Codex
+  chat and follow-up both completed, and the Updates page resolved the
+  published Stable and Beta feeds. Equal-version and local-suffix preflight
+  behavior has focused regression coverage. The development app cannot
+  install updates, and the connected test server lacks the new continuation
+  protocol, so no active-chat update or native installation was accepted.
 
 ## 2026-10-17 — Retire unavailable Codex model choices without deleting chats
 
