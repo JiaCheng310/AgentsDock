@@ -99,7 +99,7 @@ jobs:
           for host in github.com api.github.com registry.npmjs.org; do
             openssl verify -CAfile "$network/ca.pem" -purpose sslserver -verify_hostname "$host" "$network/leaf.pem"
           done
-          if rg -i '(^|[[:space:]])(github\.com|api\.github\.com|registry\.npmjs\.org)([[:space:]]|$)' /etc/hosts; then
+          if /usr/bin/grep -Ei '(^|[[:space:]])(github\.com|api\.github\.com|registry\.npmjs\.org)([[:space:]]|$)' /etc/hosts; then
             echo 'Replay host already has a hosts override.' >&2
             exit 1
           fi
@@ -126,11 +126,13 @@ jobs:
             "$network/leaf.pem" "$network/leaf.key" "$network/feed.pid" \
             > "$network/feed.log" 2>&1 &
           for attempt in {1..60}; do
-            if curl --fail --silent --max-time 2 --noproxy '*' --cacert "$network/ca.pem" \
+            if [[ -f "$network/feed.pid" ]] \
+              && sudo -n kill -0 "$(sudo -n cat "$network/feed.pid")" \
+              && curl --fail --silent --max-time 2 --noproxy '*' --cacert "$network/ca.pem" \
               --resolve github.com:443:127.0.0.1 \
               https://github.com/ZhengyiLuo/AgentsDock/releases.atom \
-              -o "$network/probe.atom"; then
-              rg -q 'v1\.0\.11-beta\.3' "$network/probe.atom"
+              -o "$network/probe.atom" \
+              && /usr/bin/grep -Eq 'v1\.0\.11-beta\.3' "$network/probe.atom"; then
               exit 0
             fi
             sleep 1
