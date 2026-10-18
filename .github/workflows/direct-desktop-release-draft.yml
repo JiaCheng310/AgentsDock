@@ -88,11 +88,16 @@ jobs:
           test "$GITHUB_REPOSITORY" = ZhengyiLuo/AgentsDock
           [[ "$GITHUB_REF" = refs/heads/main || "$GITHUB_REF" = refs/heads/release/* ]] || { echo "Release workflow requires main or release/*." >&2; exit 1; }
           git check-ref-format "$GITHUB_REF"
-          if [[ "${{ inputs.replay_zip_only }}" == true ]]; then
-            test "$GITHUB_REF" = refs/heads/release/recoverable-update-mac-replay-20261018
-            test "${{ inputs.track }}" = beta
-            test "${{ inputs.artifacts_only }}" = false
-          fi
+
+      - name: Restrict disposable replay ZIP packaging
+        if: ${{ inputs.replay_zip_only }}
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/release/recoverable-update-mac-replay-20261018
+          test "$RELEASE_TRACK" = beta
+          test "$ARTIFACTS_ONLY" = false
 
       - id: build-number
         name: Validate the explicit native build reservation
