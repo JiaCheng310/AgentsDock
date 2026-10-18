@@ -253,9 +253,24 @@ try {
   assert(preserved.session?.id === savedId && preserved.session.title === 'Disposable update history',
     'Saved test chat was not preserved by the managed update.')
   phase('server-b-activated-before-app-replacement')
+  let lastAppInstallObservation = ''
+  await until('Native App B replacement', async () => {
+    const installedVersion = appVersion(ownedApp)
+    const observation = {
+      installedVersion,
+      ownedProcessCount: processesFor(ownedApp).length,
+      originalProcessExited: launched.exitCode !== null || launched.signalCode !== null,
+      update: (await safeSnapshot()).app
+    }
+    const encoded = JSON.stringify(observation)
+    if (encoded !== lastAppInstallObservation) {
+      process.stdout.write(`native-replay-app-install ${encoded}\n`)
+      lastAppInstallObservation = encoded
+    }
+    return installedVersion === VERSION_B
+  }, 5 * 60_000)
   client.close()
   client = null
-  await until('Native App B replacement', () => appVersion(ownedApp) === VERSION_B, 5 * 60_000)
   verifyApp(ownedApp, VERSION_B)
   assert(await hashFile(join(ownedApp, 'Contents/Resources/app.asar')) === expectedAsar,
     'Installed App B differs from the sealed candidate.')
