@@ -1,4 +1,5 @@
 export type Backend = 'claude' | 'codex' | 'cursor'
+export type ProviderMode = 'default' | 'custom'
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
 export type ServerConnectionState = 'online' | 'degraded' | 'connecting' | 'retrying' | 'offline' | 'cached'
@@ -330,6 +331,8 @@ export interface StoredProfileSettings {
 
 export interface ChatDefaults {
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
   model: string
   effort: string
   folder: string
@@ -371,6 +374,10 @@ export interface Session {
   folder?: string | null
   cwd?: string | null
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
+  codex_provider_catalog?: CustomProviderCatalog
+  provider_connection_catalog?: CustomProviderCatalog
   model?: string | null
   effort?: string | null
   system_prompt?: string | null
@@ -455,7 +462,20 @@ export interface RuntimeDiagnostic {
   last_error?: string | null
   last_error_at?: string | null
 }
+export interface CustomProviderCatalog {
+  configured: boolean
+  available: boolean
+  model?: string | null
+  base_url?: string | null
+  models?: RuntimeOption[]
+  efforts?: RuntimeOption[]
+  model_efforts?: Record<string, RuntimeOption[]>
+  default_model?: string | null
+  default_effort?: string | null
+}
 export interface RuntimeBackendCatalog {
+  native_credentials_present?: boolean
+  custom_provider?: CustomProviderCatalog
   models: RuntimeOption[]
   efforts: RuntimeOption[]
   available?: boolean
@@ -1171,6 +1191,8 @@ export interface AgentTeamMailCapability extends ServerCapability {
 }
 
 export interface HealthCapabilities {
+  codex_provider_v1?: { available?: boolean; per_chat?: boolean; per_chat_models?: boolean }
+  provider_connections_v1?: { available?: boolean; per_chat?: boolean; backends?: string[] }
   scheduled_jobs?: ScheduledJobsCapability
   agent_emergency_alerts_v1?: AgentEmergencyAlertsCapability
   provider_jobs_access_control_v1?: ProviderJobsAccessControlCapability
@@ -1314,6 +1336,8 @@ export interface CreateSessionInput {
   folder: string
   cwd: string
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
   model?: string | null
   effort?: string | null
   system_prompt?: string | null

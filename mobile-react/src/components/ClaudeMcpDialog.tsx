@@ -25,7 +25,7 @@ import { AgentServerClient, ServerError } from '../api/AgentServerClient'
 import { claudeMcpManagementCapability } from '../lib/claude-mcp'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette, type Palette } from '../theme'
+import { radius, usePalette, type Palette } from '../theme'
 import type { ClaudeMcpActionType, ClaudeMcpServer, ClaudeMcpSnapshot } from '../types'
 import { Text } from './AppText'
 import { SheetCloseButton } from './ui'
@@ -575,7 +575,7 @@ function statusPresentation(status: ClaudeMcpServer['status'], colors: Palette):
 const styles = StyleSheet.create({
   sheet: { flex: 1 },
   header: { minHeight: 70, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerMark: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  headerMark: { width: 40, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: '900' },
   subtitle: { marginTop: 2, fontSize: 10.5 },
@@ -584,27 +584,27 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 14, paddingBottom: 48, gap: 10 },
   loading: { minHeight: 160, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { fontSize: 12, fontWeight: '700' },
-  summary: { minHeight: 64, borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  summary: { minHeight: 64, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
   summaryCopy: { flex: 1, minWidth: 0, gap: 3 },
   summaryTitle: { fontSize: 13, fontWeight: '800' },
   summaryDetail: { fontSize: 10.5, lineHeight: 15 },
-  notice: { minHeight: 54, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  notice: { minHeight: 54, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
   noticeText: { flex: 1, fontSize: 10.5, lineHeight: 15 },
-  reconnectAll: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  reconnectAll: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   reconnectAllText: { fontSize: 11.5, fontWeight: '800' },
-  error: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, padding: 10, fontSize: 11, lineHeight: 16 },
-  inlineError: { minHeight: 52, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  error: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 10, fontSize: 11, lineHeight: 16 },
+  inlineError: { minHeight: 52, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
   inlineErrorText: { flex: 1, fontSize: 11, lineHeight: 15 },
-  smallButton: { minWidth: 68, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  smallButton: { minWidth: 68, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
   smallButtonText: { fontSize: 11.5, fontWeight: '800' },
   serverList: { gap: 9 },
-  serverCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 9, padding: 10, gap: 8 },
+  serverCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 10, gap: 8 },
   serverHeader: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  serverIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  serverIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   serverCopy: { minWidth: 0, flex: 1, gap: 2 },
   serverName: { fontSize: 13, fontWeight: '800' },
   serverMetadata: { fontSize: 10, lineHeight: 14 },
-  statusPill: { minHeight: 30, maxWidth: 110, borderRadius: 15, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statusPill: { minHeight: 30, maxWidth: 110, borderRadius: radius.sm, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusText: { flexShrink: 1, fontSize: 9.5, fontWeight: '800' },
   serverError: { paddingHorizontal: 3, fontSize: 10.5, lineHeight: 15 },
   authHelp: { paddingHorizontal: 3, fontSize: 10.5, lineHeight: 15 },
@@ -612,13 +612,13 @@ const styles = StyleSheet.create({
   enableCopy: { flex: 1, minWidth: 70, gap: 1 },
   enableTitle: { fontSize: 11.5, fontWeight: '800' },
   enableHelp: { fontSize: 9.5, lineHeight: 13 },
-  reconnect: { minWidth: 102, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  reconnect: { minWidth: 102, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   reconnectText: { fontSize: 10.5, fontWeight: '800' },
-  stateCard: { minHeight: 180, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  stateIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stateCard: { minHeight: 180, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stateIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   stateTitle: { marginTop: 2, textAlign: 'center', fontSize: 15, fontWeight: '900' },
   stateBody: { maxWidth: 520, textAlign: 'center', fontSize: 11.5, lineHeight: 17 },
   stateDetail: { maxWidth: 520, textAlign: 'center', fontSize: 10.5, lineHeight: 15 },
-  stateAction: { minWidth: 92, minHeight: 44, marginTop: 4, borderRadius: 7, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  stateAction: { minWidth: 92, minHeight: 44, marginTop: 4, borderRadius: radius.md, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   stateActionText: { color: 'white', fontSize: 12, fontWeight: '800' },
 })

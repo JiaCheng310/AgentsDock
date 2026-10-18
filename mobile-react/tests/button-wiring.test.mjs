@@ -147,8 +147,9 @@ test('scheduled-job saving is single-flight and cannot dismiss its sheet mid-sav
   assert.match(dialogs, /dismissable=\{!saving\}/)
 })
 
-test('disabled server selector does not open a dead native menu', () => {
+test('disabled server selector cannot open the server drawer', () => {
   const servers = fs.readFileSync(path.resolve('src/components/ServerProfiles.tsx'), 'utf8')
-  assert.match(servers, /\{unavailable \? trigger : <MenuView/)
-  assert.match(servers, /accessibilityState=\{\{ disabled: unavailable, expanded: false \}\}/)
+  const selector = servers.slice(servers.indexOf('export function ServerProfileSelector'), servers.indexOf('export function ServerManagementDialog'))
+  assert.match(selector, /disabled=\{unavailable\}[\s\S]*?onPress=\{onPress\}/)
+  assert.match(selector, /accessibilityState=\{\{ disabled: unavailable, expanded: false, busy:/)
 })

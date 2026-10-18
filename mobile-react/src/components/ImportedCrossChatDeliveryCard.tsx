@@ -4,7 +4,7 @@ import { useRecyclingState } from '@shopify/flash-list'
 import { ChevronDown, ChevronRight, MessageSquareShare } from 'lucide-react-native'
 import type { SystemRow } from '../lib/timeline'
 import { foldMarkdownSource } from '../lib/math'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { MarkdownContent } from './MarkdownContent'
 import {
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   incoming: {
     alignSelf: 'flex-start', width: '100%', maxWidth: 620, minWidth: 0,
     paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1,
-    borderRadius: 12, borderBottomLeftRadius: 4,
+    borderRadius: radius.md, borderBottomLeftRadius: radius.sm,
     shadowOffset: { width: 0, height: 3 },
   },
   speaker: { fontSize: 10.5, lineHeight: 15, fontWeight: '800', marginBottom: 4, flexShrink: 1 },
@@ -112,6 +112,6 @@ const styles = StyleSheet.create({
   source: { minWidth: 0, marginTop: 2 },
   toggle: { minHeight: 44, minWidth: 44, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5 },
   toggleLabel: { minWidth: 0, flexShrink: 1, fontSize: 10.5, lineHeight: 15, fontWeight: '700' },
-  status: { marginHorizontal: 14, marginVertical: 5, padding: 12, gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7, flexDirection: 'row', alignItems: 'flex-start' },
+  status: { marginHorizontal: 14, marginVertical: 5, padding: 12, gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.sm, flexDirection: 'row', alignItems: 'flex-start' },
   statusTitle: { flex: 1, minWidth: 0, fontSize: 12, lineHeight: 17, fontWeight: '700' },
 })

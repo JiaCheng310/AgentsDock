@@ -14,7 +14,7 @@ const mocks = {
   'react-native-fit-image': `export default 'Image';`,
   'react-native-svg': `export const SvgXml='SvgXml';`,
   '../lib/tex-svg': `export const texToSvg=()=>null;`,
-  '../theme': `const colors={text:'#eee',blue:'#28f',muted:'#999',raised:'#222',border:'#333',surface:'#111'}; export const usePalette=()=>colors;`,
+  '../theme': `const colors={text:'#eee',blue:'#28f',muted:'#999',raised:'#222',border:'#333',surface:'#111'}; export const usePalette=()=>colors; export const radius={sm:6};`,
 }
 const outfile = path.resolve('build/tmp', `markdown-reconciliation-${process.pid}.mjs`)
 await mkdir(path.dirname(outfile), { recursive: true })

@@ -14,7 +14,7 @@ import {
 import { mobileFileViewerKind, mobileTextPreviewLimit, type MobileFileViewerLayout } from '../../lib/file-viewer'
 import { dismissAppKeyboard } from '../../lib/app-keyboard'
 import { utf8ByteLength, workspaceTextIsDirectlyEditable } from '../../lib/workspace-file-editing'
-import { usePalette } from '../../theme'
+import { radius, usePalette } from '../../theme'
 import { Text, TextInput } from '../AppText'
 import { SwipeDismissImage } from '../FullscreenImageViewer'
 import { MarkdownContent } from '../MarkdownContent'
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   editorToolbar: { minHeight: 52, flexShrink: 0, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
   editorStatus: { flex: 1, minWidth: 0 },
   editorStatusText: { fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  editorAction: { minWidth: 44, minHeight: 44, borderRadius: 8, paddingHorizontal: 10, flexShrink: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  editorAction: { minWidth: 44, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 10, flexShrink: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   editorActionText: { fontSize: 11, fontWeight: '800' },
   editor: { flex: 1, minHeight: 0, paddingHorizontal: 14, paddingVertical: 14, fontSize: 13, lineHeight: 19, fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }) },
   editorPad: { paddingHorizontal: 24, paddingVertical: 20 },
@@ -649,10 +649,10 @@ const styles = StyleSheet.create({
   document: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 18 },
   documentPad: { paddingHorizontal: 28, paddingVertical: 24 },
   imageCanvas: { flex: 1, minHeight: 0 },
-  code: { width: '100%', minHeight: 80, borderRadius: 8, padding: 14, fontSize: 13, lineHeight: 19, fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }) },
+  code: { width: '100%', minHeight: 80, borderRadius: radius.md, padding: 14, fontSize: 13, lineHeight: 19, fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }) },
   problemTitle: { fontSize: 17, fontWeight: '800', textAlign: 'center' },
   problemBody: { maxWidth: 440, fontSize: 13, lineHeight: 18, textAlign: 'center' },
   problemActions: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  action: { minHeight: 44, borderRadius: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  truncated: { borderRadius: 7, padding: 10, marginBottom: 12 },
+  action: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  truncated: { borderRadius: radius.md, padding: 10, marginBottom: 12 },
 })

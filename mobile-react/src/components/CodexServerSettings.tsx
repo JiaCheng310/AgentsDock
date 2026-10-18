@@ -5,7 +5,7 @@ import { ServerError, type AgentServerClient } from '../api/AgentServerClient'
 import { announceCodexGoalsConfigurationChanged } from '../lib/codex-goals-configuration'
 import { codexControlsCapability } from '../lib/codex-controls'
 import { client, useAppStore } from '../store/useAppStore'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 import type { CodexGoalsConfiguration } from '../types'
 import { Text } from './AppText'
 import { IconButton } from './ui'
@@ -130,7 +130,7 @@ function unsupported(cause: unknown): boolean {
 }
 function message(cause: unknown): string { return cause instanceof Error ? cause.message : String(cause) }
 const styles = StyleSheet.create({
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, padding: 12, gap: 8 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: 12, gap: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   title: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '700' },
   detail: { fontSize: 12, lineHeight: 18 },

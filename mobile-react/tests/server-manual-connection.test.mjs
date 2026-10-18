@@ -12,9 +12,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const mocks = {
   'react-native': `export const ActivityIndicator='Spinner',Modal='Modal',Pressable='Button',ScrollView='Scroll',Switch='Switch',View='View'; export const Alert={alert(){}}; export const Platform={OS:'ios'}; export const StyleSheet={create:x=>x,hairlineWidth:1};`,
   '@expo/ui/community/menu': `export const MenuView='Menu';`,
+  'react-native-screens': `export const ScreenStack='ScreenStack',ScreenStackItem='ScreenStackItem';`,
   'react-native-safe-area-context': `export const SafeAreaView='SafeArea';`,
-  'lucide-react-native': `export const Check='Check',ChevronDown='ChevronDown',MoreHorizontal='MoreHorizontal',Pencil='Pencil',Plus='Plus',Server='Server',Wifi='Wifi',X='X';`,
-  '../theme': `export const usePalette=()=>({text:'#111',muted:'#666',border:'#ccc',surface:'#fff',raised:'#eee',blue:'#28f',green:'#080',orange:'#f80'});`,
+  'lucide-react-native': `export const ArrowLeft='ArrowLeft',Check='Check',ChevronDown='ChevronDown',MoreHorizontal='MoreHorizontal',Pencil='Pencil',Plus='Plus',Server='Server',Wifi='Wifi',X='X';`,
+  '../lib/app-keyboard': `export const dismissAppKeyboard=()=>{};`,
+  '../theme': `export const radius={sm:6,md:8,round:999}; export const spacing={xs:4,sm:8,md:12,lg:16,xl:24}; export const typography={}; export const fontWeight={regular:'400',medium:'500',semibold:'600',bold:'700'}; export const usePalette=()=>({text:'#111',muted:'#666',border:'#ccc',controlBorder:'#ddd',controlSurface:'#fff',onAccent:'#fff',background:'#fff',surface:'#fff',raised:'#eee',blue:'#28f',green:'#080',orange:'#f80'});`,
   './AppText': `export const Text='Text',TextInput='Input';`,
   './ui': `export const IconButton='IconButton',SheetCloseButton='SheetCloseButton';`,
 }
@@ -29,14 +31,45 @@ await build({
   } }],
 })
 after(() => fs.unlink(outfile))
-const { ServerProfilesManager } = await import(pathToFileURL(outfile).href)
+const { ServerProfilesManager, ServerProfileSelector, ServerProfilesSheet } = await import(pathToFileURL(outfile).href)
 const button = (tree, label) => tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel === label)
 const input = (tree, id) => tree.root.findByProps({ testID: id })
 const profile = { id: 'saved', name: 'Saved server', serverUrl: 'http://127.0.0.1:7850',
   serverIdentity: 'saved-identity', hasAccessToken: true, serverSetupComplete: true,
-  connectionState: 'connected', cachedUnreadCount: 0 }
+  connectionState: 'online', cachedUnreadCount: 0 }
 const noActions = { onSwitchProfile: async () => true, onTestConnection: async () => ({ ok: true, server_identity: 'test-identity' }),
-  onCreateProfile: async () => 'created', onUpdateProfile: async () => {}, onReorderProfiles: async () => {}, onRemoveProfile: async () => {} }
+  onCreateProfile: async () => 'created', onUpdateProfile: async () => {}, onRemoveProfile: async () => {} }
+
+test('server sheet exposes half/full native detents, dismisses and resets the editor on reopen', async () => {
+  let tree, closed = 0
+  const props = { profiles: [profile], activeProfileId: profile.id, ...noActions, onClose: () => { closed++ } }
+  await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesSheet, { ...props, visible: false })) })
+  try {
+    assert.equal(tree.root.findAllByProps({ screenId: 'servers-drawer' }).length, 0)
+    assert.equal(tree.root.findByType('ScreenStack').parent.props.pointerEvents, 'none')
+    await act(async () => tree.update(React.createElement(ServerProfilesSheet, { ...props, visible: true })))
+    const sheet = tree.root.findByProps({ screenId: 'servers-drawer' })
+    assert.deepEqual(sheet.props.sheetAllowedDetents, [0.5, 1])
+    assert.equal(sheet.props.sheetInitialDetentIndex, 0)
+    assert.equal(sheet.props.stackPresentation, 'formSheet')
+    assert.equal(sheet.props.sheetGrabberVisible, true)
+    assert.equal(tree.root.findByType('ScreenStack').parent.props.pointerEvents, 'box-none')
+    await act(async () => button(tree, 'Add server').props.onPress())
+    await act(async () => input(tree, 'server-profile-name').props.onChangeText('Unsaved'))
+    await act(async () => sheet.props.onDismissed())
+    assert.equal(closed, 1)
+    await act(async () => tree.update(React.createElement(ServerProfilesSheet, { ...props, visible: false })))
+    assert.equal(tree.root.findAllByProps({ screenId: 'servers-drawer' }).length, 0)
+    assert.ok(tree.root.findByProps({ screenId: 'servers-anchor' }))
+    await act(async () => tree.update(React.createElement(ServerProfilesSheet, { ...props, visible: true })))
+    assert.equal(tree.root.findByProps({ screenId: 'servers-drawer' }).props.sheetInitialDetentIndex, 0)
+    assert.ok(input(tree, 'server-profile-list'))
+    await act(async () => button(tree, 'Add server').props.onPress())
+    assert.equal(input(tree, 'server-profile-name').props.value, '')
+    await act(async () => input(tree, 'server-management-close').props.onPress())
+    assert.equal(closed, 2)
+  } finally { await act(async () => tree.unmount()) }
+})
 
 test('manage, add and edit expose manual controls without scan or QR-image import', async () => {
   for (const initialMode of ['manage', 'add', 'edit-active']) {
@@ -46,14 +79,138 @@ test('manage, add and edit expose manual controls without scan or QR-image impor
     })) })
     try {
       assert.doesNotMatch(JSON.stringify(tree.toJSON()), /Scan connection QR|Choose QR image|Allow camera|Connect and save|CameraView/)
-      assert.ok(button(tree, 'Add server'))
+      assert.equal(Boolean(button(tree, 'Add server')), initialMode === 'manage')
       if (initialMode !== 'manage') {
         assert.ok(input(tree, 'server-profile-url'))
         assert.equal(input(tree, 'server-profile-token').props.secureTextEntry, true)
         assert.ok(button(tree, 'Test connection'))
+        assert.equal(button(tree, 'Cancel'), undefined)
+        assert.equal(button(tree, 'Add & switch'), undefined)
+        assert.ok(button(tree, initialMode === 'add' ? 'Add' : 'Save'))
       }
     } finally { await act(async () => tree.unmount()) }
   }
+})
+
+test('server title opens directly without a native popup menu', async () => {
+  let tree, opened = 0
+  await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfileSelector, {
+    profiles: [profile], activeProfileId: profile.id, onPress: () => { opened++ }, refreshing: true,
+  })) })
+  try {
+    assert.equal(tree.root.findAllByType('Menu').length, 0)
+    const trigger = tree.root.findByType('Button')
+    assert.equal(trigger.props.disabled, false)
+    assert.equal(trigger.props.accessibilityState.busy, true)
+    await act(async () => trigger.props.onPress())
+    assert.equal(opened, 1)
+  } finally { await act(async () => tree.unmount()) }
+})
+
+test('connection fields keep all three numbered badge fills clipped to their fixed circles', async () => {
+  for (const initialMode of ['add', 'edit-active']) {
+    let tree
+    await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesManager, {
+      profiles: [profile], activeProfileId: profile.id, initialMode, ...noActions,
+    })) })
+    try {
+      assert.deepEqual([1, 2, 3].map(step => input(tree, `server-profile-step-${step}`).props.accessibilityLabel), [
+        '1. Name (optional)', '2. Server URL', '3. Access token',
+      ])
+      for (const step of [1, 2, 3]) {
+        const badge = input(tree, `server-profile-step-${step}`).children.find(node => node.type === 'View')
+        const style = Object.assign({}, ...badge.props.style)
+        assert.equal(style.width, 24)
+        assert.equal(style.height, 24)
+        assert.equal(style.flexShrink, 0)
+        assert.equal(style.overflow, 'hidden')
+      }
+      assert.equal(input(tree, 'server-profile-name').props.accessibilityLabel, 'Server name (optional)')
+      assert.equal(input(tree, 'server-profile-token').props.secureTextEntry, true)
+    } finally { await act(async () => tree.unmount()) }
+  }
+})
+
+test('server overflow only offers short edit/remove labels and protects the active server', async () => {
+  let tree
+  await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesManager, {
+    profiles: [profile, { ...profile, id: 'other' }], activeProfileId: profile.id, ...noActions,
+  })) })
+  try {
+    const menus = tree.root.findAllByType('Menu')
+    for (const menu of menus) {
+      assert.deepEqual(menu.props.actions.map(({ id, title }) => [id, title]), [['edit', 'Edit'], ['remove', 'Remove']])
+    }
+    assert.equal(menus[0].props.actions[1].attributes.disabled, true)
+    assert.equal(menus[1].props.actions[1].attributes.disabled, false)
+    assert.equal(menus[1].props.actions[1].attributes.destructive, true)
+  } finally { await act(async () => tree.unmount()) }
+})
+
+for (const initialMode of ['add', 'edit-active']) {
+  test(`${initialMode} uses one header with separate back and drawer-close actions`, async () => {
+    let tree, closed = 0
+    await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesManager, {
+      profiles: [profile], activeProfileId: profile.id, initialMode, ...noActions,
+      onClose: () => { closed++ },
+    })) })
+    try {
+      assert.equal(input(tree, 'server-management-title').props.children, initialMode === 'add' ? 'Add server' : 'Edit server')
+      assert.equal(tree.root.findAllByType('SheetCloseButton').length, 1)
+      assert.equal(tree.root.findAllByProps({ label: 'Close server editor' }).length, 0)
+      await act(async () => input(tree, 'server-editor-back').props.onPress())
+      assert.equal(closed, 0)
+      assert.ok(input(tree, 'server-profile-list'))
+      assert.equal(input(tree, 'server-management-title').props.children, 'Servers')
+      assert.equal(tree.root.findAllByProps({ testID: 'server-editor-back' }).length, 0)
+      await act(async () => button(tree, 'Add server').props.onPress())
+      await act(async () => input(tree, 'server-management-close').props.onPress())
+      assert.equal(closed, 1)
+    } finally { await act(async () => tree.unmount()) }
+  })
+}
+
+for (const outcome of ['success', 'failed', 'dismissed']) {
+  test(`server row ${outcome} only closes the current drawer after successful switching`, async () => {
+    let tree, finish, closed = 0
+    await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesManager, {
+      profiles: [profile], activeProfileId: 'other', ...noActions,
+      onSwitchProfile: () => new Promise(resolve => { finish = resolve }),
+      onSelected: () => { closed++ },
+    })) })
+    await act(async () => button(tree, 'Use Saved server').props.onPress())
+    assert.equal(closed, 0)
+    assert.equal(button(tree, 'Use Saved server').props.disabled, true)
+    if (outcome === 'dismissed') await act(async () => tree.unmount())
+    await act(async () => finish(outcome !== 'failed'))
+    assert.equal(closed, outcome === 'success' ? 1 : 0)
+    if (outcome === 'failed') {
+      assert.match(JSON.stringify(tree.toJSON()), /was not activated/)
+      assert.equal(button(tree, 'Use Saved server').props.disabled, false)
+    }
+    if (outcome !== 'dismissed') await act(async () => tree.unmount())
+  })
+}
+
+test('current server closes the drawer without reconnecting; add and edit replace the list', async () => {
+  let tree, closed = 0, switched = 0
+  await act(async () => { tree = TestRenderer.create(React.createElement(ServerProfilesManager, {
+    profiles: [profile], activeProfileId: profile.id, ...noActions,
+    onSwitchProfile: () => { switched++; return true }, onSelected: () => { closed++ },
+  })) })
+  try {
+    await act(async () => button(tree, 'Use Saved server').props.onPress())
+    assert.equal(closed, 1)
+    assert.equal(switched, 0)
+    await act(async () => button(tree, 'Add server').props.onPress())
+    assert.equal(tree.root.findAllByProps({ testID: 'server-profile-list' }).length, 0)
+    assert.ok(input(tree, 'server-profile-url'))
+    await act(async () => input(tree, 'server-editor-back').props.onPress())
+    const menu = tree.root.findByType('Menu')
+    await act(async () => menu.props.onPressAction({ nativeEvent: { event: 'edit' } }))
+    assert.equal(input(tree, 'server-profile-url').props.value, profile.serverUrl)
+    assert.equal(tree.root.findAllByProps({ testID: 'server-profile-list' }).length, 0)
+  } finally { await act(async () => tree.unmount()) }
 })
 
 test('manual add still authenticates the typed connection before saving and switching', async () => {
@@ -66,17 +223,18 @@ test('manual add still authenticates the typed connection before saving and swit
     onSwitchProfile: async id => { calls.push(['switch', id]); return true },
   })) })
   try {
-    assert.equal(button(tree, 'Add & switch').props.disabled, true)
+    assert.equal(button(tree, 'Add').props.disabled, true)
     await act(async () => input(tree, 'server-profile-url').props.onChangeText('http://127.0.0.1:7866'))
     await act(async () => input(tree, 'server-profile-token').props.onChangeText('synthetic-test-token'))
     assert.deepEqual(calls, [], 'typing must not probe or save a server')
     await act(async () => button(tree, 'Test connection').props.onPress())
-    assert.equal(button(tree, 'Add & switch').props.disabled, false)
-    await act(async () => button(tree, 'Add & switch').props.onPress())
+    assert.equal(button(tree, 'Add').props.disabled, false)
+    await act(async () => button(tree, 'Add').props.onPress())
     assert.deepEqual(calls.map(([action]) => action), ['test', 'create', 'switch'])
     assert.equal(calls[0][1].serverUrl, 'http://127.0.0.1:7866')
     assert.equal(calls[0][1].accessToken, 'synthetic-test-token')
     assert.equal(calls[1][1].serverIdentity, 'test-identity')
+    assert.equal(Object.hasOwn(calls[1][1], 'name'), false, 'a blank optional name is omitted when creating the server')
     assert.equal(calls[2][1], 'created')
   } finally { await act(async () => tree.unmount()) }
 })
@@ -91,13 +249,13 @@ test('changing the connection invalidates its test; a rejected test cannot save'
   try {
     await act(async () => input(tree, 'server-profile-url').props.onChangeText('http://127.0.0.1:7866'))
     await act(async () => button(tree, 'Test connection').props.onPress())
-    assert.equal(button(tree, 'Add & switch').props.disabled, false)
+    assert.equal(button(tree, 'Add').props.disabled, false)
     await act(async () => input(tree, 'server-profile-token').props.onChangeText('changed-token'))
-    assert.equal(button(tree, 'Add & switch').props.disabled, true)
+    assert.equal(button(tree, 'Add').props.disabled, true)
     reject = true
     await act(async () => button(tree, 'Test connection').props.onPress())
     assert.match(JSON.stringify(tree.toJSON()), /Connection rejected/)
-    assert.equal(button(tree, 'Add & switch').props.disabled, true)
+    assert.equal(button(tree, 'Add').props.disabled, true)
     assert.equal(saved, 0)
   } finally { await act(async () => tree.unmount()) }
 })
