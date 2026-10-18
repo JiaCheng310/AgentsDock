@@ -145,7 +145,11 @@ function AppWorkspace() {
   const [sideChatController] = useState(() => new SideChatController())
   const [inspectorTab, setInspectorTab] = useState<InspectorWorkspaceTab>(readInspectorTab)
   const preferredInspectorTab = useRef(readInspectorTab())
+  const inspectorTabRef = useRef(inspectorTab)
+  inspectorTabRef.current = inspectorTab
   const chooseInspectorTab = useCallback((tab: InspectorWorkspaceTab) => {
+    if (tab === 'files' && (inspectorTabRef.current !== 'files' || !useAppStore.getState().inspectorVisible)) trackEvent('workspace_files_opened')
+    inspectorTabRef.current = tab
     if (tab !== 'review') {
       preferredInspectorTab.current = tab
       saveInspectorTab(tab)

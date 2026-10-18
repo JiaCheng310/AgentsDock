@@ -192,7 +192,7 @@ describe('ImportChatsDialog', () => {
       cwd: '/work/b'
     }]))
     await waitFor(() => expect(selectSession).toHaveBeenCalledWith('imported-chat'))
-    expect(trackEvent).toHaveBeenCalledWith('chat_resumed')
+    expect(trackEvent).toHaveBeenCalledExactlyOnceWith('chat_resumed', { backend: 'codex' })
     expect(useAppStore.getState().modals.importChats).toBe(false)
     expect(useAppStore.getState().modals.resume).toBe(false)
   })
@@ -224,7 +224,7 @@ describe('ImportChatsDialog', () => {
       cwd: '/work/project'
     })))
     await waitFor(() => expect(selectSession).toHaveBeenCalledWith('resumed-chat'))
-    expect(trackEvent).toHaveBeenCalledWith('chat_resumed')
+    expect(trackEvent).toHaveBeenCalledExactlyOnceWith('chat_resumed', { backend: 'codex' })
     expect(useAppStore.getState().modals.importChats).toBe(false)
     expect(useAppStore.getState().modals.resume).toBe(false)
   })
