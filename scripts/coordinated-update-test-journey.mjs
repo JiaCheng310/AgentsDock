@@ -55,7 +55,13 @@ try {
     const destination = join(work, letter === 'a' ? 'installation' : 'expected')
     await mkdir(destination)
     executePrivate('/usr/bin/ditto', ['-x', '-k', join(root, letter, `AgentsDock-${version}-mac-universal.zip`), destination])
-    verifyApp(join(destination, 'AgentsDock.app'), version)
+    const app = join(destination, 'AgentsDock.app')
+    verifyApp(app, version)
+    for (const name of ['agents-server-npm-manifest.json', 'agents-server-npm-manifest.sig']) {
+      assert(readFileSync(join(app, 'Contents/Resources/coordinated-release', name))
+        .equals(readFileSync(join(root, letter, name))),
+      'Packaged App server descriptor differs from the signed server artifact.')
+    }
   }
   phase('signed-apps-verified')
   const expectedAsar = await hashFile(join(work, 'expected/AgentsDock.app/Contents/Resources/app.asar'))

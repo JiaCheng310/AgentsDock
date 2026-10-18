@@ -43,20 +43,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/candidates/a" "$RUNNER_TEMP/candidates/b"
-          for entry in a:1.0.11-beta.2:39086491615 b:1.0.11-beta.3:39086563673; do
-            IFS=: read -r letter version signing_run <<< "$entry"
+          for entry in a:1.0.11-beta.2:39086604218:39086491615 b:1.0.11-beta.3:39086616600:39086563673; do
+            IFS=: read -r letter version desktop_run signing_run <<< "$entry"
             destination="$RUNNER_TEMP/candidates/$letter"
-            gh release download "v$version" --repo ZhengyiLuo/AgentsDock --dir "$destination" \
-              --pattern "AgentsDock-$version-mac-universal.zip" \
-              --pattern "AgentsDock-$version-mac-universal.zip.blockmap" \
-              --pattern beta-mac.yml --pattern SHA256SUMS \
-              --pattern agents-server-npm-manifest.json --pattern agents-server-npm-manifest.sig
+            gh run download "$desktop_run" --repo ZhengyiLuo/AgentsDock \
+              --name "AgentsDock-$version-macos-verified" --dir "$destination"
             gh run download "$signing_run" --repo ZhengyiLuo/AgentsServer \
               --dir "$RUNNER_TEMP/signer-$letter"
             signed=("$RUNNER_TEMP/signer-$letter"/signed-npm-server-*)
             test "${#signed[@]}" -eq 1
-            cmp "$destination/agents-server-npm-manifest.json" "${signed[0]}/agents-server-npm-manifest.json"
-            cmp "$destination/agents-server-npm-manifest.sig" "${signed[0]}/agents-server-npm-manifest.sig"
+            cp "${signed[0]}/agents-server-npm-manifest.json" "$destination/"
+            cp "${signed[0]}/agents-server-npm-manifest.sig" "$destination/"
             cp "${signed[0]}/server-$version.tgz" "$destination/"
           done
       - name: Create private exact-origin routing on this disposable runner
@@ -129,7 +126,7 @@ jobs:
             "$network/leaf.pem" "$network/leaf.key" "$network/feed.pid" \
             > "$network/feed.log" 2>&1 &
           for attempt in {1..60}; do
-            if curl --fail --silent --max-time 2 --cacert "$network/ca.pem" \
+            if curl --fail --silent --max-time 2 --noproxy '*' --cacert "$network/ca.pem" \
               --resolve github.com:443:127.0.0.1 \
               https://github.com/ZhengyiLuo/AgentsDock/releases.atom \
               -o "$network/probe.atom"; then
@@ -147,24 +144,26 @@ jobs:
         run: |
           set -euo pipefail
           network="$RUNNER_TEMP/coordinated-network"
+          cleanup_status=0
           /bin/launchctl unsetenv SSL_CERT_FILE || true
           /bin/launchctl unsetenv NODE_EXTRA_CA_CERTS || true
           if [[ -f "$network/feed.pid" ]]; then
-            feed_pid="$(cat "$network/feed.pid")"
+            feed_pid="$(sudo -n cat "$network/feed.pid")"
             if [[ "$feed_pid" =~ ^[1-9][0-9]*$ ]]; then sudo -n kill -TERM "$feed_pid" || true; fi
           fi
           if [[ -f "$network/hosts.active" ]] && cmp -s /etc/hosts "$network/hosts.active"; then
             sudo -n cp "$network/hosts.baseline" /etc/hosts
             sudo -n /usr/bin/dscacheutil -flushcache
             sudo -n /usr/bin/killall -HUP mDNSResponder
-          elif [[ -f "$network/hosts.active" ]]; then
+          elif [[ -f "$network/hosts.active" ]] && ! cmp -s /etc/hosts "$network/hosts.baseline"; then
             echo 'Hosts changed outside this disposable replay; refusing to erase that change.' >&2
-            exit 1
+            cleanup_status=1
           fi
           if [[ -f "$network/ca.pem" ]]; then
             fingerprint="$(openssl x509 -in "$network/ca.pem" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)"
             sudo -n /usr/bin/security delete-certificate -Z "$fingerprint" /Library/Keychains/System.keychain || true
           fi
+          exit "$cleanup_status"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

@@ -1,0 +1,17 @@
+{
+  "a": {
+    "version": "1.0.11-beta.2",
+    "source": "a5cadf72c125f1bd0a2c8c2ab2409ed4cfd5d8cd",
+    "desktopRun": 39086604218,
+    "signingRun": 39086491615,
+    "sha256": {
+      "AgentsDock-1.0.11-beta.2-mac-universal.zip": "7c042004e76112a9aebcf5fd79e569b154604f9620809522e1272c62383039c8",
+      "AgentsDock-1.0.11-beta.2-mac-universal.zip.blockmap": "ccd4a5bf31c1702879f54ca8980005b8339a3f5995f68fa216ef94a9eb786b2a",
+      "beta-mac.yml": "9a6edcb88d41d2824cbf0ee94a06a16d5a4b2080ea7787b77f6a56eafd59d34f",
+      "agents-server-npm-manifest.json": "e9d166437af358620aa05703aaca835979c2b14a189fa829360030c567fe1fcb",
+      "agents-server-npm-manifest.sig": "d020bb386bdc9c559325aef3309412d1d1c3c330ef5c4745dbd90778a47b6dc3",
+      "server-1.0.11-beta.2.tgz": "f30d5bae27f0c052239122e39aa4d80fb29c0c3adb3603f00d283820cb78568e"
+    }
+  },
+  "b": null
+}
