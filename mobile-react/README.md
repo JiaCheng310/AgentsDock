@@ -187,6 +187,24 @@ the artwork, run `pnpm run embed:backend-marks` and
 
 ## Local build output
 
+### Authorized TestFlight uploads
+
+The `Upload iOS TestFlight build` GitHub workflow is manually dispatched from a
+reviewed `main` or `release/*` commit. Supply its complete SHA as `source_sha`;
+the workflow rejects a different checkout or workflow commit. Update and commit
+the Expo marketing version and iOS build number before dispatching. The Apple
+preflight checks approved version trains and existing builds before compilation
+and checks the build number again immediately before upload.
+
+Signing uses the existing Apple API credentials in the protected
+`direct-production` environment, not a developer's local simulator/device
+identity. The workflow generates a fresh production native project, validates
+the archive, uploads, and reports Apple processing/internal/external test status.
+It does not submit external beta review or publish an App Store version. Keep
+the exact source SHA, version/build, acceptance results and any symbol warnings
+in the public development log. Do not repeat an upload merely because Apple
+processing or tester visibility is still pending.
+
 The standalone Apple-silicon simulator build is generated at:
 
 ```text

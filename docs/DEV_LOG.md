@@ -1,5 +1,31 @@
 # Public development log
 
+## 2026-10-18 - Upload iOS TestFlight 0.1.3 (189)
+
+- Build the user-authorized TestFlight candidate from 3b12ccf0, based on PR #101
+  and merge bc2189c2. App functionality is unchanged from the merged candidate;
+  release changes update metadata and introduce a manually dispatched, exact-SHA
+  hosted iOS build/upload workflow with protected Apple credentials.
+- Apple had already approved 0.1.2 and closed that upload train. Advance the
+  marketing version to 0.1.3, retaining build 189. Check approved App Store
+  versions before compilation and prevent duplicate build numbers within the
+  selected iOS version, independently of older timestamp-numbered releases.
+- Verification: ten release guard/symbol tests, mobile type checking, targeted
+  media/QR/touch regressions and sync stress pass. The production Xcode 26.6
+  archive passes native dependency parity, signature, metadata, bundled-JS and
+  ABI checks across 15 consumers and 14 bundled framework providers. Collect
+  UUID-matched React and ExpoImage debug symbols without changing app binaries.
+- Apple processing is VALID; internal testing is IN_BETA_TESTING with automatic
+  notifications enabled. External testing remains READY_FOR_BETA_SUBMISSION.
+  No external beta review, public App Store release, desktop/npm publication,
+  server deployment or physical-device installation was performed.
+- Remaining packaging warnings: prebuilt ReactNativeDependencies, SDWebImage
+  and its AVIF/SVG/WebP coders, and Hermes lack matching vendor dSYMs. Apple
+  accepted the build; those frameworks have reduced crash-symbolication detail.
+  Installation of this exact TestFlight binary has not been exercised locally;
+  the underlying native workflows were accepted in the prior PR verification.
+- Build record: https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39186132636.
+
 ## 2026-10-18 - Validate cross-device pairing and mobile reliability changes
 
 - Prepare the accumulated connection-sharing, mobile recovery, media action and
