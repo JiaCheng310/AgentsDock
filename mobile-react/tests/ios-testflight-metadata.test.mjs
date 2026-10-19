@@ -26,3 +26,11 @@ test('unexpected version lines, platforms and numbering fail closed', () => {
   assert.throws(() => assertUnusedBuild(config, [build('188.1')], versions))
   assert.throws(() => assertUnusedBuild(config, [], versions))
 })
+
+test('older iOS marketing versions may use independent timestamp build numbers', () => {
+  const older = { ...build('202605151902'), relationships: { preReleaseVersion: { data: { id: 'old' } } } }
+  assert.doesNotThrow(() => assertUnusedBuild(config, [build('188'), older], [
+    ...versions, { id: 'old', attributes: { version: '0.1.0', platform: 'IOS' } },
+  ]))
+  assert.throws(() => assertUnusedBuild(config, [build('188'), older], versions))
+})
