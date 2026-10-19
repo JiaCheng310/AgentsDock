@@ -22,6 +22,7 @@ const guard = step('Require the exact reviewed hosted workflow')
 const token = step('Check release-token identity and repository metadata without writes')
 const signing = step('Verify existing Developer ID with a disposable signing probe')
 const notary = step('Check existing Apple API authentication using read-only history')
+const ios = step('Check iOS TestFlight access and recent builds without writes')
 const cleanup = step('Always restore keychain state and erase disposable credentials')
 
 test('credential preflight is manual, canonical, protected, and hosted macOS only', () => {
@@ -50,13 +51,14 @@ test('the sole action is the existing pinned checkout without persisted credenti
 })
 
 test('credentials stay in independently guarded step environments, never PR source checks', () => {
-  assert.equal((workflow.match(/if: \$\{\{ !cancelled\(\) && steps\.source\.outcome == 'success' && steps\.private\.outcome == 'success' \}\}/g) || []).length, 3)
+  assert.equal((workflow.match(/if: \$\{\{ !cancelled\(\) && steps\.source\.outcome == 'success' && steps\.private\.outcome == 'success' \}\}/g) || []).length, 4)
   assert.deepEqual([...workflow.matchAll(/\$\{\{ secrets\.([A-Z0-9_]+) \}\}/g)].map(match => match[1]).sort(), [
-    'AGENTSDOCK_RELEASE_TOKEN', 'APPLE_API_ISSUER', 'APPLE_API_KEY_ID', 'APPLE_API_KEY_P8_BASE64',
+    'AGENTSDOCK_RELEASE_TOKEN', 'APPLE_API_ISSUER', 'APPLE_API_ISSUER',
+    'APPLE_API_KEY_ID', 'APPLE_API_KEY_ID', 'APPLE_API_KEY_P8_BASE64', 'APPLE_API_KEY_P8_BASE64',
     'MACOS_CERTIFICATE_P12_BASE64', 'MACOS_CERTIFICATE_PASSWORD',
   ])
   assert.doesNotMatch(workflow, /GITHUB_ENV|ACTIONS_STEP_DEBUG|set -x|set -[^\n ]*x|print\((?:result|payload|identity|metadata|token|password|encoded)/)
-  for (const body of [token, signing, notary]) assert.match(body, /^set \+x\n/)
+  for (const body of [token, signing, notary, ios]) assert.match(body, /^set \+x\n/)
   assert.doesNotMatch(workflow, /AGENTSDOCK_SERVER_SIGNING|SERVER_SIGNING_KEY|NPM_TOKEN/)
 })
 
@@ -169,6 +171,20 @@ test('notarization checks only read-only history, emits counts, and never persis
   assert.doesNotMatch(notary, /(?:write_text|write_bytes)\((?:result|payload)|print\((?:result|payload)|"submit"|"store-credentials"|--verbose/)
 })
 
+test('iOS metadata is bounded read-only Apple access with no credential output', () => {
+  assert.match(ios, /new URL\(path, 'https:\/\/api\.appstoreconnect\.apple\.com'\)/)
+  assert.match(ios, /redirect: 'error', signal: AbortSignal\.timeout\(30000\)/)
+  assert.match(ios, /get\('\/v1\/apps'/)
+  assert.match(ios, /get\('\/v1\/builds'/)
+  assert.match(ios, /'filter\[bundleId\]': config\.ios\.bundleIdentifier/)
+  assert.match(ios, /'filter\[preReleaseVersion.platform\]': 'IOS'/)
+  assert.match(ios, /sort: '-uploadedDate', limit: '10'/)
+  assert.match(ios, /exp: now \+ 300/)
+  assert.match(ios, /dsaEncoding: 'ieee-p1363'/)
+  assert.doesNotMatch(ios, /method:|console\.(?:log|error)\((?:token|key|signature|encoded|error)\)|writeFile|writeFileSync/)
+  assert.match(ios, /No build number reserved, signing assets created, build uploaded, or app submitted/)
+})
+
 test('workflow cannot install packages, build an app, upload artifacts, or publish', () => {
   assert.doesNotMatch(workflow, /\b(?:npm|npx|pnpm|yarn)\s+(?:install|publish|exec|run|build)|gh (?:release|workflow|run)|upload-artifact@|download-artifact@|notarytool[" ]*,?[" ]*submit|xcodebuild|electron-builder|build_electron_release|git push/)
   assert.doesNotMatch(workflow, /--keychain-profile|--apple-id|--team-id|notarytool.*store-credentials/)
@@ -182,13 +198,18 @@ test('workflow cannot install packages, build an app, upload artifacts, or publi
 test('all inline scripts parse without executing credentials, network, signing, or cleanup', () => {
   // Static syntax checking only: never execute the workflow's Python or Bash.
   const bodies = [...workflow.matchAll(/^        run: \|\n((?:          .*\n|\n)+)/gm)].map(match => match[1].split('\n').map(line => line.slice(10)).join('\n'))
-  assert.equal(bodies.length, 8)
+  assert.equal(bodies.length, 9)
   for (const body of bodies) {
     const bash = spawnSync('/bin/bash', ['--noprofile', '--norc', '-n'], { input: body, encoding: 'utf8' })
     assert.equal(bash.status, 0, bash.stderr)
     const python = body.match(/python3 - <<'PY'\n([^]*?)\nPY(?:\n|$)/)?.[1]
     if (python) {
       const syntax = spawnSync('python3', ['-c', 'import ast, sys; ast.parse(sys.stdin.read())'], { input: python, encoding: 'utf8' })
+      assert.equal(syntax.status, 0, syntax.stderr)
+    }
+    const javascript = body.match(/node --input-type=module <<'JS'\n([^]*?)\nJS(?:\n|$)/)?.[1]
+    if (javascript) {
+      const syntax = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: javascript, encoding: 'utf8' })
       assert.equal(syntax.status, 0, syntax.stderr)
     }
   }
