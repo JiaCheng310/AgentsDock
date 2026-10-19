@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 export * from './component-mocks/react-native'
 export const Appearance = { getColorScheme: () => 'dark', setColorScheme() {} }
+export const getLocales = () => [{ languageTag: 'en-US' }]
 export const Platform = { OS: 'ios', Version: 26, select: (options: any) => options[Platform.OS] ?? options.default }
 export const Linking = { openSettings: async () => { nativeTransfer.settingsOpened += 1 } }
 export default { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} }
