@@ -11,7 +11,8 @@ import {
 import { ScreenStack, ScreenStackItem } from 'react-native-screens'
 import { MenuView, type MenuAction } from '@expo/ui/community/menu'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Check, ChevronDown, MoreHorizontal, Plus, Server, Wifi } from 'lucide-react-native'
+import Svg, { Circle, Text as SvgText } from 'react-native-svg'
+import { ArrowLeft, Check, ChevronDown, MoreHorizontal, Plus, ScanLine, Server, Wifi } from 'lucide-react-native'
 import {
   buildCreateServerProfileInput,
   buildUpdateServerProfileInput,
@@ -37,6 +38,9 @@ import { fontWeight, radius, spacing, typography, usePalette } from '../theme'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { Text, TextInput } from './AppText'
 import { IconButton, SheetCloseButton } from './ui'
+import { ServerQrScanner } from './ServerQrScanner'
+import type { ServerConnectionDetails } from '../lib/server-connection-link'
+import { selectServerAddress } from '../lib/server-address-selection'
 
 export type {
   CreateServerProfileInput,
@@ -51,6 +55,7 @@ type Awaitable<T> = T | Promise<T>
 type ActionResult = boolean | void
 type CreatedProfile = string | Pick<ServerProfileListItem, 'id'>
 const serverSheetDetents = [0.5, 1]
+const scannerSheetDetents = [1]
 
 interface CommonServerProfileProps {
   profiles: readonly ServerProfileListItem[]
@@ -73,6 +78,7 @@ export interface ServerProfilesManagerProps extends CommonServerProfileProps {
   onRemoveProfile: (profileId: string) => Awaitable<void>
   onSelected?: () => void
   onClose?: () => void
+  onScannerVisibilityChange?: (visible: boolean) => void
 }
 
 export interface ServerProfilesSheetProps extends ServerProfilesManagerProps {
@@ -117,6 +123,8 @@ export function ServerProfileSelector({
 
 export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfilesSheetProps) {
   const colors = usePalette()
+  const [scannerVisible, setScannerVisible] = useState(false)
+  useEffect(() => { if (!visible) setScannerVisible(false) }, [visible])
   // Keep the native presenter alive through dismissal, but never intercept home touches when closed.
   return <View style={StyleSheet.absoluteFill} pointerEvents={visible ? 'box-none' : 'none'}>
     <ScreenStack style={styles.sheet}>
@@ -125,7 +133,7 @@ export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfil
         screenId="servers-drawer"
         activityState={2}
         stackPresentation="formSheet"
-        sheetAllowedDetents={serverSheetDetents}
+        sheetAllowedDetents={scannerVisible ? scannerSheetDetents : serverSheetDetents}
         sheetInitialDetentIndex={0}
         sheetGrabberVisible
         sheetExpandsWhenScrolledToEdge
@@ -135,7 +143,7 @@ export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfil
         style={styles.sheet}
       >
         <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
-          <ServerProfilesManager {...props} onSelected={onClose} onClose={onClose} />
+          <ServerProfilesManager {...props} onSelected={onClose} onClose={onClose} onScannerVisibilityChange={setScannerVisible} />
         </SafeAreaView>
       </ScreenStackItem> : null}
     </ScreenStack>
@@ -154,17 +162,23 @@ export function ServerProfilesManager({
   onRemoveProfile,
   onSelected,
   onClose,
+  onScannerVisibilityChange,
 }: ServerProfilesManagerProps) {
   const colors = usePalette()
   const [draft, setDraft] = useState<ServerProfileDraftValues | null>(() => initialServerProfileDraft(initialMode, profiles, activeProfileId))
   const [busy, setBusy] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [entryMethod, setEntryMethod] = useState<'manual' | 'qr'>('manual')
+  useEffect(() => { onScannerVisibilityChange?.(scanning) }, [onScannerVisibilityChange, scanning])
+  const [qrIdentity, setQrIdentity] = useState<string | null>(null)
   const [tested, setTested] = useState<ServerConnectionTestResult | null>(null)
   const [feedback, setFeedback] = useState<{ tone: 'error' | 'success' | 'neutral'; message: string } | null>(null)
   const testLease = useRef(0)
+  const testController = useRef<AbortController | null>(null)
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false }
+    return () => { mounted.current = false; testLease.current += 1; testController.current?.abort() }
   }, [])
   const editedProfile = useMemo(() => profiles.find(profile => profile.id === draft?.profileId) ?? null, [draft?.profileId, profiles])
   const duplicateProfile = useMemo(
@@ -196,35 +210,45 @@ export function ServerProfilesManager({
 
   const invalidateTest = () => {
     testLease.current += 1
+    testController.current?.abort()
     setTested(null)
     setFeedback(null)
     if (busy === 'test') setBusy(null)
   }
   const updateDraft = (patch: Partial<ServerProfileDraftValues>, invalidatesTest = false) => {
     if (invalidatesTest) invalidateTest()
-    setDraft(current => current ? { ...current, ...patch } : current)
+    setDraft(current => current ? { ...current, ...(patch.serverUrl !== undefined ? { serverUrls: undefined } : {}), ...patch } : current)
   }
   const openAdd = () => {
     if (busy) return
     invalidateTest()
+    setQrIdentity(null)
+    setEntryMethod('manual')
     setDraft(emptyServerProfileDraft())
   }
   const openEdit = (profile: ServerProfileListItem) => {
     if (busy) return
     invalidateTest()
+    setQrIdentity(null)
+    setEntryMethod('manual')
     setDraft(editServerProfileDraft(profile))
   }
   const closeEditor = () => {
     if (busy) return
+    if (scanning) { setScanning(false); return }
     invalidateTest()
+    setQrIdentity(null)
     setDraft(null)
     dismissAppKeyboard()
   }
 
-  const testConnection = async () => {
-    if (!draft?.serverUrl.trim()) return
+  const testConnection = async (candidate = draft, expectedIdentity = qrIdentity) => {
+    if (!candidate?.serverUrl.trim()) return
     const request = ++testLease.current
-    const testedDraft = { ...draft }
+    testController.current?.abort()
+    const controller = new AbortController()
+    testController.current = controller
+    const testedDraft = { ...candidate }
     const accessToken = draftAccessToken(testedDraft)
     const input: ServerProfileTestInput = {
       ...(testedDraft.profileId ? { profileId: testedDraft.profileId } : {}),
@@ -235,15 +259,33 @@ export function ServerProfilesManager({
     setTested(null)
     setFeedback(null)
     try {
-      const result = await onTestConnection(input)
+      const selected = testedDraft.serverUrls && expectedIdentity
+        ? await selectServerAddress(testedDraft.serverUrls, expectedIdentity,
+          (serverUrl, signal) => Promise.resolve(onTestConnection({ ...input, serverUrl, signal, timeoutMs: 5000 })),
+          { signal: controller.signal })
+        : { serverURL: testedDraft.serverUrl, health: await onTestConnection({ ...input, signal: controller.signal }) }
+      const result = selected.health
       if (result.ok !== true) throw new Error(result.message || 'Server health check reported unavailable.')
       if (!result.server_identity?.trim()) throw new Error('This AgentsServer did not report a stable server identity.')
-      if (request === testLease.current) setTested(result)
+      if (expectedIdentity && result.server_identity !== expectedIdentity) throw new Error('This server does not match the scanned QR. Generate a fresh QR on the intended server.')
+      if (request === testLease.current) {
+        setDraft(current => current ? { ...current, serverUrl: selected.serverURL } : current)
+        setTested(result)
+      }
     } catch (error) {
       if (request === testLease.current) setFeedback({ tone: 'error', message: errorMessage(error) })
     } finally {
       if (request === testLease.current) setBusy(null)
     }
+  }
+
+  const acceptQr = (details: ServerConnectionDetails) => {
+    const candidate = { ...emptyServerProfileDraft(), name: details.name, serverUrl: details.serverUrl, serverUrls: details.serverUrls, accessToken: details.accessToken }
+    setScanning(false)
+    setEntryMethod('qr')
+    setQrIdentity(details.serverIdentity)
+    setDraft(candidate)
+    void testConnection(candidate, details.serverIdentity)
   }
 
   const switchProfile = async (profileId: string) => {
@@ -287,6 +329,10 @@ export function ServerProfilesManager({
     setFeedback(null)
     try {
       if (!draft.profileId && duplicateProfile) {
+        if (draft.serverUrls) {
+          // Reuse the saved credential; the store validates it before updating addresses.
+          await onUpdateProfile(duplicateProfile.id, { serverUrl: draft.serverUrl, serverUrls: draft.serverUrls, serverIdentity: tested!.server_identity! })
+        }
         const switched = await onSwitchProfile(duplicateProfile.id)
         if (switched === false) throw new Error(`Could not activate the existing “${duplicateProfile.name}” profile.`)
       } else if (draft.profileId && editedProfile) {
@@ -312,7 +358,7 @@ export function ServerProfilesManager({
   }
 
   const removeProfile = async (profile: ServerProfileListItem) => {
-    if (profile.id === activeProfileId || busy) return
+    if (busy) return
     setBusy(`remove:${profile.id}`)
     setFeedback(null)
     try {
@@ -326,10 +372,10 @@ export function ServerProfilesManager({
   }
 
   const confirmRemove = (profile: ServerProfileListItem) => {
-    if (profile.id === activeProfileId || busy) return
+    if (busy) return
     Alert.alert(
       `Remove “${profile.name}”?`,
-      'The saved connection will be removed. Its cached chats remain on this device.',
+      'Only this saved connection will be removed. This will not stop tasks or delete chats on the server. Cached chats remain on this device.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove server', style: 'destructive', onPress: () => { void removeProfile(profile) } },
@@ -354,9 +400,9 @@ export function ServerProfilesManager({
 
   return <>
     <View style={[styles.sheetHeader, { borderColor: colors.border }]}>
-      {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label="Back to servers" testID="server-editor-back" /> : null}
+      {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label={scanning ? 'Back to add server' : 'Back to servers'} testID="server-editor-back" /> : null}
       <View style={styles.sheetHeadingCopy}>
-        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers'}</Text>
+        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{scanning ? 'Scan QR code' : draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers'}</Text>
       </View>
       {onClose ? <SheetCloseButton onPress={onClose} label="Close server management" testID="server-management-close" /> : null}
     </View>
@@ -404,8 +450,25 @@ export function ServerProfilesManager({
       }]}
     ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{feedback.message}</Text></View> : null}
 
-    {draft ? <View testID="server-profile-editor" style={styles.editor}>
-      <View style={styles.editorFields}>
+    {scanning ? <ServerQrScanner onScanned={acceptQr} /> : draft ? <View testID="server-profile-editor" style={styles.editor}>
+      {!draft.profileId ? <SecondaryButton icon={ScanLine} label="Scan QR code" disabled={Boolean(busy)} onPress={() => {
+        dismissAppKeyboard()
+        invalidateTest()
+        setScanning(true)
+      }} /> : null}
+      {!draft.profileId && entryMethod === 'manual' ? <Text style={[typography.caption, styles.manualCaption, { color: colors.muted }]}>or add manually</Text> : null}
+      {!draft.profileId && entryMethod === 'qr' ? <>
+        <View testID="server-scanned-summary" style={styles.scannedSummary}>
+          {draft.name ? <Text style={[typography.label, { color: colors.text }]}>{draft.name}</Text> : null}
+          <Text selectable style={[typography.body, { color: colors.muted }]}>{draft.serverUrl}</Text>
+        </View>
+        <Pressable testID="server-manual-entry" accessibilityRole="button" accessibilityLabel="Edit details"
+          disabled={Boolean(busy)} onPress={() => setEntryMethod('manual')}
+          style={({ pressed }) => [styles.manualEntry, { opacity: busy ? 0.35 : pressed ? 0.65 : 1 }]}>
+          <Text style={[typography.body, { color: colors.blue }]}>Edit details</Text>
+        </Pressable>
+      </> : null}
+      {entryMethod === 'manual' ? <View style={styles.editorFields}>
         <View style={styles.editorField}>
           <FieldLabel step={1} text="Name (optional)" />
           <TextInput
@@ -454,7 +517,7 @@ export function ServerProfilesManager({
             style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, opacity: draft.clearAccessToken ? 0.4 : 1 }]}
           />
         </View>
-      </View>
+      </View> : null}
       {editedProfile?.hasAccessToken ? <View style={styles.switchRow}>
         <View style={styles.switchCopy}>
           <Text style={[styles.switchTitle, { color: colors.text }]}>Remove saved access token</Text>
@@ -537,7 +600,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       id: 'remove',
       title: 'Remove',
       image: 'trash',
-      attributes: { disabled: disabled || active, destructive: !active },
+      attributes: { disabled, destructive: true },
     },
   ]
   return <View style={[styles.profileRow, { borderColor: colors.border }]}>
@@ -604,9 +667,11 @@ export function ServerUnreadBadge({ count }: { count: number }) {
 function FieldLabel({ step, text }: { step: 1 | 2 | 3; text: string }) {
   const colors = usePalette()
   return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${text}`} style={styles.fieldHeading}>
-    <View style={[styles.fieldStep, { borderColor: colors.blue, backgroundColor: `${colors.blue}10` }]}>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.fieldStepNumber, { color: colors.blue }]}>{step}</Text>
-    </View>
+    {/* Draw the badge in one fixed viewport, independent of native rounded-view layers. */}
+    <Svg width={24} height={24} viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" style={styles.fieldStep} accessible={false}>
+      <Circle cx={12} cy={12} r={11.5} stroke={colors.blue} strokeWidth={1} fill={colors.blue} fillOpacity={0.06} />
+      <SvgText x={12} y={16} textAnchor="middle" fontSize={typography.caption.fontSize} fontWeight={fontWeight.semibold} fill={colors.blue}>{step}</SvgText>
+    </Svg>
     <Text style={[styles.fieldLabel, { color: colors.muted }]}>{text}</Text>
   </View>
 }
@@ -683,12 +748,13 @@ const styles = StyleSheet.create({
   noProfilesTitle: { ...typography.body, fontWeight: fontWeight.semibold },
   feedback: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: spacing.md, justifyContent: 'center' },
   editor: { gap: spacing.sm },
+  manualCaption: { textAlign: 'center', paddingVertical: spacing.sm },
+  manualEntry: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  scannedSummary: { gap: spacing.xs, paddingTop: spacing.lg },
   editorFields: { gap: spacing.xl },
   editorField: { gap: spacing.sm },
   fieldHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  // Keep the translucent fill inside the badge during native sheet resizing.
-  fieldStep: { width: 24, height: 24, borderRadius: radius.round, borderWidth: 1, overflow: 'hidden', flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  fieldStepNumber: { ...typography.caption, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  fieldStep: { width: 24, height: 24, flexGrow: 0, flexShrink: 0 },
   fieldLabel: { ...typography.label, flex: 1, fontWeight: fontWeight.semibold },
   input: { ...typography.body, minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   switchRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10 },

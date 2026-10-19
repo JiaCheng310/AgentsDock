@@ -18,7 +18,7 @@ export const dark = {
   red: '#ff5d64',
   orange: '#ff9f43',
   yellow: '#e2bd38',
-  user: '#262626',
+  user: '#193629',
   queued: '#3a3214',
 } as const
 
@@ -39,7 +39,7 @@ export const light = {
   red: '#d92d38',
   orange: '#c66b14',
   yellow: '#8d7200',
-  user: '#f0f0f0',
+  user: '#e4f3e9',
   queued: '#fff6cf',
 } as const
 

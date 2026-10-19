@@ -83,6 +83,30 @@ try {
   await useAppStore.getState().syncSelectedSession('manual')
   assert.deepEqual(requests.map(value => [value?.tail, value?.pageMode, value?.after]), [[true, 'semantic', undefined], [true, undefined, undefined]], 'partially upgraded servers retain the legacy tail fallback')
 
+  const completeLegacyPage: TimelinePage = {
+    ...tail, events: [event(10_000)], total: 1, has_more: false,
+    semantic_paging: false, events_omitted_before: 0, events_omitted_after: 0,
+  }
+  pendingPage = Promise.resolve(completeLegacyPage)
+  requests.length = 0
+  await useAppStore.getState().syncSelectedSession('manual')
+  assert.equal(requests.length, 1, 'a provably complete legacy small chat must not incur a second tail round trip')
+  assert.equal(useAppStore.getState().snapshots[session.id].semanticPaging, false)
+  assert.equal(subscriptions.at(-1), 10_000)
+
+  for (const incomplete of [
+    { total: null },
+    { total: 2 },
+    { has_more: true },
+    { events_omitted_after: 1 },
+  ]) {
+    pendingPage = Promise.resolve({ ...completeLegacyPage, ...incomplete })
+    requests.length = 0
+    await useAppStore.getState().syncSelectedSession('manual')
+    assert.equal(requests.length, 2, 'unknown totals or omitted events must retain the compatibility fallback')
+  }
+  pendingPage = null
+
   semanticHonored = true
   let resolvePage!: (value: TimelinePage) => void
   pendingPage = new Promise(resolve => { resolvePage = resolve })

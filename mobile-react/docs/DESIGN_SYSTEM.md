@@ -32,6 +32,9 @@ text opacity in components. Both themes define the same semantic keys:
   outline and `radius.round` for circular home actions and the server selector.
 - `border`: separators and ordinary field outlines. Keep this distinct from the
   slightly stronger control outline.
+- `user`: sent-message bubble surface, soft green (`#e4f3e9`) in light mode and
+  muted deep green (`#193629`) in dark mode. Keep primary and secondary text at
+  readable contrast; do not substitute the stronger status `green` fill.
 - Existing `blue`, `green`, `orange`, `red`, `yellow`: accent and status roles.
   Use these tokens instead of selecting new per-component hues.
 

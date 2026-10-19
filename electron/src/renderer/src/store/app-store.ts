@@ -22,7 +22,7 @@ import { isImportedAPIConnection, trackConfirmedSessionChange } from '../lib/ses
 import { secureRandomUUID } from '../lib/browser-crypto'
 import { nudgeChatFontSize, setChatFontFamily, setChatFontSize } from '../lib/chat-font'
 import { activeEmergencyAlert } from '../lib/emergency-alert'
-import { isUntouchedNewChat, navigableSessions } from '../lib/sessions'
+import { isUnread, isUntouchedNewChat, navigableSessions, type SidebarStatus } from '../lib/sessions'
 import { isAgentVisibleEvent } from '../lib/timeline'
 import {
   AGENT_CROSS_CHAT_ROUTES_CLIENT_CAPABILITY,
@@ -211,6 +211,8 @@ interface AppState {
   revokingAgentRouteIds: Set<string>
   folderOrder: string[]
   collapsedFolders: Set<string>
+  collapsedStatusGroups: Set<SidebarStatus>
+  pinnedCollapsed: boolean
   archivedCollapsed: boolean
   inspectorVisible: boolean
   activeSessionIds: Set<string>
@@ -279,8 +281,10 @@ interface AppState {
   applyQueuedTurnsResponse(sessionId: string, request: number, turns: QueuedTurn[]): boolean
   setQueued(sessionId: string, turns: QueuedTurn[]): void
   toggleFolder(folder: string): void
+  toggleStatusGroup(status: SidebarStatus): void
   setFolderOrder(order: string[]): void
   setArchivedCollapsed(value: boolean): void
+  setPinnedCollapsed(value: boolean): void
   setInspectorVisible(value: boolean): void
   setModal<K extends keyof ModalState>(key: K, value: boolean): void
   setError(error: string | null): void
@@ -569,7 +573,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   revokingAgentRouteIds: new Set(),
   folderOrder: [],
   collapsedFolders: new Set(),
+  pinnedCollapsed: false,
   archivedCollapsed: false,
+  collapsedStatusGroups: new Set(),
   inspectorVisible: false,
   activeSessionIds: new Set(),
   turnAdmissionTokens: {},
@@ -841,6 +847,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             sessions,
             snapshots,
             collapsedFolders: new Set([...state.collapsedFolders].filter(folder => !emergencyFolders.has(folder))),
+            pinnedCollapsed: sessions.some(session => session.pinned && !session.archived && activeEmergencyAlert(session)) ? false : state.pinnedCollapsed,
             archivedCollapsed: sessions.some(session => session.archived && activeEmergencyAlert(session)) ? false : state.archivedCollapsed,
             ...focusedPaneAliases(state, layout)
           }
@@ -1559,7 +1566,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   async selectAdjacent(direction) {
     if (get().switchingProfileId) return
     const scope = captureProfileScope(get())
-    const visible = navigableSessions(get().sessions, get().folderOrder, get().collapsedFolders)
+    const state = get()
+    const visible = navigableSessions(state.sessions, state.folderOrder, state.collapsedFolders, state.activeSessionIds, state.collapsedStatusGroups, state.pinnedCollapsed)
     if (!visible.length) return
     const current = visible.findIndex(session => session.id === get().selectedSessionId)
     const next = visible[(current + direction + visible.length) % visible.length]
@@ -2591,6 +2599,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       visibleChatSessionIds(currentChatPaneLayout(state).panes)
     ) }))
   },
+  toggleStatusGroup(status) {
+    if (get().switchingProfileId) return
+    set(state => {
+      const collapsedStatusGroups = new Set(state.collapsedStatusGroups)
+      if (collapsedStatusGroups.has(status)) collapsedStatusGroups.delete(status)
+      else collapsedStatusGroups.add(status)
+      return { collapsedStatusGroups }
+    })
+  },
   toggleFolder(folder) {
     const next = new Set(get().collapsedFolders)
     if (next.has(folder)) next.delete(folder); else next.add(folder)
@@ -2599,6 +2616,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setFolderOrder(order) { const scope = captureWorkspaceScope(get()); set({ folderOrder: order }); void setWorkspacePreference(scope, 'folderOrder', order).catch(() => undefined) },
   setArchivedCollapsed(value) { const scope = captureWorkspaceScope(get()); set({ archivedCollapsed: value }); void setWorkspacePreference(scope, 'archivedCollapsed', value).catch(() => undefined) },
+  setPinnedCollapsed(value) {
+    if (get().switchingProfileId) return
+    const scope = captureWorkspaceScope(get())
+    set({ pinnedCollapsed: value })
+    void setWorkspacePreference(scope, 'pinnedCollapsed', value).catch(() => undefined)
+  },
   setInspectorVisible(value) { const scope = captureWorkspaceScope(get()); set({ inspectorVisible: value }); void setWorkspacePreference(scope, 'inspectorVisible', value).catch(() => undefined) },
   setModal(key, value) {
     set(state => ({
@@ -3064,6 +3087,10 @@ function workspaceStateFromBootstrap(
     revokingAgentRouteIds: new Set(),
     folderOrder: payload.folderOrder,
     collapsedFolders: new Set(payload.collapsedFolders.filter(folder => !emergencyFolders.has(folder))),
+    collapsedStatusGroups: new Set(),
+    pinnedCollapsed: payload.sessions.some(session => session.pinned && !session.archived && activeEmergencyAlert(session))
+      ? false
+      : payload.pinnedCollapsed ?? false,
     archivedCollapsed: payload.sessions.some(session => session.archived && activeEmergencyAlert(session))
       ? false
       : payload.archivedCollapsed,
@@ -3234,6 +3261,7 @@ async function runProfileRefresh(
       snapshots: syncSnapshotSessions(current.snapshots, payload.sessions),
       folderOrder: payload.folderOrder,
       collapsedFolders: new Set(payload.collapsedFolders),
+      pinnedCollapsed: payload.pinnedCollapsed ?? false,
       archivedCollapsed: payload.archivedCollapsed,
       inspectorVisible: payload.inspectorVisible
     })
@@ -5064,7 +5092,6 @@ function applyPendingSessionPatches(sessions: Session[]): Session[] {
     return pending ? { ...session, ...pending.patch } : session
   })
 }
-function isUnread(session: Session): boolean { return Boolean(session.manual_unread) || (session.latest_agent_event_seq ?? 0) > (session.last_read_agent_event_seq ?? 0) }
 function updateBadge(sessions: Session[]): void { void window.agentsDock.native.setBadge(sessions.filter(session => !session.archived && isUnread(session)).length) }
 
 export function handleMenuCommand(command: string, get: () => AppState, set: (value: Partial<AppState>) => void): void {

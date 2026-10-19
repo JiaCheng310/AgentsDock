@@ -405,7 +405,7 @@ function AppShellContent() {
       onSwitchProfile={switchServer}
       onTestConnection={async input => {
         try {
-          const health = await testServerProfile({ profileId: input.profileId, serverURL: input.serverUrl, accessToken: input.accessToken })
+          const health = await testServerProfile({ profileId: input.profileId, serverURL: input.serverUrl, accessToken: input.accessToken, signal: input.signal, timeoutMs: input.timeoutMs })
           trackEvent('connection_tested', { success: health.ok === true })
           const version = health.server_version ?? health.version
           return { ok: health.ok, server_identity: health.server_identity ?? null, version: typeof version === 'string' ? version : null }
@@ -419,6 +419,7 @@ function AppShellContent() {
           const created = await createServerProfile({
             name: input.name,
             serverURL: input.serverUrl,
+            serverURLs: input.serverUrls,
             accessToken: input.accessToken,
             serverIdentity: input.serverIdentity,
             serverConfigured: input.serverSetupComplete,
@@ -434,6 +435,7 @@ function AppShellContent() {
       onUpdateProfile={(profileId, patch) => updateServerProfile(profileId, {
         name: patch.name,
         serverURL: patch.serverUrl,
+        serverURLs: patch.serverUrls,
         accessToken: patch.accessToken,
         serverIdentity: patch.serverIdentity,
         resetServerIdentity: patch.resetServerIdentity,
