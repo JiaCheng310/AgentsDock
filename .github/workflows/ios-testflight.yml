@@ -92,8 +92,6 @@ jobs:
 
       - name: Generate production iOS project and verify native parity
         working-directory: mobile-react
-        env:
-          RCT_SYMBOLICATE_PREBUILT_FRAMEWORKS: '1'
         run: |
           set -euo pipefail
           xcodebuild -version
@@ -148,6 +146,14 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :NSPhotoLibraryAddUsageDescription' "$APP/Info.plist"
           codesign --verify --deep --strict "$APP"
           pnpm verify:ios-archive-abi "$RUNNER_TEMP/AgentsDock.xcarchive"
+          RN_VERSION="$(node -p 'require("react-native/package.json").version')"
+          [[ "$RN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          SYMBOLS="$RUNNER_TEMP/react-native-release-symbols.tar.gz"
+          curl --fail --location --retry 2 --max-time 180 --proto '=https' \
+            "https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/$RN_VERSION/react-native-artifacts-$RN_VERSION-reactnative-core-dSYM-release.tar.gz" \
+            -o "$SYMBOLS"
+          mkdir -p ios/Pods/AgentsDockReleaseSymbols
+          tar -xzf "$SYMBOLS" -C ios/Pods/AgentsDockReleaseSymbols
           node scripts/collect-ios-archive-symbols.mjs "$RUNNER_TEMP/AgentsDock.xcarchive" ios/Pods
 
       - name: Recheck build number immediately before upload
