@@ -20,7 +20,8 @@ export function assertUnusedBuild(config, builds, included) {
   assert.equal(config.version, latestVersion.version, 'Keep the existing TestFlight version line')
   for (const item of builds) {
     assert.match(item.attributes.version, /^[1-9]\d*$/, 'Review non-integer build numbering manually')
-    assert.ok(Number(item.attributes.version) < Number(config.build), 'Build number is already used or behind Apple history')
+    const version = versions.get(item.relationships?.preReleaseVersion?.data?.id)
+    assert.ok(Number(item.attributes.version) < Number(config.build), `Existing ${version?.version} (${item.attributes.version}) requires build-number review`)
   }
 }
 
