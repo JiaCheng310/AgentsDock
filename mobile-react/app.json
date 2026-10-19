@@ -16,6 +16,7 @@
         "NSPrivacyCollectedDataTypes": []
       },
       "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -49,7 +50,16 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "locales": {
+      "zh-CN": "./languages/zh-CN.json"
+    },
     "plugins": [
+      [
+        "expo-localization",
+        {
+          "supportedLocales": ["en", "zh-CN"]
+        }
+      ],
       "./plugins/withIosNoAnalyticsPrivacy.cjs",
       "./plugins/withAndroidCleartextTraffic.cjs",
       "./plugins/withAndroidReleaseSigning.cjs",

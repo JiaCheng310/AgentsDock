@@ -19,7 +19,8 @@ fixture.app = create(set => ({
   setChatDefaults: patch => { fixture.changes.push(patch); set(state => ({ chatDefaults: { ...state.chatDefaults, ...patch } })) },
 }))
 fixture.appearance = create(set => ({ preference: 'system', error: null, setPreference: preference => set({ preference }) }))
-const icons = ['ArrowLeft', 'Calendar', 'Check', 'ChevronDown', 'ChevronRight', 'Clock', 'Copy', 'Download', 'ExternalLink', 'KeyRound', 'MessageSquare', 'Minus', 'Monitor', 'Moon', 'Network', 'Plus', 'RefreshCw', 'Search', 'Server', 'ShieldCheck', 'SquareTerminal', 'Sun', 'SunMoon']
+fixture.language = create(set => ({ preference: 'system', locale: 'en', error: null, setPreference: preference => set({ preference, locale: preference === 'zh-CN' ? 'zh-CN' : 'en' }) }))
+const icons = ['ArrowLeft', 'Calendar', 'Check', 'ChevronDown', 'ChevronRight', 'Clock', 'Copy', 'Download', 'ExternalLink', 'KeyRound', 'Languages', 'MessageSquare', 'Minus', 'Monitor', 'Moon', 'Network', 'Plus', 'RefreshCw', 'Search', 'Server', 'ShieldCheck', 'SquareTerminal', 'Sun', 'SunMoon']
 const mocks = {
   'react-native': `export const ActivityIndicator='Spinner',Modal='Modal',Pressable='Button',ScrollView='Scroll',Switch='Switch',View='View'; export const Linking={openURL:async url=>{globalThis.__settingsFixture.links.push(url)}}; export const Platform={get OS(){return globalThis.__settingsFixture.platform}}; export const StyleSheet={create:x=>x,hairlineWidth:1}; export const useWindowDimensions=()=>({width:402,height:874}); export const useColorScheme=()=> 'light';`,
   'react-native-safe-area-context': `export const SafeAreaView='SafeArea';`,
@@ -28,6 +29,8 @@ const mocks = {
   'lucide-react-native': icons.map(name => `export const ${name}='${name}';`).join(''),
   '../store/useAppStore': `export const useAppStore=globalThis.__settingsFixture.app; export const client={};`,
   '../store/useAppearanceStore': `export const useAppearanceStore=globalThis.__settingsFixture.appearance;`,
+  '../store/useLanguageStore': `export const useLanguageStore=globalThis.__settingsFixture.language;`,
+  '../i18n': `export const t=(value,params)=>params?value.replace(/\\{(\\w+)\\}/g,(_,key)=>String(params[key]??'{'+key+'}')):value;`,
   './store/useAppearanceStore': `export const useAppearanceStore=globalThis.__settingsFixture.appearance;`,
   '../lib/analytics': `export const trackEvent=()=>{};`,
   '../lib/app-keyboard': `export const dismissAppKeyboard=()=>{};`,
@@ -110,6 +113,13 @@ test('settings starts with categories, preserves every section and omits duplica
     assert.equal(byId(tree, 'settings-theme-dark').props.accessibilityState.selected, true)
     await act(async () => tree.root.findByProps({ label: 'Increase app text size' }).props.onPress())
     assert.equal(fixture.app.getState().fontScale, 1.1)
+    await press(tree, 'settings-back')
+    await press(tree, 'settings-open-language')
+    await press(tree, 'settings-language-zh-CN')
+    assert.equal(fixture.language.getState().preference, 'zh-CN')
+    assert.equal(byId(tree, 'settings-language-zh-CN').props.accessibilityState.checked, true)
+    await press(tree, 'settings-language-en')
+    assert.equal(fixture.language.getState().preference, 'en')
     await press(tree, 'settings-back')
     await press(tree, 'settings-open-chats')
     assert.ok(byId(tree, 'settings-default-model'))

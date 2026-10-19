@@ -22,6 +22,20 @@ a reachable chat server cannot load a missing Debug bundle. Verify a cold launch
 after changing the native host. Debug still requires Metro to be running;
 Release builds bundle JavaScript and do not require the development computer.
 
+Settings -> Language offers System, English, and Simplified Chinese. This is a
+device-local preference; changing servers does not reset it. System follows the
+device language, with unsupported locales falling back to English. This first
+preview localizes the primary app controls, dates, and many app-authored notices;
+some advanced actions and raw server errors may remain English. Chat messages,
+server names, folder names, file paths, and provider output retain their
+original text. Mobile reuses unambiguous desktop translations and keeps
+mobile-only wording in
+`src/i18n/zh-CN.extra.json`. After changing that file or the desktop catalog,
+run `pnpm run locale:generate` and the focused localization tests. Native iOS
+permission prompts and platform language metadata require a rebuilt app; a JS
+reload alone cannot update them. App Store listing language is managed
+separately in App Store Connect.
+
 The pnpm patch for `expo@57.0.4` backports the platform-aware HMR reload from
 [Expo #48944](https://github.com/expo/expo/pull/48944). Without it, opening a lazy
 file viewer after Metro disconnects calls the browser-only `window.location`

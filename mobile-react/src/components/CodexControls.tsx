@@ -93,7 +93,7 @@ export function CodexStatusButton({ compact }: { compact: boolean }) {
         ]}
       >
         {loading ? <ActivityIndicator size="small" color={accent} /> : <Bot size={17} color={accent} />}
-        {!compact ? <Text style={[styles.statusButtonText, { color: colors.text }]} numberOfLines={1}>Codex · {label}</Text> : null}
+        {!compact ? <Text style={[styles.statusButtonText, { color: colors.text }]} numberOfLines={1} localize>Codex · {label}</Text> : null}
         {pending ? <View style={[styles.badge, { backgroundColor: colors.orange }]}><Text style={styles.badgeText}>{pending}</Text></View> : null}
       </Pressable>
       {open ? <CodexControlsSheet visible onClose={close} /> : null}
@@ -374,8 +374,8 @@ function CodexControlsSheet({ visible, onClose }: { visible: boolean; onClose: (
         <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
           <View style={[styles.sheetMark, { backgroundColor: colors.raised }]}><Bot size={20} color={colors.blue} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>Codex thread controls</Text>
-            <Text style={[styles.sheetSubtitle, { color: colors.muted }]}>
+            <Text style={[styles.sheetTitle, { color: colors.text }]} localize>Codex thread controls</Text>
+            <Text style={[styles.sheetSubtitle, { color: colors.muted }]} localize>
               {runtime?.transport || 'app-server'} · {codexStatusLabel(runtime?.status)}
             </Text>
           </View>
@@ -388,7 +388,7 @@ function CodexControlsSheet({ visible, onClose }: { visible: boolean; onClose: (
           contentContainerStyle={styles.controls}
           keyboardShouldPersistTaps="always"
         >
-          {loading ? <View style={styles.loading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>Loading thread controls…</Text></View> : null}
+          {loading ? <View style={styles.loading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }} localize>Loading thread controls…</Text></View> : null}
           {error ? <Notice text={error} tone="warning" /> : null}
           {notice ? <Notice text={notice.text} tone={notice.tone} onClose={() => setNotice(null)} /> : null}
 
@@ -430,7 +430,7 @@ function CodexControlsSheet({ visible, onClose }: { visible: boolean; onClose: (
             {runtime?.goal ? (
               <View style={[styles.goalSummary, { backgroundColor: colors.background }]}>
                 <Text style={[styles.goalSummaryTitle, { color: colors.text }]} numberOfLines={2}>{runtime.goal.objective}</Text>
-                <Text style={{ color: colors.muted, fontSize: 11 }}>
+                <Text style={{ color: colors.muted, fontSize: 11 }} localize>
                   {runtime.goal.status} · {runtime.goal.tokensUsed.toLocaleString()}
                   {runtime.goal.tokenBudget ? ` / ${runtime.goal.tokenBudget.toLocaleString()} tokens` : ' tokens'}
                   {' · '}{Math.round(runtime.goal.timeUsedSeconds)}s elapsed
@@ -486,7 +486,7 @@ function CodexControlsSheet({ visible, onClose }: { visible: boolean; onClose: (
               ]}
               onChange={value => setReviewer(value as CodexApprovalsReviewer)}
             />
-            {permissionProfile ? <Text testID="codex-permission-profile-hint" style={[styles.permissionHint, { color: colors.muted }]}>The selected profile replaces the custom filesystem sandbox. Choose Custom settings to edit the sandbox directly.</Text> : null}
+            {permissionProfile ? <Text testID="codex-permission-profile-hint" style={[styles.permissionHint, { color: colors.muted }]} localize>The selected profile replaces the custom filesystem sandbox. Choose Custom settings to edit the sandbox directly.</Text> : null}
             {profileLoadError ? <Text testID="codex-permission-profile-error" accessibilityRole="alert" style={[styles.permissionHint, { color: profileLoadBusy ? colors.yellow : colors.red }]}>{profileLoadBusy ? profileLoadError : `Profiles unavailable: ${profileLoadError}`}</Text> : null}
             <View style={styles.actions}><Action testID="codex-permissions-save" label={savingPermissions ? 'Saving permissions…' : 'Save permissions'} primary disabled={savingPermissions} onPress={savePermissions} /></View>
           </Section>
@@ -533,21 +533,21 @@ function CodexControlsSheet({ visible, onClose }: { visible: boolean; onClose: (
             ) : null}
             <View style={styles.actions}><Action label="Start inline review" disabled={refreshing || !actionsEnabled || reviewType !== 'uncommittedChanges' && !reviewValue.trim()} onPress={startReview} /></View>
             <Pressable accessibilityRole="button" accessibilityLabel="Advanced and unsandboxed actions" accessibilityState={{ expanded: advancedOpen }} onPress={() => setAdvancedOpen(value => !value)} style={[styles.advancedToggle, { backgroundColor: colors.background }]}>
-              <Text style={{ color: colors.orange, fontSize: 12, fontWeight: '800', flex: 1 }}>Advanced and unsandboxed actions</Text>
+              <Text style={{ color: colors.orange, fontSize: 12, fontWeight: '800', flex: 1 }} localize>Advanced and unsandboxed actions</Text>
               <ChevronDown size={16} color={colors.orange} style={{ transform: [{ rotate: advancedOpen ? '180deg' : '0deg' }] }} />
             </Pressable>
             {advancedOpen ? (
               <>
                 <View style={[styles.dangerBox, { borderColor: colors.red }]}>
-                  <Text style={[styles.actionRowTitle, { color: colors.text }]}>Roll back provider thread</Text>
-                  <Text style={[styles.actionRowDescription, { color: colors.muted }]}>Removes provider turns only. It does not revert files or erase this chat timeline.</Text>
+                  <Text style={[styles.actionRowTitle, { color: colors.text }]} localize>Roll back provider thread</Text>
+                  <Text style={[styles.actionRowDescription, { color: colors.muted }]} localize>Removes provider turns only. It does not revert files or erase this chat timeline.</Text>
                   <TextInput value={rollbackTurns} onChangeText={value => setRollbackTurns(digitsOnly(value))} keyboardType="number-pad" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} />
                   <ConfirmSwitch label="I understand this does not revert files." value={rollbackConfirmed} onChange={setRollbackConfirmed} />
                   <View style={styles.actions}><Action label="Roll back" tone="danger" disabled={refreshing || !actionsEnabled || !rollbackConfirmed} onPress={rollback} /></View>
                 </View>
                 <View style={[styles.dangerBox, { borderColor: colors.red }]}>
-                  <Text style={[styles.actionRowTitle, { color: colors.text }]}>Background shell command</Text>
-                  <Text style={[styles.actionRowDescription, { color: colors.muted }]}>Unsandboxed and has full access to the server host.</Text>
+                  <Text style={[styles.actionRowTitle, { color: colors.text }]} localize>Background shell command</Text>
+                  <Text style={[styles.actionRowDescription, { color: colors.muted }]} localize>Unsandboxed and has full access to the server host.</Text>
                   <TextInput value={shellCommand} onChangeText={setShellCommand} multiline placeholder="Enter an exact shell command" placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.textarea, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} />
                   <ConfirmSwitch label="I explicitly approve running this command with full access." value={shellConfirmed} onChange={setShellConfirmed} />
                   <View style={styles.actions}><Action label="Run command" tone="danger" disabled={refreshing || !actionsEnabled || !shellConfirmed || !shellCommand.trim()} onPress={runShell} /></View>
@@ -638,7 +638,7 @@ function BackgroundTerminals({ sessionId, runtimeSupported, busy, perform }: {
   return (
     <Section icon={SquareTerminal} title="Background terminals" subtitle="Loaded only when this section is open">
       <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Hide background terminal processes' : 'Show background terminal processes'} accessibilityState={{ expanded: open }} onPress={toggle} style={[styles.advancedToggle, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800', flex: 1 }}>{open ? 'Hide processes' : 'Show processes'}</Text>
+        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800', flex: 1 }} localize>{open ? 'Hide processes' : 'Show processes'}</Text>
         <ChevronDown size={16} color={colors.muted} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
       </Pressable>
       {open ? (
@@ -648,8 +648,8 @@ function BackgroundTerminals({ sessionId, runtimeSupported, busy, perform }: {
           </View>
           {loading ? <ActivityIndicator color={colors.blue} /> : null}
           {!loading && loadError ? <Notice text={loadError} tone="warning" /> : null}
-          {!loading && !loadError && supported === false ? <Text style={{ color: colors.muted, fontSize: 12 }}>Unsupported by this Codex version.</Text> : null}
-          {!loading && !loadError && supported !== false && !terminals.length ? <Text style={{ color: colors.muted, fontSize: 12 }}>No background terminals.</Text> : null}
+          {!loading && !loadError && supported === false ? <Text style={{ color: colors.muted, fontSize: 12 }} localize>Unsupported by this Codex version.</Text> : null}
+          {!loading && !loadError && supported !== false && !terminals.length ? <Text style={{ color: colors.muted, fontSize: 12 }} localize>No background terminals.</Text> : null}
           {terminals.map(terminal => (
             <View key={terminal.processId || terminal.itemId} style={[styles.terminal, { backgroundColor: colors.background }]}>
               <SquareTerminal size={16} color={colors.muted} />
@@ -659,7 +659,7 @@ function BackgroundTerminals({ sessionId, runtimeSupported, busy, perform }: {
               </View>
               {terminal.processId ? confirmingProcessId === terminal.processId ? (
                 <View style={styles.terminalConfirm}>
-                  <Text style={{ color: colors.red, fontSize: 10.5, fontWeight: '800' }}>Stop this process?</Text>
+                  <Text style={{ color: colors.red, fontSize: 10.5, fontWeight: '800' }} localize>Stop this process?</Text>
                   <View style={styles.actions}>
                     <Action label="Cancel" disabled={busy} onPress={() => setConfirmingProcessId(null)} />
                     <Action
@@ -755,10 +755,10 @@ function ContextUsageDetail({ usage }: { usage: CodexContextUsage }) {
   return <View style={[styles.contextDetail, { backgroundColor: colors.background, borderColor: colors.border }]}>
     <View style={styles.contextDetailHeading}>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.contextDetailTitle, { color: colors.text }]}>Context usage</Text>
+        <Text style={[styles.contextDetailTitle, { color: colors.text }]} localize>Context usage</Text>
         <Text style={[styles.contextDetailSubtitle, { color: colors.muted }]} numberOfLines={2}>{formatContextUsageDetail(usage)}</Text>
       </View>
-      {latestId ? <View><Text style={[styles.contextDetailLabel, { color: colors.muted }]}>Latest turn</Text><Text style={[styles.contextDetailId, { color: colors.muted }]}>{shortUsageId(latestId)}</Text></View> : null}
+      {latestId ? <View><Text style={[styles.contextDetailLabel, { color: colors.muted }]} localize>Latest turn</Text><Text style={[styles.contextDetailId, { color: colors.muted }]}>{shortUsageId(latestId)}</Text></View> : null}
     </View>
     {percent == null ? null : <View
       accessible

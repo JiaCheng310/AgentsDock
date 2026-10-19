@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-18 - Preview Simplified Chinese on mobile
+
+- Add a first-pass device-local System / English / Simplified Chinese choice in mobile
+  Settings, reusing unambiguous desktop translations and a mobile-specific
+  catalog. Localize app-authored navigation, settings, server controls, status
+  text and dates without translating user or provider content. Add Chinese iOS
+  permission prompts and platform language metadata; no server update is needed.
+- Refine preview terminology for model defaults, pinned chats, version, live
+  status, message entry, agent attribution, server token and fork actions.
+  Localize the native quick-message menu and its sent prompts in Chinese mode.
+- Keep the mobile My Agents inventory aligned with the desktop Gemini backend.
+- Verification on an isolated iOS Dev simulator: switch English and Chinese,
+  reopen Settings, cold-launch with Chinese retained, and inspect the Chinese
+  session list in light and dark themes, restoring the System theme afterward.
+  The full mobile Node test suite, TypeScript, iOS and Android JavaScript
+  exports, settings touch and quick-message simulator flows pass. The iOS
+  native Debug compilation/install also passed during this preview.
+- This is a local preview branch, not a TestFlight upload or App Store listing
+  localization. Advanced actions and server-originated errors may remain English;
+  Android native UI and a physical iPhone are not yet accepted.
+
 ## 2026-10-18 - Validate cross-device pairing and mobile reliability changes
 
 - Prepare the accumulated connection-sharing, mobile recovery, media action and

@@ -91,19 +91,19 @@ export function AndroidUpdateSettings() {
     <View style={styles.cardHeader}>
       <ShieldCheck size={18} color={channel === 'sideload' ? colors.green : colors.muted} />
       <View style={styles.cardCopy}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Android updates</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]} localize>Android updates</Text>
         <Text style={[styles.caption, { color: colors.muted }]}>{status}</Text>
       </View>
     </View>
-    {stage === 'permission' ? <Text style={[styles.notice, { color: colors.orange }]}>Enable “Allow from this source” for AgentsDock, return here, then continue. Android still asks you to confirm the update.</Text> : null}
-    {stage === 'installer' ? <Text style={[styles.notice, { color: colors.green }]}>The APK passed checksum, package, version, and signing-certificate verification. Confirm the update in Android’s installer.</Text> : null}
+    {stage === 'permission' ? <Text style={[styles.notice, { color: colors.orange }]} localize>Enable “Allow from this source” for AgentsDock, return here, then continue. Android still asks you to confirm the update.</Text> : null}
+    {stage === 'installer' ? <Text style={[styles.notice, { color: colors.green }]} localize>The APK passed checksum, package, version, and signing-certificate verification. Confirm the update in Android’s installer.</Text> : null}
     {error ? <Text accessibilityRole="alert" style={[styles.notice, { color: colors.red }]}>{error}</Text> : null}
     <View style={styles.actions}>
       <SmallButton testID="android-update-action" label={action.label} disabled={busy} onPress={() => void action.run()} primary={Boolean(update)} />
       {update ? <SmallButton label="Release notes" onPress={() => void Linking.openURL(update.releaseUrl)} icon={ExternalLink} /> : null}
       {update && !busy ? <SmallButton label="Check again" onPress={() => void check(true)} icon={RefreshCw} /> : null}
     </View>
-    {channel === 'sideload' && nativeState ? <Text style={[styles.detail, { color: colors.muted }]}>Installed build {nativeState.versionCode} · release signer pinned</Text> : null}
+    {channel === 'sideload' && nativeState ? <Text style={[styles.detail, { color: colors.muted }]} localize>Installed build {nativeState.versionCode} · release signer pinned</Text> : null}
   </View>
 }
 

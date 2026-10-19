@@ -293,7 +293,7 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
     </View>
   }
 
-  const preview = file.source_path && (kind === 'image' || kind === 'pdf') && !workspaceInfoResolved ? <View style={styles.previewLoading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>Resolving workspace file…</Text></View> : <ArtifactPreview
+  const preview = file.source_path && (kind === 'image' || kind === 'pdf') && !workspaceInfoResolved ? <View style={styles.previewLoading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }} localize>Resolving workspace file…</Text></View> : <ArtifactPreview
     key={`${connection.key}:${file.id}`}
     file={file}
     kind={kind}
@@ -429,8 +429,8 @@ function PhoneOverflowActions({ actions, pinned, disabled, onDownload, onPin }: 
 }) {
   const colors = usePalette()
   return <View style={[styles.phoneOverflow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-    {actions.includes('download') ? <Pressable accessibilityRole="button" accessibilityLabel="Download file" disabled={disabled} onPress={onDownload} style={({ pressed }) => [styles.phoneAction, { opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Download size={17} color={colors.blue} /><Text style={{ color: colors.text, fontWeight: '700' }}>Download</Text></Pressable> : null}
-    {actions.includes('pin') ? <Pressable accessibilityRole="button" accessibilityLabel={pinned ? 'Unpin file' : 'Pin file'} disabled={disabled} onPress={onPin} style={({ pressed }) => [styles.phoneAction, { opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Pin size={17} color={pinned ? colors.blue : colors.muted} /><Text style={{ color: colors.text, fontWeight: '700' }}>{pinned ? 'Unpin' : 'Pin'}</Text></Pressable> : null}
+    {actions.includes('download') ? <Pressable accessibilityRole="button" accessibilityLabel="Download file" disabled={disabled} onPress={onDownload} style={({ pressed }) => [styles.phoneAction, { opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Download size={17} color={colors.blue} /><Text style={{ color: colors.text, fontWeight: '700' }} localize>Download</Text></Pressable> : null}
+    {actions.includes('pin') ? <Pressable accessibilityRole="button" accessibilityLabel={pinned ? 'Unpin file' : 'Pin file'} disabled={disabled} onPress={onPin} style={({ pressed }) => [styles.phoneAction, { opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Pin size={17} color={pinned ? colors.blue : colors.muted} /><Text style={{ color: colors.text, fontWeight: '700' }} localize>{pinned ? 'Unpin' : 'Pin'}</Text></Pressable> : null}
   </View>
 }
 
@@ -445,7 +445,7 @@ function PhoneNavigation({ previousId, nextId, current, total, onPrevious, onNex
   const colors = usePalette()
   return <View style={[styles.phoneNavigation, { borderColor: colors.border, backgroundColor: colors.background }]}>
     <IconButton icon={ChevronLeft} touchSize={48} disabled={!previousId} onPress={onPrevious} label="Previous file" />
-    <Text style={[styles.phoneNavigationCount, { color: colors.muted }]}>{current} / {total}</Text>
+    <Text style={[styles.phoneNavigationCount, { color: colors.muted }]} localize>{current} / {total}</Text>
     <IconButton icon={ChevronRight} touchSize={48} disabled={!nextId} onPress={onNext} label="Next file" />
   </View>
 }
@@ -453,7 +453,7 @@ function PhoneNavigation({ previousId, nextId, current, total, onPrevious, onNex
 function ArtifactSidebar({ files, selectedId, onSelect }: { files: AgentFile[]; selectedId: string; onSelect: (id: string) => void }) {
   const colors = usePalette()
   return <View style={[styles.sidebar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-    <View style={styles.sidebarHeading}><Text style={[styles.sidebarTitle, { color: colors.muted }]}>FILES</Text><Text style={[styles.sidebarCount, { color: colors.muted }]}>{files.length}</Text></View>
+    <View style={styles.sidebarHeading}><Text style={[styles.sidebarTitle, { color: colors.muted }]} localize>FILES</Text><Text style={[styles.sidebarCount, { color: colors.muted }]}>{files.length}</Text></View>
     <FlashList
       data={files}
       keyExtractor={file => file.id}
@@ -532,7 +532,7 @@ function UnavailableArtifactViewer({ reconnecting, sessionChanged, modalPadding,
   return <View onAccessibilityEscape={onClose} style={[styles.root, { backgroundColor: colors.background }, modalPadding]}>
     <View collapsable={false} pointerEvents="auto" style={[styles.header, { borderColor: colors.border, backgroundColor: colors.background }]}>
       <SheetCloseButton onPress={onClose} label="Close file viewer" testID="artifact-file-viewer-close" />
-      <Text style={[styles.headerTitle, { color: colors.text }]}>File viewer</Text>
+      <Text style={[styles.headerTitle, { color: colors.text }]} localize>File viewer</Text>
     </View>
     <EmptyState
       title={sessionChanged ? 'Chat changed' : reconnecting ? 'Verifying file access…' : 'Server unavailable'}

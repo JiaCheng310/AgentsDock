@@ -415,23 +415,23 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
           ? <Pressable accessibilityRole={canLoadOlder ? 'button' : undefined} accessibilityLabel={canLoadOlder ? 'Load older messages' : 'Beginning of chat'} disabled={!canLoadOlder || loadingOlder || olderRequestInFlight.current} onPress={() => void requestOlder(true)} style={[styles.older, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             {canLoadOlder
               ? loadingOlder
-                ? <Text style={{ color: colors.muted }}>Loading…</Text>
-                : <><ArrowUp size={14} color={colors.muted} /><Text style={{ color: colors.muted, fontSize: 12 }}>{activeHistoryWindow?.detached ? 'Viewing search result · Load earlier messages' : 'Load older messages'}</Text></>
-              : <Text style={{ color: colors.muted, fontSize: 12 }}>{activeHistoryWindow?.detached ? 'Viewing search result · Beginning of chat' : 'Beginning of chat'}</Text>}
+                ? <Text style={{ color: colors.muted }} localize>Loading…</Text>
+                : <><ArrowUp size={14} color={colors.muted} /><Text style={{ color: colors.muted, fontSize: 12 }} localize>{activeHistoryWindow?.detached ? 'Viewing search result · Load earlier messages' : 'Load older messages'}</Text></>
+              : <Text style={{ color: colors.muted, fontSize: 12 }} localize>{activeHistoryWindow?.detached ? 'Viewing search result · Beginning of chat' : 'Beginning of chat'}</Text>}
           </Pressable>
           : null}
         ListEmptyComponent={selectedSyncStatus === 'error' || selectedSyncStatus === 'offline'
           ? <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>Messages unavailable</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]} localize>Messages unavailable</Text>
             <Text style={[styles.emptyDetail, { color: colors.muted }]} numberOfLines={3}>{syncError || 'The server could not sync this chat.'}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Retry chat sync" onPress={() => void retryConnection()} style={[styles.retry, { backgroundColor: colors.raised, borderColor: colors.border }]}>
               <RefreshCw size={14} color={colors.text} />
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }}>Retry</Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }} localize>Retry</Text>
             </Pressable>
           </View>
-          : <View style={styles.empty}><Text style={{ color: colors.muted }}>No messages yet.</Text></View>}
+          : <View style={styles.empty}><Text style={{ color: colors.muted }} localize>No messages yet.</Text></View>}
       />
-      {shouldShowTimelineLatest(rows.length, nearBottom, Boolean(activeHistoryWindow?.detached)) ? <Pressable accessibilityRole="button" accessibilityLabel={activeHistoryWindow ? 'Return to latest message' : 'Scroll to latest message'} onPress={scrollToLatest} style={[styles.bottom, activeHistoryWindow ? styles.bottomLatest : styles.bottomIcon, { bottom: bottomInset + 12, backgroundColor: colors.raised, borderColor: colors.border }]}><ArrowDown size={17} color={colors.text} />{activeHistoryWindow ? <Text style={[styles.bottomLabel, { color: colors.text }]}>Latest</Text> : null}</Pressable> : null}
+      {shouldShowTimelineLatest(rows.length, nearBottom, Boolean(activeHistoryWindow?.detached)) ? <Pressable accessibilityRole="button" accessibilityLabel={activeHistoryWindow ? 'Return to latest message' : 'Scroll to latest message'} onPress={scrollToLatest} style={[styles.bottom, activeHistoryWindow ? styles.bottomLatest : styles.bottomIcon, { bottom: bottomInset + 12, backgroundColor: colors.raised, borderColor: colors.border }]}><ArrowDown size={17} color={colors.text} />{activeHistoryWindow ? <Text style={[styles.bottomLabel, { color: colors.text }]} localize>Latest</Text> : null}</Pressable> : null}
     </View>
   )
 }

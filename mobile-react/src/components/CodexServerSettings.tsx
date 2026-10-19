@@ -115,7 +115,7 @@ function ScopedGoalSettings({ connection, profileId, generation, ready }: {
   return <View testID="codex-server-goals" style={[styles.card, { backgroundColor: colors.raised, borderColor: colors.border }]}>
     <View style={styles.header}>
       <Goal size={18} color={colors.blue} />
-      <Text style={[styles.title, { color: colors.text }]}>Persistent Codex goals</Text>
+      <Text style={[styles.title, { color: colors.text }]} localize>Persistent Codex goals</Text>
       {loading ? <ActivityIndicator accessibilityLabel="Loading goal setting" color={colors.blue} />
         : <Switch testID="codex-server-goals-toggle" accessibilityLabel="Allow persistent Codex goals on this server"
           disabled={!ready || saving || !configuration?.configurable} value={configuration?.enabled ?? false} onValueChange={change} />}

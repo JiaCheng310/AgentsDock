@@ -81,7 +81,7 @@ test('all agents remain visible; only ready agents on a connected server are gre
   store.setState({ health: { runtimes: { codex: diagnostic(), claude: diagnostic('missing'), cursor: diagnostic('unauthenticated') } } })
   await render(async tree => {
     assert.equal(tree.root.findAllByType('CircleCheck').length, 1)
-    assert.equal(tree.root.findAllByType('Circle').length, 3)
+    assert.equal(tree.root.findAllByType('Circle').length, 4)
     assert.equal(available(tree, 'codex'), true)
     assert.doesNotMatch(JSON.stringify(tree.toJSON()), /Persistent goals|Sign-in required|Not installed|Latest run failed/)
     for (const state of [{ connecting: true }, { switchingProfileId: 'next' }, { workspaceAdopting: true }, { connected: false }]) {
@@ -92,7 +92,7 @@ test('all agents remain visible; only ready agents on a connected server are gre
   })
 })
 
-test('Recheck deduplicates taps, shows loading and applies all four returned statuses without per-agent errors', async () => {
+test('Recheck deduplicates taps, shows loading and applies returned statuses without per-agent errors', async () => {
   let calls = 0, finish
   store.setState({ refreshRuntime: () => { calls++; return new Promise(resolve => { finish = resolve }) } })
   await render(async tree => {

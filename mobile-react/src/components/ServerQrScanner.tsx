@@ -12,13 +12,13 @@ const camera: typeof import('expo-camera') | null = requireOptionalNativeModule(
 export function ServerQrScanner({ onScanned }: { onScanned: (details: ServerConnectionDetails) => void }) {
   const colors = usePalette()
   return <View style={styles.body}>
-    {camera ? <CameraScanner onScanned={onScanned} /> : <Text accessibilityRole="alert" style={[typography.body, { color: colors.muted }]}>
+    {camera ? <CameraScanner onScanned={onScanned} /> : <Text accessibilityRole="alert" style={[typography.body, { color: colors.muted }]} localize>
       Update this app to enable camera scanning. You can still enter the server address and token manually.
     </Text>}
     <View style={styles.guidance}>
       <QrCode size={32} color={colors.muted} accessible={false} />
-      <Text style={[typography.body, styles.centered, { color: colors.text }]}>Scan a QR code from your server terminal or AgentsDock desktop.</Text>
-      <Text style={[typography.caption, styles.centered, { color: colors.muted }]}>Use the same Wi-Fi or connect both devices to Tailscale.</Text>
+      <Text style={[typography.body, styles.centered, { color: colors.text }]} localize>Scan a QR code from your server terminal or AgentsDock desktop.</Text>
+      <Text style={[typography.caption, styles.centered, { color: colors.muted }]} localize>Use the same Wi-Fi or connect both devices to Tailscale.</Text>
     </View>
   </View>
 }
@@ -64,7 +64,7 @@ function CameraScanner({ onScanned }: { onScanned: (details: ServerConnectionDet
     {!permission ? <ActivityIndicator accessibilityLabel="Checking camera permission" color={colors.muted} /> : !permission.granted ?
       <Pressable accessibilityRole="button" accessibilityLabel={permission.canAskAgain ? 'Allow camera' : 'Open camera settings'} onPress={() => { void allowCamera() }}
         style={[styles.button, { backgroundColor: colors.raised, borderColor: colors.controlBorder }]}>
-        <Text style={[typography.body, { color: colors.text }]}>{permission.canAskAgain ? 'Allow camera' : 'Open camera settings'}</Text>
+        <Text style={[typography.body, { color: colors.text }]} localize>{permission.canAskAgain ? 'Allow camera' : 'Open camera settings'}</Text>
       </Pressable> : foreground && !error ?
         <CameraView style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           onBarcodeScanned={result => accept(result.data)}
@@ -76,7 +76,7 @@ function CameraScanner({ onScanned }: { onScanned: (details: ServerConnectionDet
       <Text accessibilityRole="alert" style={[typography.caption, { color: colors.red }]}>{error}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Try scanning again" onPress={() => { scanning.current = true; setError(null) }}
         style={[styles.button, { backgroundColor: colors.raised, borderColor: colors.controlBorder }]}>
-        <Text style={[typography.body, { color: colors.text }]}>Try again</Text>
+        <Text style={[typography.body, { color: colors.text }]} localize>Try again</Text>
       </Pressable>
     </> : null}
   </View>

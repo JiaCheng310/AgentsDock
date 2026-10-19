@@ -18,6 +18,7 @@ const mocks = {
   'lucide-react-native': `export const ArrowLeft='ArrowLeft',Check='Check',ChevronDown='ChevronDown',MoreHorizontal='MoreHorizontal',Pencil='Pencil',Plus='Plus',ScanLine='ScanLine',Server='Server',Wifi='Wifi',X='X';`,
   './ServerQrScanner': `export const ServerQrScanner='Scanner';`,
   '../lib/app-keyboard': `export const dismissAppKeyboard=()=>{};`,
+  '../i18n': `export const t=(value,params)=>params?value.replace(/\\{(\\w+)\\}/g,(_,key)=>String(params[key]??'{'+key+'}')):value;`,
   '../theme': `export const radius={sm:6,md:8,round:999}; export const spacing={xs:4,sm:8,md:12,lg:16,xl:24}; export const typography={caption:{fontSize:12,lineHeight:16}}; export const fontWeight={regular:'400',medium:'500',semibold:'600',bold:'700'}; export const usePalette=()=>({text:'#111',muted:'#666',border:'#ccc',controlBorder:'#ddd',controlSurface:'#fff',onAccent:'#fff',background:'#fff',surface:'#fff',raised:'#eee',blue:'#28f',green:'#080',orange:'#f80'});`,
   './AppText': `export const Text='Text',TextInput='Input';`,
   './ui': `export const IconButton='IconButton',SheetCloseButton='SheetCloseButton';`,

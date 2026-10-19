@@ -45,7 +45,7 @@ export function AgentPicker({ value, choices, onChange, onReload, children, labe
           <Pressable accessibilityRole="button" accessibilityLabel="Dismiss agent choices" style={StyleSheet.absoluteFill} onPress={close} />
           <View accessibilityViewIsModal style={[styles.menu, { maxHeight: Math.min(480, height * 0.7), backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.header, { borderColor: colors.border }]}>
-              <Text style={[styles.title, { color: colors.text }]}>Choose agent</Text>
+              <Text style={[styles.title, { color: colors.text }]} localize>Choose agent</Text>
               <SheetCloseButton onPress={close} label="Close choose agent" />
             </View>
             <ScrollView keyboardShouldPersistTaps="always" contentContainerStyle={styles.options}>
@@ -56,7 +56,7 @@ export function AgentPicker({ value, choices, onChange, onReload, children, labe
               </Pressable>)}
               {onReload ? <Pressable testID="agent-reload" accessibilityRole="button" accessibilityLabel={`Reload ${chatBackendLabel(value)}`} onPress={() => choose(onReload)} style={({ pressed }) => [styles.option, styles.reload, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>
                 <RefreshCw size={22} color={colors.muted} />
-                <Text style={[styles.name, { color: colors.text }]}>Reload {chatBackendLabel(value)}</Text>
+                <Text style={[styles.name, { color: colors.text }]} localize>Reload {chatBackendLabel(value)}</Text>
               </Pressable> : null}
             </ScrollView>
           </View>

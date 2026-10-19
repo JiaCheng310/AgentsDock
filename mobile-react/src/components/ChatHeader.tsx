@@ -4,6 +4,7 @@ import { ArrowLeft, Ellipsis, FolderOpen, PanelRight, RefreshCw, Search, Server 
 import { useAppStore } from '../store/useAppStore'
 import { radius, spacing, typography, usePalette } from '../theme'
 import { runtimeSummary } from '../lib/format'
+import { t } from '../i18n'
 import { isWelcomeSession } from '../lib/welcome-session'
 import { Text } from './AppText'
 import { CodexContextIndicator, CodexStatusButton } from './CodexControls'
@@ -24,8 +25,8 @@ export function ChatHeader({ sessionId, compact, inlineInspectorAvailable, onBac
   if (isWelcomeSession(sessionId)) return <View style={[styles.root, { backgroundColor: colors.background, borderColor: colors.border }]}>
     {compact ? <IconButton icon={ArrowLeft} onPress={onBack} label="Chats" /> : null}
     <Image source={require('../../assets/icon.png')} contentFit="contain" style={styles.welcomeIcon} />
-    <View style={styles.titleWrap}><Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>Welcome to AgentsDock</Text><Text style={[styles.subtitle, { color: colors.muted }]} numberOfLines={1}>Local guide · no server connected</Text></View>
-    <Pressable testID="welcome-setup-server" accessibilityRole="button" accessibilityLabel="Set up your server" onPress={onSetupServer} style={({ pressed }) => [styles.setup, { backgroundColor: colors.blue, opacity: pressed ? 0.72 : 1 }]}><Server size={16} color="white" /><Text style={styles.setupText}>Set up</Text></Pressable>
+    <View style={styles.titleWrap}><Text style={[styles.title, { color: colors.text }]} numberOfLines={1} localize>Welcome to AgentsDock</Text><Text style={[styles.subtitle, { color: colors.muted }]} numberOfLines={1} localize>Local guide · no server connected</Text></View>
+    <Pressable testID="welcome-setup-server" accessibilityRole="button" accessibilityLabel="Set up your server" onPress={onSetupServer} style={({ pressed }) => [styles.setup, { backgroundColor: colors.blue, opacity: pressed ? 0.72 : 1 }]}><Server size={16} color="white" /><Text style={styles.setupText} localize>Set up</Text></Pressable>
   </View>
   const selectedStatus = syncSessionId === sessionId ? syncStatus : 'cached'
   const status = !connected ? (connecting ? 'reconnecting' : 'offline') : selectedStatus
@@ -35,6 +36,11 @@ export function ChatHeader({ sessionId, compact, inlineInspectorAvailable, onBac
         : status === 'error' ? (syncRetryAttempt > 0 ? `Retry ${syncRetryAttempt}/6` : 'Sync paused')
           : status === 'offline' ? 'Offline'
             : 'Cached'
+  const visibleStatusLabel = status === 'reconnecting' && syncRetryAttempt > 0
+    ? t('Retrying {attempt}/6', { attempt: syncRetryAttempt })
+    : status === 'error' && syncRetryAttempt > 0
+      ? t('Retry {attempt}/6', { attempt: syncRetryAttempt })
+      : t(statusLabel)
   const statusColor = status === 'live' ? colors.green
     : status === 'error' || status === 'offline' ? colors.red
       : status === 'syncing' || status === 'reconnecting' ? colors.orange
@@ -47,7 +53,7 @@ export function ChatHeader({ sessionId, compact, inlineInspectorAvailable, onBac
   }
   return <View style={[styles.root, { backgroundColor: colors.background, borderColor: colors.border }]}>
     {compact ? <IconButton icon={ArrowLeft} onPress={onBack} label="Chats" /> : null}
-    <View style={styles.titleWrap}><Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{session.title}</Text><Text style={[styles.subtitle, { color: visibleSyncError ? colors.orange : colors.muted }]} numberOfLines={1}>{visibleSyncError || `${runtimeSummary(session)}${session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id ? ` · session ${(session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id)?.slice(0, 12)}` : ''}`}</Text></View>
+    <View style={styles.titleWrap}><Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{session.title}</Text><Text style={[styles.subtitle, { color: visibleSyncError ? colors.orange : colors.muted }]} numberOfLines={1}>{visibleSyncError || `${runtimeSummary(session, t)}${session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id ? ` · ${t('session')} ${(session.session_id || session.codex_thread_id || session.claude_session_id || session.cursor_session_id)?.slice(0, 12)}` : ''}`}</Text></View>
     {!compact ? <IconButton icon={RefreshCw} onPress={() => void retryConnection()} label="Refresh" /> : null}
     <IconButton icon={Search} onPress={onSearch} label="Find in chat" />
     <IconButton icon={FolderOpen} onPress={onFiles} label="Browse workspace files" testID="chat-workspace-files" />
@@ -55,9 +61,9 @@ export function ChatHeader({ sessionId, compact, inlineInspectorAvailable, onBac
     <CodexContextIndicator />
     <ClaudeContextIndicator />
     <CodexStatusButton compact={compact} />
-    <Pressable testID="chat-details" accessibilityRole="button" accessibilityLabel={`${statusLabel}. ${syncError ? `${syncError}. ` : ''}${status === 'live' ? 'Open chat details' : 'Retry chat sync'}`} onPress={handleStatusPress} style={[styles.online, compact && styles.onlineCompact, { backgroundColor: colors.raised }]}>
+    <Pressable testID="chat-details" accessibilityRole="button" accessibilityLabel={`${visibleStatusLabel}. ${syncError ? `${syncError}. ` : ''}${t(status === 'live' ? 'Open chat details' : 'Retry chat sync')}`} onPress={handleStatusPress} style={[styles.online, compact && styles.onlineCompact, { backgroundColor: colors.raised }]}>
       {isSpinning ? <ActivityIndicator size="small" color={statusColor} style={styles.spinner} /> : <View style={[styles.dot, { backgroundColor: statusColor }]} />}
-      <Text style={[styles.statusLabel, { color: colors.text }]} numberOfLines={1}>{statusLabel}</Text>
+      <Text style={[styles.statusLabel, { color: colors.text }]} numberOfLines={1}>{visibleStatusLabel}</Text>
       {!compact ? <Ellipsis size={14} color={colors.muted} /> : null}
     </Pressable>
   </View>

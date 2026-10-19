@@ -689,11 +689,11 @@ function ScopedWorkspaceFileViewer({ request, connection, modalPadding, connecti
     ? !infoResolved
       ? infoError
         ? <View accessibilityRole="alert" style={styles.previewLoading}>
-            <Text style={[styles.previewProblemTitle, { color: colors.text }]}>Could not check file access</Text>
+            <Text style={[styles.previewProblemTitle, { color: colors.text }]} localize>Could not check file access</Text>
             <Text style={[styles.previewProblemBody, { color: colors.muted }]}>{infoError}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Retry file access" onPress={() => setInfoRevision(value => value + 1)} style={[styles.previewRetry, { backgroundColor: colors.raised }]}><RefreshCw size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }}>Retry</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry file access" onPress={() => setInfoRevision(value => value + 1)} style={[styles.previewRetry, { backgroundColor: colors.raised }]}><RefreshCw size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }} localize>Retry</Text></Pressable>
           </View>
-        : <View style={styles.previewLoading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>Checking file access…</Text></View>
+        : <View style={styles.previewLoading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }} localize>Checking file access…</Text></View>
       : <WorkspacePreview
           previewRevision={previewRevision}
           entry={selected}
@@ -728,7 +728,7 @@ function ScopedWorkspaceFileViewer({ request, connection, modalPadding, connecti
       {layout === 'pad' ? <IconButton icon={RefreshCw} onPress={refresh} label="Refresh workspace files" activateOnPressIn /> : null}
     </View>
     <FileTransferNotice state={fileTransfer.state} onCancel={fileTransfer.cancel} onDismiss={fileTransfer.dismiss} />
-    {!connectionAvailable ? <View accessibilityRole="alert" style={[styles.connectionNotice, { borderColor: colors.border, backgroundColor: colors.surface }]}><ActivityIndicator size="small" color={colors.blue} /><Text style={[styles.connectionNoticeText, { color: colors.muted }]}>{reconnecting ? 'Reconnecting… Your open file and unsaved edits are preserved.' : 'Server offline. Your open file and unsaved edits are preserved.'}</Text></View> : null}
+    {!connectionAvailable ? <View accessibilityRole="alert" style={[styles.connectionNotice, { borderColor: colors.border, backgroundColor: colors.surface }]}><ActivityIndicator size="small" color={colors.blue} /><Text style={[styles.connectionNoticeText, { color: colors.muted }]} localize>{reconnecting ? 'Reconnecting… Your open file and unsaved edits are preserved.' : 'Server offline. Your open file and unsaved edits are preserved.'}</Text></View> : null}
     {mutationBusy || mutationError ? <View accessibilityRole={mutationError ? 'alert' : undefined} accessibilityLiveRegion="polite" style={[styles.mutationNotice, { borderColor: mutationError ? colors.red : colors.border, backgroundColor: colors.surface }]}>
       {mutationBusy ? <ActivityIndicator size="small" color={colors.blue} /> : <AlertCircle size={16} color={colors.red} />}
       <Text style={[styles.mutationNoticeText, { color: mutationError ? colors.red : colors.muted }]} numberOfLines={2}>{mutationError || workspaceMutationStatus(mutationBusy)}</Text>
@@ -801,7 +801,7 @@ function WorkspaceBrowser({ layout, directory, entries, total, hasMore, query, s
       keyboardShouldPersistTaps="handled"
       renderItem={({ item }) => <WorkspaceEntryRow layout={layout} entry={item} selected={selectedPath === item.path} mutationsAvailable={mutationsAvailable} mutationBusy={mutationBusy} onPress={() => onOpen(item)} onRename={() => onRename(item)} onDelete={() => onDelete(item)} onMore={() => onMore(item)} />}
       ListEmptyComponent={<EmptyState title={query.trim() ? 'No matching files' : 'This folder is empty'} body={query.trim() ? 'Try another file name or path.' : undefined} />}
-      ListFooterComponent={hasMore ? <Pressable accessibilityRole="button" accessibilityLabel="Load more workspace files" accessibilityState={{ disabled: loadingMore || mutationBusy }} disabled={loadingMore || mutationBusy} onPress={onLoadMore} style={[styles.loadMore, { backgroundColor: colors.raised }]}>{loadingMore ? <ActivityIndicator color={colors.blue} /> : <Text style={{ color: colors.blue, fontWeight: '700' }}>Load more · {entries.length}/{total}</Text>}</Pressable> : null}
+      ListFooterComponent={hasMore ? <Pressable accessibilityRole="button" accessibilityLabel="Load more workspace files" accessibilityState={{ disabled: loadingMore || mutationBusy }} disabled={loadingMore || mutationBusy} onPress={onLoadMore} style={[styles.loadMore, { backgroundColor: colors.raised }]}>{loadingMore ? <ActivityIndicator color={colors.blue} /> : <Text style={{ color: colors.blue, fontWeight: '700' }} localize>Load more · {entries.length}/{total}</Text>}</Pressable> : null}
     />}
   </View>
 }
@@ -844,7 +844,7 @@ function WorkspacePreview({ entry, layout, previewRevision, previewURL, headers,
 
 function UnavailableWorkspaceViewer({ reconnecting, sessionChanged, modalPadding, onClose }: { reconnecting: boolean; sessionChanged: boolean; modalPadding: ReturnType<typeof fullscreenModalPadding>; onClose: () => void }) {
   const colors = usePalette()
-  return <View onAccessibilityEscape={onClose} style={[styles.root, { backgroundColor: colors.background }, modalPadding]}><View collapsable={false} pointerEvents="auto" style={[styles.header, { borderColor: colors.border, backgroundColor: colors.background }]}><SheetCloseButton onPress={onClose} label="Close workspace files" testID="workspace-file-viewer-close" activateOnPressIn /><Text style={[styles.headerTitle, { color: colors.text }]}>Workspace files</Text></View><EmptyState title={sessionChanged ? 'Chat changed' : reconnecting ? 'Verifying file access…' : 'Server unavailable'} body={sessionChanged ? 'Close this viewer and open Files from the active chat.' : 'Reconnect this server to browse the chat workspace.'} /></View>
+  return <View onAccessibilityEscape={onClose} style={[styles.root, { backgroundColor: colors.background }, modalPadding]}><View collapsable={false} pointerEvents="auto" style={[styles.header, { borderColor: colors.border, backgroundColor: colors.background }]}><SheetCloseButton onPress={onClose} label="Close workspace files" testID="workspace-file-viewer-close" activateOnPressIn /><Text style={[styles.headerTitle, { color: colors.text }]} localize>Workspace files</Text></View><EmptyState title={sessionChanged ? 'Chat changed' : reconnecting ? 'Verifying file access…' : 'Server unavailable'} body={sessionChanged ? 'Close this viewer and open Files from the active chat.' : 'Reconnect this server to browse the chat workspace.'} /></View>
 }
 
 function mergeWorkspaceEntries(current: WorkspaceEntry[], incoming: WorkspaceEntry[]): WorkspaceEntry[] {
