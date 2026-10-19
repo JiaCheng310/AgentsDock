@@ -18,7 +18,7 @@ const initial = {
 const store = globalThis.__myAgentsStore = create(() => initial)
 const mocks = {
   'react-native': `export const ActivityIndicator='Spinner',Pressable='Button',View='View'; export const StyleSheet={create:x=>x,hairlineWidth:1}; export const useColorScheme=()=> 'light';`,
-  'lucide-react-native': ['Circle', 'CircleCheck', 'Code2', 'RefreshCw'].map(name => `export const ${name}='${name}';`).join(''),
+  'lucide-react-native': ['Circle', 'CircleCheck', 'Code2', 'RefreshCw', 'Sparkles'].map(name => `export const ${name}='${name}';`).join(''),
   '../store/useAppStore': `export const useAppStore=globalThis.__myAgentsStore;`,
   './store/useAppearanceStore': `export const useAppearanceStore=selector=>selector({preference:'light'});`,
   './AppText': `export const Text='Text';`,
