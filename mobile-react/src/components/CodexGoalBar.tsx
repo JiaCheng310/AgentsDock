@@ -87,7 +87,7 @@ export function CodexGoalBar() {
         </View>
         <ChevronDown size={18} color={colors.muted} style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }} />
       </Pressable>
-      <Text testID="codex-goal-progress" style={[styles.progress, { color: colors.muted }]}>
+      <Text testID="codex-goal-progress" style={[styles.progress, { color: colors.muted }]} localize>
         {formatGoalBudget(elapsed, runtime?.time_budget_seconds, true)} elapsed · {formatGoalBudget(goal.tokensUsed, goal.tokenBudget)} tokens
       </Text>
       {expanded ? <ScrollView style={styles.details} contentContainerStyle={styles.detailContent} nestedScrollEnabled keyboardShouldPersistTaps="always">
@@ -116,7 +116,7 @@ export function CodexGoalBar() {
       <SafeAreaView style={[styles.sheet, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
           <Goal size={21} color={colors.blue} />
-          <Text style={[styles.title, styles.grow, { color: colors.text }]}>Persistent goal</Text>
+          <Text style={[styles.title, styles.grow, { color: colors.text }]} localize>Persistent goal</Text>
           <SheetCloseButton testID="codex-goal-editor-close" label="Close goal editor" onPress={closeEditor} />
         </View>
         <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="always">
@@ -204,26 +204,26 @@ export function CodexGoalEditor() {
     }
   }
 
-  if (!goalsSupported || !goalsEnabled) return <Text testID="codex-goals-disabled" style={[styles.help, { color: colors.muted }]}>{!goalsSupported
+  if (!goalsSupported || !goalsEnabled) return <Text testID="codex-goals-disabled" style={[styles.help, { color: colors.muted }]} localize>{!goalsSupported
     ? 'Persistent goals are unavailable on this server.'
     : 'Persistent goals are disabled on this server. Normal chats and scheduled jobs still run. Enable goals in Settings to create, edit, or continue a goal.'}</Text>
   const available = runtime?.available === true
   const view = goalViewState(goal, runtime)
   return <View testID="codex-goal-editor" style={styles.editor}>
-    <Text style={[styles.fieldLabel, { color: colors.text }]}>Objective</Text>
+    <Text style={[styles.fieldLabel, { color: colors.text }]} localize>Objective</Text>
     <TextInput testID="codex-goal-objective-input" accessibilityLabel="Goal objective" value={draft.objective} onChangeText={objective => edit({ objective })} editable={available} multiline maxLength={4_000} placeholder="What should Codex keep working toward?" placeholderTextColor={colors.muted} style={[styles.textarea, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
-    <Text style={[styles.fieldLabel, { color: colors.text }]}>Status</Text>
+    <Text style={[styles.fieldLabel, { color: colors.text }]} localize>Status</Text>
     <Pressable testID="codex-goal-status" accessibilityRole="button" accessibilityLabel={`Goal status: ${goalStatusLabel(draft.status)}`} accessibilityState={{ expanded: statusOpen, disabled: !available }} disabled={!available} onPress={() => setStatusOpen(value => !value)} style={[styles.choice, { backgroundColor: colors.background, borderColor: colors.border }]}>
       <Text style={[styles.grow, { color: colors.text }]}>{goalStatusLabel(draft.status)}</Text><ChevronDown size={16} color={colors.muted} />
     </Pressable>
     {statusOpen ? <View style={styles.statusOptions}>{GOAL_STATUSES.map(status => <Pressable key={status} testID={`codex-goal-status-${status}`} accessibilityRole="button" accessibilityState={{ selected: draft.status === status }} onPress={() => { edit({ status }); setStatusOpen(false) }} style={[styles.choice, { borderColor: colors.border, backgroundColor: draft.status === status ? colors.raised : colors.background }]}><Text style={{ color: colors.text }}>{goalStatusLabel(status)}</Text></Pressable>)}</View> : null}
     <View style={styles.budgets}>
-      <View style={styles.grow}><Text style={[styles.fieldLabel, { color: colors.text }]}>Token budget</Text><TextInput testID="codex-goal-token-budget" accessibilityLabel="Goal token budget" value={draft.tokenBudget} onChangeText={tokenBudget => edit({ tokenBudget })} editable={available} keyboardType="number-pad" placeholder="No limit" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} /></View>
-      <View style={styles.grow}><Text style={[styles.fieldLabel, { color: colors.text }]}>Time limit (seconds)</Text><TextInput testID="codex-goal-time-budget" accessibilityLabel="Goal time limit in seconds" value={draft.timeBudget} onChangeText={timeBudget => edit({ timeBudget })} editable={available} keyboardType="number-pad" placeholder="No limit" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} /></View>
+      <View style={styles.grow}><Text style={[styles.fieldLabel, { color: colors.text }]} localize>Token budget</Text><TextInput testID="codex-goal-token-budget" accessibilityLabel="Goal token budget" value={draft.tokenBudget} onChangeText={tokenBudget => edit({ tokenBudget })} editable={available} keyboardType="number-pad" placeholder="No limit" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} /></View>
+      <View style={styles.grow}><Text style={[styles.fieldLabel, { color: colors.text }]} localize>Time limit (seconds)</Text><TextInput testID="codex-goal-time-budget" accessibilityLabel="Goal time limit in seconds" value={draft.timeBudget} onChangeText={timeBudget => edit({ timeBudget })} editable={available} keyboardType="number-pad" placeholder="No limit" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} /></View>
     </View>
     {view?.message ? <Text style={[styles.help, { color: view.timeBudgetExhausted || view.tokenBudgetExhausted ? colors.orange : colors.muted }]}>{view.message}</Text> : null}
-    <Text style={[styles.help, { color: colors.muted }]}>The time limit is enforced by AgentsDock; Codex reports elapsed time.</Text>
-    {!available ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.orange }]}>Goal controls are unavailable until the Codex runtime is loaded.</Text> : null}
+    <Text style={[styles.help, { color: colors.muted }]} localize>The time limit is enforced by AgentsDock; Codex reports elapsed time.</Text>
+    {!available ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.orange }]} localize>Goal controls are unavailable until the Codex runtime is loaded.</Text> : null}
     {saveError || clearError || error ? <Text testID="codex-goal-save-error" accessibilityRole="alert" style={[styles.help, { color: colors.red }]}>{saveError ?? clearError ?? error}</Text> : null}
     {feedback ? <Text testID="codex-goal-feedback" accessibilityLiveRegion="polite" style={[styles.help, { color: colors.green }]}>{feedback}</Text> : null}
     <View style={styles.actions}>

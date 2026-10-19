@@ -82,7 +82,7 @@ export function MediaGrid({ files, sessionId, compact = false, ownerKey = 'stand
   if (!files.length) return null
   if (!connectionReady) {
     return <View style={[styles.unavailable, { backgroundColor: colors.raised, borderColor: colors.border }]}>
-      <Text style={[styles.unavailableText, { color: colors.muted }]}>{connecting || switchingProfileId ? 'Verifying media access…' : 'Media is available after this server reconnects.'}</Text>
+      <Text style={[styles.unavailableText, { color: colors.muted }]} localize>{connecting || switchingProfileId ? 'Verifying media access…' : 'Media is available after this server reconnects.'}</Text>
     </View>
   }
   return <ScopedMediaGrid

@@ -36,7 +36,7 @@ export function DownloadActionSheet({ filename, allowPhotos, bottomInset, onSele
           <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         </Pressable>)}
         <Pressable accessibilityRole="button" accessibilityLabel="Cancel download options" onPress={() => select()} style={styles.option}>
-          <Text style={[styles.label, { color: colors.muted }]}>Cancel</Text>
+          <Text style={[styles.label, { color: colors.muted }]} localize>Cancel</Text>
         </Pressable>
       </View>
     </View>

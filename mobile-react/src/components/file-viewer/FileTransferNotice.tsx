@@ -25,8 +25,8 @@ export function FileTransferNotice({ state, onCancel, onDismiss }: { state: File
       {progress ? <Text testID="file-transfer-progress" style={{ color: colors.muted, fontSize: 11 }}>{progress}</Text> : null}
       {fraction != null && state.phase === 'downloading' ? <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.floor(fraction * 100) }} style={[styles.track, { backgroundColor: colors.raised }]}><View style={[styles.fill, { backgroundColor: colors.blue, width: `${fraction * 100}%` }]} /></View> : null}
     </View>
-    {state.canOpenSettings ? <Pressable accessibilityRole="button" accessibilityLabel="Open photo settings" onPress={() => void Linking.openSettings().catch(() => undefined)} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>Settings</Text></Pressable> : null}
-    {cancellable || !busy ? <Pressable accessibilityRole="button" accessibilityLabel={cancellable ? 'Cancel download' : 'Dismiss download status'} testID={cancellable ? 'file-transfer-cancel' : 'file-transfer-dismiss'} onPress={cancellable ? onCancel : onDismiss} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>{cancellable ? 'Cancel' : 'Dismiss'}</Text></Pressable> : null}
+    {state.canOpenSettings ? <Pressable accessibilityRole="button" accessibilityLabel="Open photo settings" onPress={() => void Linking.openSettings().catch(() => undefined)} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }} localize>Settings</Text></Pressable> : null}
+    {cancellable || !busy ? <Pressable accessibilityRole="button" accessibilityLabel={cancellable ? 'Cancel download' : 'Dismiss download status'} testID={cancellable ? 'file-transfer-cancel' : 'file-transfer-dismiss'} onPress={cancellable ? onCancel : onDismiss} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }} localize>{cancellable ? 'Cancel' : 'Dismiss'}</Text></Pressable> : null}
   </View>
 }
 

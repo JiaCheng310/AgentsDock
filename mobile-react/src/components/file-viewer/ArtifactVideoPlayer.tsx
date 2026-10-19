@@ -247,7 +247,7 @@ function StagedIOSArtifactVideo({ file, connection, remoteSource, registerPause,
   const progressPercent = progress == null ? null : Math.round(progress * 100)
   return <View testID="artifact-video-staging" style={styles.stage}>
     {stageProblem ? <View accessibilityRole="alert" testID="artifact-video-stage-problem" style={styles.problem}>
-      <Text style={styles.problemTitle}>Video could not be prepared</Text>
+      <Text style={styles.problemTitle} localize>Video could not be prepared</Text>
       <Text style={styles.problemBody} numberOfLines={5}>{stageProblem}</Text>
       <View style={styles.actions}>
         <StageButton icon={RefreshCw} label="Retry" testID="artifact-video-stage-retry" onPress={restage} />

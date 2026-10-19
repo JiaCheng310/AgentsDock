@@ -41,6 +41,7 @@ import { IconButton, SheetCloseButton } from './ui'
 import { ServerQrScanner } from './ServerQrScanner'
 import type { ServerConnectionDetails } from '../lib/server-connection-link'
 import { selectServerAddress } from '../lib/server-address-selection'
+import { t } from '../i18n'
 
 export type {
   CreateServerProfileInput,
@@ -107,14 +108,14 @@ export function ServerProfileSelector({
     testID="server-profile-selector"
     accessible
     accessibilityRole="button"
-    accessibilityLabel={`${selectorLabel}${refreshing ? ' Refreshing chats.' : ''}`}
+    accessibilityLabel={`${t(selectorLabel)}${refreshing ? ` ${t('Refreshing chats.')}` : ''}`}
     accessibilityState={{ disabled: unavailable, expanded: false, busy: Boolean(switchingProfileId) || refreshing }}
     disabled={unavailable}
     onPress={onPress}
     style={({ pressed }) => [styles.selector, { borderColor: colors.controlBorder, backgroundColor: pressed ? colors.raised : colors.controlSurface, opacity: unavailable ? 0.4 : 1 }]}
   >
     <ServerConnectionDot state={switchingProfileId ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
-    <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || 'Choose server'}</Text>
+    <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || t('Choose server')}</Text>
     <View style={styles.selectorRefresh} pointerEvents="none">
       {refreshing ? <ActivityIndicator testID="server-chat-refresh" accessibilityLabel="Refreshing chats" size="small" color={colors.muted} /> : <ChevronDown size={14} color={colors.muted} />}
     </View>
@@ -374,11 +375,11 @@ export function ServerProfilesManager({
   const confirmRemove = (profile: ServerProfileListItem) => {
     if (busy) return
     Alert.alert(
-      `Remove “${profile.name}”?`,
-      'Only this saved connection will be removed. This will not stop tasks or delete chats on the server. Cached chats remain on this device.',
+      t('Remove “{name}”?', { name: profile.name }),
+      t('Only this saved connection will be removed. This will not stop tasks or delete chats on the server. Cached chats remain on this device.'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove server', style: 'destructive', onPress: () => { void removeProfile(profile) } },
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t('Remove server'), style: 'destructive', onPress: () => { void removeProfile(profile) } },
       ],
     )
   }
@@ -389,11 +390,11 @@ export function ServerProfilesManager({
       return
     }
     Alert.alert(
-      'Trust a new server identity?',
-      'Only continue if you intentionally replaced or moved this AgentsServer. The previous cached workspace will be preserved.',
+      t('Trust a new server identity?'),
+      t('Only continue if you intentionally replaced or moved this AgentsServer. The previous cached workspace will be preserved.'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Allow identity reset', style: 'destructive', onPress: () => updateDraft({ resetServerIdentity: true }) },
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t('Allow identity reset'), style: 'destructive', onPress: () => updateDraft({ resetServerIdentity: true }) },
       ],
     )
   }
@@ -402,7 +403,7 @@ export function ServerProfilesManager({
     <View style={[styles.sheetHeader, { borderColor: colors.border }]}>
       {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label={scanning ? 'Back to add server' : 'Back to servers'} testID="server-editor-back" /> : null}
       <View style={styles.sheetHeadingCopy}>
-        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{scanning ? 'Scan QR code' : draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers'}</Text>
+        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{t(scanning ? 'Scan QR code' : draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers')}</Text>
       </View>
       {onClose ? <SheetCloseButton onPress={onClose} label="Close server management" testID="server-management-close" /> : null}
     </View>
@@ -430,7 +431,7 @@ export function ServerProfilesManager({
         />
       }) : <View style={styles.noProfiles}>
         <Server size={24} color={colors.muted} />
-        <Text style={[styles.noProfilesTitle, { color: colors.text }]}>No saved servers</Text>
+        <Text style={[styles.noProfilesTitle, { color: colors.text }]} localize>No saved servers</Text>
       </View>}
       <Pressable
         testID="server-profile-add"
@@ -439,7 +440,7 @@ export function ServerProfilesManager({
         disabled={Boolean(busy) || Boolean(switchingProfileId)}
         onPress={openAdd}
         style={({ pressed }) => [styles.addServer, { opacity: busy || switchingProfileId ? 0.35 : pressed ? 0.65 : 1 }]}
-      ><Plus size={20} color={colors.text} /><Text style={[styles.profileName, { color: colors.text }]}>Add server</Text></Pressable>
+      ><Plus size={20} color={colors.text} /><Text style={[styles.profileName, { color: colors.text }]} localize>Add server</Text></Pressable>
     </View> : null}
 
     {feedback ? <View
@@ -448,7 +449,7 @@ export function ServerProfilesManager({
         backgroundColor: feedback.tone === 'error' ? `${colors.red}18` : feedback.tone === 'success' ? `${colors.green}18` : colors.raised,
         borderColor: feedback.tone === 'error' ? `${colors.red}66` : feedback.tone === 'success' ? `${colors.green}66` : colors.border,
       }]}
-    ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{feedback.message}</Text></View> : null}
+    ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{t(feedback.message)}</Text></View> : null}
 
     {scanning ? <ServerQrScanner onScanned={acceptQr} /> : draft ? <View testID="server-profile-editor" style={styles.editor}>
       {!draft.profileId ? <SecondaryButton icon={ScanLine} label="Scan QR code" disabled={Boolean(busy)} onPress={() => {
@@ -456,7 +457,7 @@ export function ServerProfilesManager({
         invalidateTest()
         setScanning(true)
       }} /> : null}
-      {!draft.profileId && entryMethod === 'manual' ? <Text style={[typography.caption, styles.manualCaption, { color: colors.muted }]}>or add manually</Text> : null}
+      {!draft.profileId && entryMethod === 'manual' ? <Text style={[typography.caption, styles.manualCaption, { color: colors.muted }]} localize>or add manually</Text> : null}
       {!draft.profileId && entryMethod === 'qr' ? <>
         <View testID="server-scanned-summary" style={styles.scannedSummary}>
           {draft.name ? <Text style={[typography.label, { color: colors.text }]}>{draft.name}</Text> : null}
@@ -465,7 +466,7 @@ export function ServerProfilesManager({
         <Pressable testID="server-manual-entry" accessibilityRole="button" accessibilityLabel="Edit details"
           disabled={Boolean(busy)} onPress={() => setEntryMethod('manual')}
           style={({ pressed }) => [styles.manualEntry, { opacity: busy ? 0.35 : pressed ? 0.65 : 1 }]}>
-          <Text style={[typography.body, { color: colors.blue }]}>Edit details</Text>
+          <Text style={[typography.body, { color: colors.blue }]} localize>Edit details</Text>
         </Pressable>
       </> : null}
       {entryMethod === 'manual' ? <View style={styles.editorFields}>
@@ -520,8 +521,8 @@ export function ServerProfilesManager({
       </View> : null}
       {editedProfile?.hasAccessToken ? <View style={styles.switchRow}>
         <View style={styles.switchCopy}>
-          <Text style={[styles.switchTitle, { color: colors.text }]}>Remove saved access token</Text>
-          <Text style={[styles.help, { color: colors.muted }]}>Blank above preserves it; this switch explicitly deletes it.</Text>
+          <Text style={[styles.switchTitle, { color: colors.text }]} localize>Remove saved access token</Text>
+          <Text style={[styles.help, { color: colors.muted }]} localize>Blank above preserves it; this switch explicitly deletes it.</Text>
         </View>
         <Switch
           testID="server-profile-clear-token"
@@ -535,8 +536,8 @@ export function ServerProfilesManager({
       {identityResetRequired ? <View style={[styles.identityWarning, { backgroundColor: `${colors.orange}14`, borderColor: `${colors.orange}55` }]}>
         <View style={styles.switchRow}>
           <View style={styles.switchCopy}>
-            <Text style={[styles.switchTitle, { color: colors.orange }]}>Allow a new server identity</Text>
-            <Text style={[styles.help, { color: colors.muted }]}>The endpoint no longer matches the saved identity. Confirm only after intentionally replacing or moving the server.</Text>
+            <Text style={[styles.switchTitle, { color: colors.orange }]} localize>Allow a new server identity</Text>
+            <Text style={[styles.help, { color: colors.muted }]} localize>The endpoint no longer matches the saved identity. Confirm only after intentionally replacing or moving the server.</Text>
           </View>
           <Switch
             testID="server-profile-reset-identity"
@@ -552,15 +553,15 @@ export function ServerProfilesManager({
         <Check size={16} color={duplicateProfile || testedIdentityChanged ? colors.orange : colors.green} />
         <Text style={[typography.caption, { flex: 1, color: duplicateProfile || testedIdentityChanged ? colors.orange : colors.green }]}>
           {duplicateProfile
-            ? `Already saved as “${duplicateProfile.name}”.`
+            ? t('Already saved as “{name}”.', { name: duplicateProfile.name })
             : testedIdentityChanged
-              ? `Connected, but this endpoint now reports ${tested.server_identity} instead of ${editedProfile?.serverIdentity}. Confirm the identity reset below before saving.`
-            : `Connected${tested.server_identity ? ` · ${tested.server_identity}` : ''}${tested.version ? ` · ${tested.version}` : ''}`}
+              ? t('Connected, but this endpoint now reports {actual} instead of {saved}. Confirm the identity reset below before saving.', { actual: tested.server_identity ?? '', saved: editedProfile?.serverIdentity ?? '' })
+            : `${t('Connected')}${tested.server_identity ? ` · ${tested.server_identity}` : ''}${tested.version ? ` · ${tested.version}` : ''}`}
         </Text>
       </View> : null}
 
-      {!draft.profileId && !tested ? <Text style={[styles.help, { color: colors.muted }]}>A successful connection test is required before this server can be added.</Text> : null}
-      {draft.profileId && updateTestMissing ? <Text style={[styles.help, { color: colors.orange }]}>Test this exact connection before saving address, access-token, or identity changes.</Text> : null}
+      {!draft.profileId && !tested ? <Text style={[styles.help, { color: colors.muted }]} localize>A successful connection test is required before this server can be added.</Text> : null}
+      {draft.profileId && updateTestMissing ? <Text style={[styles.help, { color: colors.orange }]} localize>Test this exact connection before saving address, access-token, or identity changes.</Text> : null}
 
       <View style={styles.editorActions}>
         <SecondaryButton
@@ -572,7 +573,7 @@ export function ServerProfilesManager({
         />
         <View style={styles.actionSpacer} />
         <PrimaryButton
-          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? `Use ${duplicateProfile.name}` : 'Add'}
+          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? t('Use {name}', { name: duplicateProfile.name }) : 'Add'}
           disabled={Boolean(busy) || !draft.serverUrl.trim() || (!draft.profileId && !tested?.ok) || Boolean(draft.profileId && duplicateProfile) || updateTestMissing || identityResetUnconfirmed}
           busy={busy === 'save'}
           onPress={() => { void save() }}
@@ -595,10 +596,10 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
   const colors = usePalette()
   const status = profileConnectionLabel(profile)
   const actions: MenuAction[] = [
-    { id: 'edit', title: 'Edit', image: 'pencil', attributes: { disabled } },
+    { id: 'edit', title: t('Edit'), image: 'pencil', attributes: { disabled } },
     {
       id: 'remove',
-      title: 'Remove',
+      title: t('Remove'),
       image: 'trash',
       attributes: { disabled, destructive: true },
     },
@@ -608,13 +609,13 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       testID={`server-profile-switch-${profile.id}`}
       accessibilityRole="button"
       accessibilityLabel={`Use ${profile.name}`}
-      accessibilityHint={status}
+      accessibilityHint={t(status)}
       accessibilityState={{ selected: active, disabled, busy: switching }}
       disabled={disabled}
       onPress={onSwitch}
       style={({ pressed }) => [styles.profileSwitch, { backgroundColor: pressed ? colors.raised : 'transparent', opacity: disabled && !switching ? 0.5 : 1 }]}
     >
-    <ServerConnectionDot state={switching ? 'connecting' : profile.connectionState} label={switching ? `Connecting to ${profile.name}` : status} />
+    <ServerConnectionDot state={switching ? 'connecting' : profile.connectionState} label={switching ? t('Connecting to {name}', { name: profile.name }) : t(status)} />
     <View style={styles.profileCopy}>
       <View style={styles.profileTitleRow}>
         <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>{profile.name}</Text>
@@ -654,7 +655,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
 export function ServerConnectionDot({ state, label = connectionStateLabel(state) }: { state: ServerProfileConnectionState; label?: string }) {
   const colors = usePalette()
   const color = state === 'online' ? colors.green : state === 'degraded' || state === 'retrying' ? colors.orange : state === 'connecting' ? colors.blue : state === 'offline' ? colors.red : colors.muted
-  return <View accessible accessibilityRole="image" accessibilityLabel={label} style={[styles.connectionDot, { backgroundColor: color }]} />
+  return <View accessible accessibilityRole="image" accessibilityLabel={t(label)} style={[styles.connectionDot, { backgroundColor: color }]} />
 }
 
 export function ServerUnreadBadge({ count }: { count: number }) {
@@ -666,13 +667,13 @@ export function ServerUnreadBadge({ count }: { count: number }) {
 
 function FieldLabel({ step, text }: { step: 1 | 2 | 3; text: string }) {
   const colors = usePalette()
-  return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${text}`} style={styles.fieldHeading}>
+  return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${t(text)}`} style={styles.fieldHeading}>
     {/* Draw the badge in one fixed viewport, independent of native rounded-view layers. */}
     <Svg width={24} height={24} viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" style={styles.fieldStep} accessible={false}>
       <Circle cx={12} cy={12} r={11.5} stroke={colors.blue} strokeWidth={1} fill={colors.blue} fillOpacity={0.06} />
       <SvgText x={12} y={16} textAnchor="middle" fontSize={typography.caption.fontSize} fontWeight={fontWeight.semibold} fill={colors.blue}>{step}</SvgText>
     </Svg>
-    <Text style={[styles.fieldLabel, { color: colors.muted }]}>{text}</Text>
+    <Text style={[styles.fieldLabel, { color: colors.muted }]}>{t(text)}</Text>
   </View>
 }
 
@@ -680,12 +681,12 @@ function PrimaryButton({ label, disabled, busy, onPress }: { label: string; disa
   const colors = usePalette()
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={label}
+    accessibilityLabel={t(label)}
     accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy) }}
     disabled={disabled}
     onPress={onPress}
     style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}
-  >{busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}<Text style={[styles.primaryButtonText, { color: colors.onAccent }]}>{label}</Text></Pressable>
+  >{busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}<Text style={[styles.primaryButtonText, { color: colors.onAccent }]}>{t(label)}</Text></Pressable>
 }
 
 function SecondaryButton({ icon: Icon, label, accessibilityLabel, disabled, busy, compact, onPress }: {
@@ -700,12 +701,12 @@ function SecondaryButton({ icon: Icon, label, accessibilityLabel, disabled, busy
   const colors = usePalette()
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityLabel={t(accessibilityLabel ?? label)}
     accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy) }}
     disabled={disabled}
     onPress={onPress}
     style={({ pressed }) => [styles.secondaryButton, compact && styles.compactButton, { backgroundColor: colors.raised, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}
-  >{busy ? <ActivityIndicator size="small" color={colors.blue} /> : Icon ? <Icon size={15} color={colors.muted} /> : null}{compact && busy ? null : <Text style={[styles.secondaryButtonText, { color: colors.text }]} numberOfLines={1}>{label}</Text>}</Pressable>
+  >{busy ? <ActivityIndicator size="small" color={colors.blue} /> : Icon ? <Icon size={15} color={colors.muted} /> : null}{compact && busy ? null : <Text style={[styles.secondaryButtonText, { color: colors.text }]} numberOfLines={1}>{t(label)}</Text>}</Pressable>
 }
 
 function errorMessage(error: unknown): string {

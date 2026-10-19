@@ -92,7 +92,7 @@ function EmergencyAlertView({ event, sessionId }: { event: Event; sessionId: str
   }
   return <View style={[styles.system, { backgroundColor: `${colors.red}18`, borderColor: colors.red }]}>
     <Siren size={16} color={colors.red} />
-    <View style={{ flex: 1, gap: 5 }}><Text style={[styles.systemTitle, { color: colors.red }]}>Emergency alert raised</Text><Text selectable style={[styles.systemText, { color: colors.text }]}>{event.message || event.emergency_alert?.message || 'The agent requested immediate attention.'}</Text>{failed ? <Text accessibilityRole="alert" style={{ color: colors.red, fontSize: 11 }}>Couldn’t acknowledge. Try again.</Text> : null}{acknowledgeable ? <Pressable accessibilityRole="button" accessibilityLabel={`Acknowledge emergency${session?.title ? ` in ${session.title}` : ''}`} disabled={busy} onPress={() => void acknowledge()} style={[styles.emergencyAcknowledge, { backgroundColor: colors.red, opacity: busy ? 0.5 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : <Text style={{ color: 'white', fontWeight: '800', fontSize: 11 }}>Acknowledge</Text>}</Pressable> : null}</View>
+    <View style={{ flex: 1, gap: 5 }}><Text style={[styles.systemTitle, { color: colors.red }]} localize>Emergency alert raised</Text><Text selectable style={[styles.systemText, { color: colors.text }]}>{event.message || event.emergency_alert?.message || 'The agent requested immediate attention.'}</Text>{failed ? <Text accessibilityRole="alert" style={{ color: colors.red, fontSize: 11 }} localize>Couldn’t acknowledge. Try again.</Text> : null}{acknowledgeable ? <Pressable accessibilityRole="button" accessibilityLabel={`Acknowledge emergency${session?.title ? ` in ${session.title}` : ''}`} disabled={busy} onPress={() => void acknowledge()} style={[styles.emergencyAcknowledge, { backgroundColor: colors.red, opacity: busy ? 0.5 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : <Text style={{ color: 'white', fontWeight: '800', fontSize: 11 }} localize>Acknowledge</Text>}</Pressable> : null}</View>
   </View>
 }
 
@@ -188,7 +188,7 @@ function MessageRowView({ row, sessionId, fontScale }: { row: Extract<TimelineRo
     <View style={[styles.messageWrap, row.role === 'user' && styles.userAlign]}>
       <View style={[styles.message, { backgroundColor: row.role === 'user' ? colors.user : colors.surface, borderColor: colors.border }]}>
         <View style={styles.metaRow}>
-          <Text style={[styles.author, { color: colors.muted }]} numberOfLines={1}>{row.role === 'user' ? 'You' : 'Assistant'}</Text>
+          <Text style={[styles.author, { color: colors.muted }]} numberOfLines={1} localize>{row.role === 'user' ? 'You' : 'Assistant'}</Text>
           <Text style={[styles.time, { color: colors.muted }]} numberOfLines={1}>{formatDateTime(event.ts)}</Text>
           <View style={styles.metaSpacer} />
           {feedback ? <Text testID={`message-action-feedback-${event.id}`} style={[styles.feedback, { color: feedback.includes('failed') ? colors.red : colors.green }]} numberOfLines={1}>{feedback}</Text> : null}
@@ -204,10 +204,10 @@ function MessageRowView({ row, sessionId, fontScale }: { row: Extract<TimelineRo
         />
         {folded ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Show full message" onPress={() => setExpanded(true)} style={[styles.fold, { borderColor: colors.blue, backgroundColor: colors.raised }]}>
-            <Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>{full.length - fold.cutIndex} characters hidden · Show full text</Text>
+            <Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }} localize>{full.length - fold.cutIndex} characters hidden · Show full text</Text>
           </Pressable>
         ) : fold.folded ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Collapse message" onPress={() => setExpanded(false)} style={styles.collapse}><Text style={{ color: colors.muted, fontSize: 12 }}>Collapse</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Collapse message" onPress={() => setExpanded(false)} style={styles.collapse}><Text style={{ color: colors.muted, fontSize: 12 }} localize>Collapse</Text></Pressable>
         ) : null}
         {displayedChatReferences.length ? <ChatReferenceChips references={displayedChatReferences} sessionId={sessionId} readOnlyReferenceKeys={readOnlyReferenceKeys} /> : null}
         {row.files.length ? <MediaGrid files={row.files} sessionId={sessionId} ownerKey={row.key} /> : null}
@@ -393,7 +393,7 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
         <Code2 size={14} color={colors.muted} />
         <View style={styles.traceHeading}>
           <View style={styles.traceHeadingMeta}>
-            <Text style={[styles.traceTitle, { color: colors.text }]}>Reasoning trace</Text>
+            <Text style={[styles.traceTitle, { color: colors.text }]} localize>Reasoning trace</Text>
             {metadata ? <Text style={[styles.traceMeta, { color: colors.muted }]} numberOfLines={1}>{metadata}</Text> : null}
           </View>
           {!open && preview ? <Text style={[styles.traceHeadline, { color: colors.muted }]} numberOfLines={4}>{preview}</Text> : null}
@@ -409,10 +409,10 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
             onReview(runId)
           }}
           style={[styles.review, { backgroundColor: colors.surface }]}
-        ><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }}>Review</Text></Pressable> : null}
+        ><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }} localize>Review</Text></Pressable> : null}
       </Pressable>
       {open ? <View style={[styles.traceBody, { borderColor: colors.border }]}>
-        {hiddenTraceEvents ? <Text style={[styles.traceHidden, { color: colors.muted }]}>{hiddenTraceEvents} older trace updates hidden</Text> : null}
+        {hiddenTraceEvents ? <Text style={[styles.traceHidden, { color: colors.muted }]} localize>{hiddenTraceEvents} older trace updates hidden</Text> : null}
         {visibleTraceEvents.map(event => {
           const text = boundedTraceText(event)
           return <View key={event.id} style={styles.traceEvent}>
@@ -445,7 +445,7 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
               style={[styles.traceDetailAction, { borderColor: colors.border, backgroundColor: colors.raised }]}
             >
               {loadingMore ? <ActivityIndicator size="small" color={colors.blue} /> : null}
-              <Text style={[styles.traceDetailActionText, { color: colors.blue }]}>{hasMore ? 'Load more activity' : 'Check for newer activity'}</Text>
+              <Text style={[styles.traceDetailActionText, { color: colors.blue }]} localize>{hasMore ? 'Load more activity' : 'Check for newer activity'}</Text>
             </Pressable> : null}
             {loadedEvents.length || detailLimited ? <Pressable
                 testID={`trace-show-less-${row.key}`}
@@ -454,7 +454,7 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
                 onPress={showLess}
                 style={[styles.traceDetailAction, { borderColor: colors.border, backgroundColor: colors.raised }]}
               >
-                <Text style={[styles.traceDetailActionText, { color: colors.blue }]}>Use compact trace</Text>
+                <Text style={[styles.traceDetailActionText, { color: colors.blue }]} localize>Use compact trace</Text>
               </Pressable> : null}
           </> : <Pressable
                 testID={`trace-show-more-${row.key}`}
@@ -466,11 +466,11 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
                 style={[styles.traceDetailAction, { borderColor: colors.border, backgroundColor: colors.raised }]}
               >
                 {loadingMore ? <ActivityIndicator size="small" color={colors.blue} /> : null}
-                <Text style={[styles.traceDetailActionText, { color: colors.blue }]}>Load available activity</Text>
+                <Text style={[styles.traceDetailActionText, { color: colors.blue }]} localize>Load available activity</Text>
               </Pressable>}
           {loadError ? <View accessibilityRole="alert" style={styles.traceDetailError}><AlertTriangle size={13} color={colors.red} /><Text style={[styles.traceDetailErrorText, { color: colors.red }]}>{loadError}</Text></View> : null}
           {detailLimited || (detailWindow?.limited && loadedEvents != null)
-            ? <Text style={[styles.traceDetailLimitText, { color: colors.muted }]}>Trace detail is bounded to keep this chat responsive.</Text>
+            ? <Text style={[styles.traceDetailLimitText, { color: colors.muted }]} localize>Trace detail is bounded to keep this chat responsive.</Text>
             : null}
         </View> : null}
       </View> : null}
@@ -493,7 +493,7 @@ function ProgressRowView({ row, fontScale }: { row: Extract<TimelineRow, { kind:
     accessibilityLiveRegion="polite"
     style={[styles.progressWrap, { borderColor: colors.border, backgroundColor: colors.raised }]}
   >
-    {row.hiddenCount > 0 ? <Text style={[styles.progressMeta, { color: colors.muted }]}>
+    {row.hiddenCount > 0 ? <Text style={[styles.progressMeta, { color: colors.muted }]} localize>
       {row.hiddenCount} earlier live {row.hiddenCount === 1 ? 'update' : 'updates'} hidden while this turn is active
     </Text> : null}
     {commentary.map((event, index) => <ProgressLineView
@@ -517,7 +517,7 @@ const ProgressLineView = memo(function ProgressLineView({ event, first, fontScal
 
 function MediaRowView({ row, sessionId }: { row: Extract<TimelineRow, { kind: 'media' }>; sessionId: string }) {
   const colors = usePalette()
-  return <View style={[styles.mediaRow, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.mediaTitle, { color: colors.text }]}>Files & media <Text style={{ color: colors.muted }}>{row.files.length}</Text></Text><MediaGrid files={row.files} sessionId={sessionId} ownerKey={row.key} /></View>
+  return <View style={[styles.mediaRow, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.mediaTitle, { color: colors.text }]} localize>Files & media <Text style={{ color: colors.muted }}>{row.files.length}</Text></Text><MediaGrid files={row.files} sessionId={sessionId} ownerKey={row.key} /></View>
 }
 
 function JobRowView({ row, sessionId, onReview, fontScale }: { row: Extract<TimelineRow, { kind: 'job' }>; sessionId: string; onReview: (runId: string) => void; fontScale: number }) {
@@ -675,7 +675,7 @@ function JobRowView({ row, sessionId, onReview, fontScale }: { row: Extract<Time
     >
       <View style={styles.jobHeader}>
         <Clock3 size={16} color={colors.orange} />
-        <View style={styles.jobHeading}><Text style={[styles.jobTitle, { color: colors.text }]}>Latest Job Status</Text><Text style={[styles.jobMeta, { color: colors.muted }]} numberOfLines={1}>{row.title} · {displayRunCount} {displayRunCount === 1 ? 'run' : 'runs'} · {formatDateTime(latestStatusSource.ts || latest.ts)}</Text></View>
+        <View style={styles.jobHeading}><Text style={[styles.jobTitle, { color: colors.text }]} localize>Latest Job Status</Text><Text style={[styles.jobMeta, { color: colors.muted }]} numberOfLines={1} localize>{row.title} · {displayRunCount} {displayRunCount === 1 ? 'run' : 'runs'} · {formatDateTime(latestStatusSource.ts || latest.ts)}</Text></View>
         <JobStatusPill status={latestStatus} />
         {open ? <ChevronDown size={15} color={colors.muted} /> : <ChevronRight size={15} color={colors.muted} />}
       </View>
@@ -697,16 +697,16 @@ function JobRowView({ row, sessionId, onReview, fontScale }: { row: Extract<Time
         style={styles.jobHistoryToggle}
       >
         {showHistory ? <ChevronDown size={14} color={colors.muted} /> : <ChevronRight size={14} color={colors.muted} />}
-        <Text style={[styles.jobHistoryTitle, { color: colors.text }]}>Previous runs</Text>
+        <Text style={[styles.jobHistoryTitle, { color: colors.text }]} localize>Previous runs</Text>
         {previousRunCount > 0 ? <Text style={[styles.jobHistoryCount, { color: colors.muted }]}>{previousRunCount.toLocaleString()}</Text> : null}
       </Pressable>
       {showHistory ? <View style={styles.jobHistoryBody}>
         {history.map(event => <JobHistoryRun key={jobRunIdentity(event) ?? event.id} event={event} sessionId={sessionId} onReview={onReview} fontScale={fontScale} />)}
-        {historyLoading ? <View style={styles.jobHistoryStatus}><ActivityIndicator size="small" color={colors.orange} /><Text style={[styles.jobHistoryStatusText, { color: colors.muted }]}>Loading run history…</Text></View> : null}
-        {!historyLoading && historyError ? <View style={styles.jobHistoryStatus}><AlertTriangle size={13} color={colors.red} /><Text style={[styles.jobHistoryStatusText, { color: colors.red }]}>{historyError}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry loading previous runs" onPress={() => void loadHistory(historyNextBefore, loadedHistory.length === 0)} style={styles.jobHistoryRetry}><Text style={[styles.jobHistoryAction, { color: colors.blue }]}>Retry</Text></Pressable></View> : null}
-        {!historyLoading && historySupported === false && previousRunCount > history.length ? <Text style={[styles.jobHistoryStatusText, { color: colors.muted }]}>Showing {history.length} recent {history.length === 1 ? 'run' : 'runs'} saved with this chat. Update the server to load all {previousRunCount.toLocaleString()} previous runs.</Text> : null}
-        {!historyLoading && historySupported !== false && historyHasMore && historyNextBefore != null ? <Pressable testID={`job-load-older-runs-${loadableJobId}`} accessibilityRole="button" accessibilityLabel="Load older scheduled runs" onPress={() => void loadHistory(historyNextBefore, false)} style={[styles.jobHistoryMore, { borderColor: colors.border, backgroundColor: colors.raised }]}><Text style={[styles.jobHistoryAction, { color: colors.blue }]}>Load older runs</Text></Pressable> : null}
-        {!historyLoading && !historyError && history.length === 0 ? <Text style={[styles.jobHistoryStatusText, { color: colors.muted }]}>No prior run output was returned.</Text> : null}
+        {historyLoading ? <View style={styles.jobHistoryStatus}><ActivityIndicator size="small" color={colors.orange} /><Text style={[styles.jobHistoryStatusText, { color: colors.muted }]} localize>Loading run history…</Text></View> : null}
+        {!historyLoading && historyError ? <View style={styles.jobHistoryStatus}><AlertTriangle size={13} color={colors.red} /><Text style={[styles.jobHistoryStatusText, { color: colors.red }]}>{historyError}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry loading previous runs" onPress={() => void loadHistory(historyNextBefore, loadedHistory.length === 0)} style={styles.jobHistoryRetry}><Text style={[styles.jobHistoryAction, { color: colors.blue }]} localize>Retry</Text></Pressable></View> : null}
+        {!historyLoading && historySupported === false && previousRunCount > history.length ? <Text style={[styles.jobHistoryStatusText, { color: colors.muted }]} localize>Showing {history.length} recent {history.length === 1 ? 'run' : 'runs'} saved with this chat. Update the server to load all {previousRunCount.toLocaleString()} previous runs.</Text> : null}
+        {!historyLoading && historySupported !== false && historyHasMore && historyNextBefore != null ? <Pressable testID={`job-load-older-runs-${loadableJobId}`} accessibilityRole="button" accessibilityLabel="Load older scheduled runs" onPress={() => void loadHistory(historyNextBefore, false)} style={[styles.jobHistoryMore, { borderColor: colors.border, backgroundColor: colors.raised }]}><Text style={[styles.jobHistoryAction, { color: colors.blue }]} localize>Load older runs</Text></Pressable> : null}
+        {!historyLoading && !historyError && history.length === 0 ? <Text style={[styles.jobHistoryStatusText, { color: colors.muted }]} localize>No prior run output was returned.</Text> : null}
       </View> : null}
     </View> : null}
   </View>
@@ -781,7 +781,7 @@ function SystemRowView({ row, fontScale }: { row: Extract<TimelineRow, { kind: '
   const accent = error ? colors.red : digest ? colors.orange : colors.blue
   return <View style={[styles.system, { backgroundColor: error ? `${colors.red}18` : digest ? `${colors.orange}18` : colors.surface, borderColor: accent }]}>
     {error ? <AlertTriangle size={16} color={accent} /> : generating ? <ActivityIndicator size="small" color={accent} style={styles.digestSpinner} /> : digest ? <Sparkles size={16} color={accent} /> : <Check size={16} color={accent} />}
-    <View style={{ flex: 1 }}><Text style={[styles.systemTitle, { color: error ? colors.red : colors.muted }]}>{title}</Text><Text selectable style={[styles.systemText, { color: error ? colors.red : colors.text }]}>{text}</Text>{digestBody ? <><Pressable accessibilityRole="button" accessibilityLabel={showDigest ? 'Hide digest' : 'View digest'} accessibilityState={{ expanded: showDigest }} onPress={() => setShowDigest(value => !value)} style={styles.digestToggle}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>{showDigest ? 'Hide digest' : 'View digest'}</Text></Pressable>{showDigest ? <MarkdownContent value={digestBody} fontScale={fontScale} /> : null}</> : null}</View>
+    <View style={{ flex: 1 }}><Text style={[styles.systemTitle, { color: error ? colors.red : colors.muted }]}>{title}</Text><Text selectable style={[styles.systemText, { color: error ? colors.red : colors.text }]}>{text}</Text>{digestBody ? <><Pressable accessibilityRole="button" accessibilityLabel={showDigest ? 'Hide digest' : 'View digest'} accessibilityState={{ expanded: showDigest }} onPress={() => setShowDigest(value => !value)} style={styles.digestToggle}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }} localize>{showDigest ? 'Hide digest' : 'View digest'}</Text></Pressable>{showDigest ? <MarkdownContent value={digestBody} fontScale={fontScale} /> : null}</> : null}</View>
   </View>
 }
 
@@ -808,14 +808,14 @@ function ProviderInteractionAuditView({ row }: { row: Extract<TimelineRow, { kin
     >
       <History size={15} color={colors.blue} />
       <View style={styles.interactionAuditHeading}>
-        <Text style={[styles.interactionAuditTitle, { color: colors.text }]}>{providerName} request history</Text>
+        <Text style={[styles.interactionAuditTitle, { color: colors.text }]} localize>{providerName} request history</Text>
         <Text style={[styles.interactionAuditCount, { color: colors.muted }]}>{countLabel}</Text>
       </View>
       <Text style={[styles.interactionAuditTime, { color: colors.muted }]}>{formatDateTime(row.event.ts)}</Text>
       {open ? <ChevronDown size={14} color={colors.muted} /> : <ChevronRight size={14} color={colors.muted} />}
     </Pressable>
     {open ? <View style={[styles.interactionAuditBody, { borderTopColor: colors.border }]}>
-      <Text style={[styles.interactionAuditHelp, { color: colors.muted }]}>Current requests stay actionable in the approval panel. This is the compact audit history.</Text>
+      <Text style={[styles.interactionAuditHelp, { color: colors.muted }]} localize>Current requests stay actionable in the approval panel. This is the compact audit history.</Text>
       {audit.entries.map(entry => <View key={entry.id} style={[styles.interactionAuditEntry, { borderTopColor: colors.border }]}>
         <View style={styles.interactionAuditEntryText}>
           <Text selectable style={[styles.interactionAuditEntryLabel, { color: colors.text }]}>{entry.label}</Text>

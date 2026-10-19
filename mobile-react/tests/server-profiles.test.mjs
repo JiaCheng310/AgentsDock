@@ -28,7 +28,7 @@ test('server selector is a compact outlined button that opens the sheet directly
   assert.match(trigger, /styles\.selectorName, \{ color: colors\.text \}/)
   assert.match(trigger, /<ServerConnectionDot state=\{switchingProfileId \? 'connecting' : active\?\.connectionState \?\? 'cached'\}/)
   assert.match(trigger, /numberOfLines=\{1\} ellipsizeMode="tail"/)
-  assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| 'Choose server'/)
+  assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| t\('Choose server'\)/)
   assert.doesNotMatch(trigger, /ServerUnreadBadge|MenuView|selectorHost/)
   assert.match(trigger, /return <Pressable/)
   assert.match(trigger, /onPress=\{onPress\}/)
@@ -45,7 +45,7 @@ test('server name reserves a stable refresh indicator slot without disabling ser
   assert.match(source, /selectorRefresh: \{ width: 20, height: 20, flexShrink: 0/)
   assert.match(source, /busy: Boolean\(switchingProfileId\) \|\| refreshing/)
   assert.match(source, /const unavailable = disabled \|\| Boolean\(switchingProfileId\)/)
-  assert.match(source, /refreshing \? ' Refreshing chats\.'/)
+  assert.match(source, /refreshing \? ` \$\{t\('Refreshing chats\.'\)\}`/)
 })
 
 test('server title respects its container width without shrinking the hit height', () => {
@@ -99,7 +99,7 @@ test('server removal permits the active profile and still requires native confir
   assert.match(source, /Alert\.alert\([\s\S]*?Allow identity reset/)
   assert.match(source, /id: 'remove',[\s\S]*?attributes: \{ disabled, destructive: true \}/)
   assert.doesNotMatch(source, /disabled: disabled \|\| active|destructive: !active/)
-  assert.match(source, /text: 'Remove server', style: 'destructive', onPress: \(\) => \{ void removeProfile\(profile\) \}/)
+  assert.match(source, /text: t\('Remove server'\), style: 'destructive', onPress: \(\) => \{ void removeProfile\(profile\) \}/)
 })
 
 test('server management controls retain touch-safe minimum dimensions', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
-import { Circle, CircleCheck, Code2, RefreshCw } from 'lucide-react-native'
+import { Circle, CircleCheck, Code2, RefreshCw, Sparkles } from 'lucide-react-native'
 import { SETTINGS_AGENTS, settingsAgentAvailable } from '../lib/settings-agents'
 import { customProviderAvailable, customProviderSupported } from '../lib/provider-selection'
 import { useAppStore } from '../store/useAppStore'
@@ -49,7 +49,7 @@ function ScopedMyAgentsSettings() {
       <Text numberOfLines={1} style={[styles.serverName, { color: colors.muted }]}>{serverName || 'Server'}</Text>
       <Pressable testID="settings-agents-recheck" accessibilityRole="button" accessibilityLabel="Recheck agents" accessibilityState={{ busy, disabled: busy || !connected }} disabled={busy || !connected} onPress={() => void recheck()} style={({ pressed }) => [styles.recheck, { backgroundColor: colors.raised, opacity: !connected ? 0.4 : pressed ? 0.65 : 1 }]}>
         {busy ? <ActivityIndicator size="small" color={colors.muted} /> : <RefreshCw size={16} color={colors.muted} />}
-        <Text style={[typography.label, { color: colors.text }]}>Recheck</Text>
+        <Text style={[typography.label, { color: colors.text }]} localize>Recheck</Text>
       </Pressable>
     </View>
     <View>{SETTINGS_AGENTS.map(agent => {
@@ -58,16 +58,16 @@ function ScopedMyAgentsSettings() {
       const apiAvailable = connected && !failed && customProviderAvailable(health, runtime, agent.id)
       return <View key={agent.id} testID={`settings-agent-${agent.id}`} style={[styles.row, { borderColor: colors.border }]}>
         <View style={styles.agentHeader}>
-          <View style={[styles.mark, !available && !apiAvailable && { opacity: 0.4 }]}>{agent.id === 'opencode' ? <Code2 size={22} color={colors.text} /> : <BackendMark backend={agent.id} size={22} />}</View>
+          <View style={[styles.mark, !available && !apiAvailable && { opacity: 0.4 }]}>{agent.id === 'opencode' ? <Code2 size={22} color={colors.text} /> : agent.id === 'gemini' ? <Sparkles size={22} color={colors.text} /> : <BackendMark backend={agent.id} size={22} />}</View>
           <Text style={[styles.name, { color: available || apiAvailable ? colors.text : colors.muted }]}>{agent.name}</Text>
         </View>
         <ConnectionStatus testID={`settings-agent-${agent.id}-native`} name="Native" available={available} />
         {configured ? <ConnectionStatus testID={`settings-agent-${agent.id}-custom`} name="Custom API" available={apiAvailable} /> : null}
       </View>
     })}</View>
-    {!connected || failed ? <Text accessibilityRole="text" style={[typography.caption, { color: colors.muted }]}>{!connected ? 'Server offline' : 'Could not check agents. Try again.'}</Text> : null}
-    {connected && !customProviderSupported(health, 'codex') && !customProviderSupported(health, 'claude') ? <Text style={[typography.caption, { color: colors.muted }]}>Update AgentsServer to see Custom API connections.</Text> : null}
-    <Text style={[typography.caption, { color: colors.muted }]}>Manage accounts and APIs on your server machine.</Text>
+    {!connected || failed ? <Text accessibilityRole="text" style={[typography.caption, { color: colors.muted }]} localize>{!connected ? 'Server offline' : 'Could not check agents. Try again.'}</Text> : null}
+    {connected && !customProviderSupported(health, 'codex') && !customProviderSupported(health, 'claude') ? <Text style={[typography.caption, { color: colors.muted }]} localize>Update AgentsServer to see Custom API connections.</Text> : null}
+    <Text style={[typography.caption, { color: colors.muted }]} localize>Manage accounts and APIs on your server machine.</Text>
   </View>
 }
 

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { X } from 'lucide-react-native'
 import { radius, spacing, typography, usePalette } from '../theme'
+import { t } from '../i18n'
 import { Text } from './AppText'
 
 export function IconButton({ icon: Icon, onPress, disabled, selected, size = 18, touchSize = 44, label, testID, activateOnPressIn = false }: { icon: LucideIcon; onPress: () => void; disabled?: boolean; selected?: boolean; size?: number; touchSize?: number; label?: string; testID?: string; activateOnPressIn?: boolean }) {
@@ -26,7 +27,7 @@ export function IconButton({ icon: Icon, onPress, disabled, selected, size = 18,
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={label ? t(label) : undefined}
       accessibilityState={{ disabled: Boolean(disabled), selected: Boolean(selected) }}
       testID={testID}
       disabled={disabled}
@@ -62,7 +63,7 @@ export function SheetCloseButton({ onPress, disabled, label = 'Close', testID, a
   }
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={label}
+    accessibilityLabel={t(label)}
     accessibilityState={{ disabled: Boolean(disabled) }}
     testID={testID}
     disabled={disabled}
@@ -76,7 +77,7 @@ export function SheetCloseButton({ onPress, disabled, label = 'Close', testID, a
 
 export function SectionHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {
   const colors = usePalette()
-  return <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.muted }]}>{title}</Text>{trailing}</View>
+  return <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.muted }]}>{t(title)}</Text>{trailing}</View>
 }
 
 export function Pill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'blue' | 'green' | 'orange' | 'yellow' }) {
@@ -87,12 +88,12 @@ export function Pill({ children, tone = 'neutral' }: { children: ReactNode; tone
 
 export function Loading({ label }: { label?: string }) {
   const colors = usePalette()
-  return <View style={styles.loading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>{label}</Text></View>
+  return <View style={styles.loading}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>{label ? t(label) : label}</Text></View>
 }
 
 export function EmptyState({ title, body }: { title: string; body?: string }) {
   const colors = usePalette()
-  return <View style={styles.empty}><Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text>{body ? <Text style={[styles.emptyBody, { color: colors.muted }]}>{body}</Text> : null}</View>
+  return <View style={styles.empty}><Text style={[styles.emptyTitle, { color: colors.text }]}>{t(title)}</Text>{body ? <Text style={[styles.emptyBody, { color: colors.muted }]}>{t(body)}</Text> : null}</View>
 }
 
 const styles = StyleSheet.create({

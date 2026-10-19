@@ -79,10 +79,10 @@ export function ArtifactIOSSystemVideoPlayer({ sourceURI, registerPause, onDownl
       style={styles.loading}
     >
       <ActivityIndicator color="white" />
-      <Text style={styles.loadingText}>Opening with Apple video player…</Text>
+      <Text style={styles.loadingText} localize>Opening with Apple video player…</Text>
     </View> : null}
     {problem ? <View accessibilityRole="alert" testID="artifact-ios-system-video-problem" style={styles.problem}>
-      <Text style={styles.problemTitle}>Video could not be opened</Text>
+      <Text style={styles.problemTitle} localize>Video could not be opened</Text>
       <Text style={styles.problemBody} numberOfLines={5}>{problem}</Text>
       <View style={styles.actions}>
         <Action icon={RefreshCw} label="Retry" testID="artifact-ios-system-video-retry" onPress={retry} />

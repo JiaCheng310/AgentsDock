@@ -155,14 +155,14 @@ export function ArtifactNativeVideoPlayer({ source, layout, registerPause, onDow
       style={StyleSheet.absoluteFill}
     />
     {dismissible ? <SwipeDismissVideoSurface onDismiss={close} testID="artifact-video-dismiss-surface" gestureTestID="artifact-video-dismiss-gesture" style={StyleSheet.absoluteFill} /> : null}
-    {!ready && !loadProblem ? <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading video" pointerEvents="none" style={styles.videoStatus}><ActivityIndicator color="white" /><Text style={styles.videoLoadingText}>Loading video…</Text></View> : null}
+    {!ready && !loadProblem ? <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading video" pointerEvents="none" style={styles.videoStatus}><ActivityIndicator color="white" /><Text style={styles.videoLoadingText} localize>Loading video…</Text></View> : null}
     {loadProblem ? <View accessibilityRole="alert" testID="artifact-video-problem" style={styles.videoProblem}>
-      <Text style={styles.videoProblemTitle}>Video could not be opened</Text>
+      <Text style={styles.videoProblemTitle} localize>Video could not be opened</Text>
       <Text style={styles.videoProblemBody} numberOfLines={4}>{loadProblem}</Text>
       <View style={styles.videoProblemActions}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Retry opening video" testID="artifact-video-retry" onPress={retry} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><RefreshCw size={16} color="white" /><Text style={styles.videoProblemButtonText}>Retry</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Download video" testID="artifact-video-download" onPress={onDownload} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><Download size={16} color="white" /><Text style={styles.videoProblemButtonText}>Download</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close video viewer" testID="artifact-video-problem-close" onPress={close} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><X size={16} color="white" /><Text style={styles.videoProblemButtonText}>Close</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retry opening video" testID="artifact-video-retry" onPress={retry} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><RefreshCw size={16} color="white" /><Text style={styles.videoProblemButtonText} localize>Retry</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Download video" testID="artifact-video-download" onPress={onDownload} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><Download size={16} color="white" /><Text style={styles.videoProblemButtonText} localize>Download</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close video viewer" testID="artifact-video-problem-close" onPress={close} style={({ pressed }) => [styles.videoProblemButton, { opacity: pressed ? 0.68 : 1 }]}><X size={16} color="white" /><Text style={styles.videoProblemButtonText} localize>Close</Text></Pressable>
       </View>
     </View> : null}
     {customControls && ready ? <>

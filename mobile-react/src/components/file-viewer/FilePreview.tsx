@@ -416,7 +416,7 @@ export function FilePreview({ name, path, contentType, size, layout, previewURL,
     return uri ? { uri, headers: localPreview ? undefined : headers } : null
   }, [headers, localPreview, previewURL])
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }}>Opening {name}…</Text></View>
+  if (loading) return <View style={styles.center}><ActivityIndicator color={colors.blue} /><Text style={{ color: colors.muted }} localize>Opening {name}…</Text></View>
   if (error) return <PreviewProblem title="Could not open file" message={error} onRetry={() => setRevision(value => value + 1)} onDownload={onDownload} />
   if (tooLargeForText) return <PreviewProblem title="Preview is memory bounded" message={`${name} is larger than the ${formatLimit(effectiveTextLimit)} ${layout === 'pad' ? 'iPad' : 'iPhone'} text preview limit.`} onDownload={onDownload} />
 
@@ -577,15 +577,15 @@ function PreviewProblem({ title, message, onRetry, onDownload }: { title: string
     <Text style={[styles.problemTitle, { color: colors.text }]}>{title}</Text>
     <Text style={[styles.problemBody, { color: colors.muted }]}>{message}</Text>
     <View style={styles.problemActions}>
-      {onRetry ? <Pressable accessibilityRole="button" accessibilityLabel="Retry file preview" onPress={onRetry} style={[styles.action, { backgroundColor: colors.raised }]}><RefreshCw size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }}>Retry</Text></Pressable> : null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Download file" onPress={onDownload} style={[styles.action, { backgroundColor: colors.raised }]}><Download size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }}>Download</Text></Pressable>
+      {onRetry ? <Pressable accessibilityRole="button" accessibilityLabel="Retry file preview" onPress={onRetry} style={[styles.action, { backgroundColor: colors.raised }]}><RefreshCw size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }} localize>Retry</Text></Pressable> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Download file" onPress={onDownload} style={[styles.action, { backgroundColor: colors.raised }]}><Download size={16} color={colors.blue} /><Text style={{ color: colors.blue, fontWeight: '700' }} localize>Download</Text></Pressable>
     </View>
   </View>
 }
 
 function TruncationNotice() {
   const colors = usePalette()
-  return <View style={[styles.truncated, { backgroundColor: colors.raised }]}><Text style={{ color: colors.muted, fontSize: 11 }}>Showing a memory-bounded preview. Download for the complete file.</Text></View>
+  return <View style={[styles.truncated, { backgroundColor: colors.raised }]}><Text style={{ color: colors.muted, fontSize: 11 }} localize>Showing a memory-bounded preview. Download for the complete file.</Text></View>
 }
 
 function viewerErrorMessage(cause: unknown): string {

@@ -30,8 +30,8 @@ export function AnalyticsSettings({ visible }: { visible: boolean }) {
   return <View style={[styles.setting, { backgroundColor: colors.raised, borderColor: colors.border }]}>
       <ShieldCheck size={18} color={colors.blue} />
       <View style={styles.copy}>
-        <Text style={{ color: colors.text, fontWeight: '700' }}>Usage analytics</Text>
-        <Text style={[styles.detail, { color: colors.muted }]}>{enabled ? 'On. Sends ID-less usage events to Mixpanel—never chat, file, path, server, token, screen-replay, IP-location, or persistent identifier data.' : 'Off. No Mixpanel events are sent.'}</Text>
+        <Text style={{ color: colors.text, fontWeight: '700' }} localize>Usage analytics</Text>
+        <Text style={[styles.detail, { color: colors.muted }]} localize>{enabled ? 'On. Sends ID-less usage events to Mixpanel—never chat, file, path, server, token, screen-replay, IP-location, or persistent identifier data.' : 'Off. No Mixpanel events are sent.'}</Text>
       </View>
       <Switch testID="settings-analytics-toggle" accessibilityLabel="Share usage analytics" value={enabled} disabled={busy} onValueChange={value => void changeAnalytics(value)} />
     </View>

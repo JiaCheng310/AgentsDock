@@ -23,6 +23,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { MenuView, type MenuAction } from '@expo/ui/community/menu'
 import { AlertCircle, ArrowDown, ArrowUp, Check, ChevronDown, CornerDownRight, File as FileIcon, Mail, MessageCircleMore, MessageSquareShare, Paperclip, Search, Send, Square, Trash2, Video as VideoIcon, X } from 'lucide-react-native'
 import { client, useAppStore } from '../store/useAppStore'
+import { useLanguageStore } from '../store/useLanguageStore'
+import { translate } from '../i18n'
 import {
   COMPOSER_INPUT_MAX_HEIGHT,
   COMPOSER_INPUT_MIN_HEIGHT,
@@ -105,10 +107,6 @@ const EMPTY_ROUTES: AgentCrossChatRoute[] = []
 const EMPTY_ROUTE_IDS: ReadonlySet<string> = new Set()
 const ATTACHMENT_PICKER_SEND_GUARD_MS = 600
 const QUICK_MESSAGES = ['Status report', 'Keep going.', 'Verify the result carefully.'] as const
-const QUICK_MESSAGE_ACTIONS: MenuAction[] = QUICK_MESSAGES.map((title, index) => ({
-  id: `quick-message:${index}`,
-  title,
-}))
 type AttachmentImageSource = { uri: string; headers?: Record<string, string> }
 type ComposerSelection = { start: number; end: number }
 type ComposerMentionTrigger = ChatMentionTrigger | TeamMentionTrigger
@@ -116,6 +114,11 @@ type ComposerMentionTrigger = ChatMentionTrigger | TeamMentionTrigger
 export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { sessionId: string; keyboardVisible: boolean; onSent: () => void; onOpenMcp: () => void }) {
   const welcome = isWelcomeSession(sessionId)
   const colors = usePalette()
+  const locale = useLanguageStore(state => state.locale)
+  const quickMessageActions = useMemo<MenuAction[]>(() => QUICK_MESSAGES.map((phrase, index) => ({
+    id: `quick-message:${index}`,
+    title: translate(phrase, locale),
+  })), [locale])
   const insets = useSafeAreaInsets()
   const { width, height } = useWindowDimensions()
   const draft = useAppStore(state => state.drafts[sessionId] ?? '')
@@ -738,21 +741,21 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     testID="chat-quick-messages"
     accessible
     accessibilityRole="button"
-    accessibilityLabel="Quick messages"
+    accessibilityLabel={translate('Quick messages', locale)}
     accessibilityState={{ disabled: quickMessageDisabled }}
     style={[styles.quickMessages, { opacity: quickMessageDisabled ? 0.35 : 1 }]}
   >
     <MessageCircleMore size={19} color={colors.muted} strokeWidth={1.9} />
   </View>
   const quickMessageControl = quickMessageDisabled ? quickMessageTrigger : <MenuView
-    title="Quick messages"
-    actions={QUICK_MESSAGE_ACTIONS}
+    title={translate('Quick messages', locale)}
+    actions={quickMessageActions}
     onPressAction={event => {
       if (!remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) return
       const prefix = 'quick-message:'
       if (!event.nativeEvent.event.startsWith(prefix)) return
       const phrase = QUICK_MESSAGES[Number(event.nativeEvent.event.slice(prefix.length))]
-      if (phrase) void send(false, phrase, false)
+      if (phrase) void send(false, translate(phrase, locale), false)
     }}
     style={styles.quickMessagesMenu}
   >
@@ -816,7 +819,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     style={[styles.runtime, compactToolbar && styles.runtimeCompact, denseToolbar && styles.runtimeDense]}
   >
     <Image source={require('../../assets/icon.png')} contentFit="contain" style={{ width: 21, height: 21, borderRadius: radius.md }} />
-    {!compactToolbar ? <Text style={[styles.backend, { color: colors.text }]}>AgentsDock</Text> : null}
+    {!compactToolbar ? <Text style={[styles.backend, { color: colors.text }]} localize>AgentsDock</Text> : null}
   </View> : backend ? <View
     testID={runtimeInteractive ? undefined : 'chat-runtime-menu'}
     accessible={!runtimeInteractive}
@@ -826,7 +829,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
     style={[styles.runtime, compactToolbar && styles.runtimeCompact, denseToolbar && styles.runtimeDense, { opacity: runtimeInteractive ? 1 : 0.45 }]}
   >
     {providerReloading ? <ActivityIndicator size="small" color={colors.muted} /> : <BackendMark backend={backend} size={21} />}
-    {!compactToolbar ? <><Text style={[styles.backend, { color: colors.text }]}>{providerName}</Text><Pill tone="neutral">{model || 'Server model'}{effort ? ` · ${effort}` : ''}</Pill></> : null}
+    {!compactToolbar ? <><Text style={[styles.backend, { color: colors.text }]}>{providerName}</Text><Pill tone="neutral">{model || translate('Server model', locale)}{effort ? ` · ${effort}` : ''}</Pill></> : null}
   </View> : null
   const runtimeControl = welcome || !runtimeTrigger || !runtimeInteractive || !providerChoice ? runtimeTrigger : <AgentPicker
     key={`${activeProfileId}:${profileGeneration}:${sessionId}`}
@@ -862,7 +865,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
         >
           <Mail size={17} color={colors.blue} />
           <View style={styles.commandSuggestionText}>
-            <Text style={[styles.commandSuggestionTitle, { color: colors.text }]}>Send Team Network mail</Text>
+            <Text style={[styles.commandSuggestionTitle, { color: colors.text }]} localize>Send Team Network mail</Text>
             <Text style={[styles.commandSuggestionSyntax, { color: colors.muted }]}>{TEAM_MAIL_COMMAND_SYNTAX}</Text>
           </View>
         </Pressable> : null}
@@ -876,10 +879,10 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
         /> : null}
         {teamReferences.length ? <View testID="composer-team-references" accessibilityLabel="Team Network recipients" style={styles.referenceShelfWrap}>
           {teamReferences.map(reference => <View key={`${reference.team_id}:${reference.target_id}`} style={[styles.referenceShelf, { borderColor: colors.border }]}>
-            <Mail size={16} color={colors.blue} /><Text style={{ flex: 1, color: colors.text }}>@@{reference.display_name_snapshot} · Server inbox</Text>
+            <Mail size={16} color={colors.blue} /><Text style={{ flex: 1, color: colors.text }} localize>@@{reference.display_name_snapshot} · Server inbox</Text>
             <IconButton icon={X} size={16} touchSize={44} label={`Remove reference to ${reference.display_name_snapshot}`} onPress={() => storeTeamReferences(teamReferencesRef.current.filter(candidate => candidate.team_id !== reference.team_id || candidate.target_id !== reference.target_id))} />
           </View>)}
-          {!teamReferencesSupported ? <Text accessibilityRole="alert" style={{ color: colors.red }}>Reconnect this server to Team Network or remove the recipient reference.</Text> : null}
+          {!teamReferencesSupported ? <Text accessibilityRole="alert" style={{ color: colors.red }} localize>Reconnect this server to Team Network or remove the recipient reference.</Text> : null}
         </View> : null}
         {queued.length || queuedRunStatus ? <QueueShelf sessionId={sessionId} profileId={activeProfileId} profileGeneration={profileGeneration} networkDisabled={networkDisabled} onSent={onSent} /> : null}
         {(uploads.length || pending.length || failed.length) ? <AttachmentShelf
@@ -936,7 +939,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
             disabled={networkDisabled || stopping}
             onPress={() => { if (remoteComposerScopeIsCurrent(activeProfileId, profileGeneration, sessionId)) void stopTurn(profileGeneration, sessionId) }}
             style={({ pressed }) => [styles.stop, !compactToolbar && styles.stopWide, { backgroundColor: compactToolbar ? 'transparent' : colors.red, opacity: networkDisabled || stopping ? 0.35 : pressed ? 0.65 : 1 }]}
-          >{compactToolbar ? <View style={[styles.compactStopFace, { backgroundColor: `${colors.red}18`, borderColor: `${colors.red}55` }]}>{stopping ? <ActivityIndicator size="small" color={colors.red} /> : <Square size={14} color={colors.red} fill={colors.red} strokeWidth={2} />}</View> : <>{stopping ? <ActivityIndicator size="small" color="white" /> : <Square size={17} color="white" fill="white" strokeWidth={2.2} />}<Text style={styles.stopLabel}>{stopping ? 'Stopping' : 'Stop'}</Text></>}</Pressable> : null}
+          >{compactToolbar ? <View style={[styles.compactStopFace, { backgroundColor: `${colors.red}18`, borderColor: `${colors.red}55` }]}>{stopping ? <ActivityIndicator size="small" color={colors.red} /> : <Square size={14} color={colors.red} fill={colors.red} strokeWidth={2} />}</View> : <>{stopping ? <ActivityIndicator size="small" color="white" /> : <Square size={17} color="white" fill="white" strokeWidth={2.2} />}<Text style={styles.stopLabel} localize>{stopping ? 'Stopping' : 'Stop'}</Text></>}</Pressable> : null}
           {active && hasReadyContent && !mcpCommand ? <Pressable
             accessibilityRole="button"
             accessibilityLabel="Steer current turn"
@@ -945,7 +948,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
             disabled={sendDisabled}
             onPress={() => void send(true)}
             style={({ pressed }) => [styles.steer, compactToolbar && styles.steerCompact, { opacity: sendDisabled || pressed ? 0.45 : 1 }]}
-          >{sending || admitting ? <ActivityIndicator size="small" color={colors.blue} /> : <CornerDownRight size={compactToolbar ? 17 : 13} color={colors.blue} />}{!compactToolbar ? <Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }}>Steer</Text> : null}</Pressable> : null}
+          >{sending || admitting ? <ActivityIndicator size="small" color={colors.blue} /> : <CornerDownRight size={compactToolbar ? 17 : 13} color={colors.blue} />}{!compactToolbar ? <Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }} localize>Steer</Text> : null}</Pressable> : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={mcpCommand ? mcpCommandLabel : active ? 'Queue message' : 'Send message'}
@@ -1027,8 +1030,8 @@ function ChatReferenceShelf({ references, referenceSupported, onChangeAction, on
             onPress={() => onChangeAction(reference)}
             style={styles.referenceAction}
           >
-            <Text style={[styles.referenceTitle, { color: colors.text }]} numberOfLines={1}>@{reference.display_title_snapshot}</Text>
-            <Text style={[styles.referenceLabel, { color: supported ? colors.blue : colors.red }]} numberOfLines={1}>· {chatReferenceLabel(reference.action)}</Text>
+            <Text style={[styles.referenceTitle, { color: colors.text }]} numberOfLines={1} localize>@{reference.display_title_snapshot}</Text>
+            <Text style={[styles.referenceLabel, { color: supported ? colors.blue : colors.red }]} numberOfLines={1} localize>· {chatReferenceLabel(reference.action)}</Text>
             <ChevronDown size={13} color={supported ? colors.blue : colors.red} />
           </Pressable>
           {onRemove ? <IconButton icon={X} size={13} touchSize={44} onPress={() => onRemove(reference)} label={`Remove reference to ${reference.display_title_snapshot}`} /> : null}
@@ -1106,7 +1109,7 @@ export function ChatTargetPicker({ visible, width, query, sourceSessionId, suppo
   const routeRevokeButton = (route: AgentCrossChatRoute) => {
     const busy = revoking.has(`${sourceSessionId}:${route.route_id}`)
     const disabled = busy || !connected || !client.isValidated
-    return <Pressable testID={`chat-route-revoke-${route.route_id}`} accessibilityRole="button" accessibilityLabel={`Revoke access to ${route.target.title || route.alias || 'chat'}`} accessibilityState={{ disabled, busy }} disabled={disabled} onPress={() => void revoke(route)} style={({ pressed }) => [styles.routeRevoke, { opacity: disabled || pressed ? 0.5 : 1 }]}>{busy ? <ActivityIndicator size="small" color={colors.red} /> : <Text style={{ color: colors.red, fontSize: 12, fontWeight: '700' }}>Revoke</Text>}</Pressable>
+    return <Pressable testID={`chat-route-revoke-${route.route_id}`} accessibilityRole="button" accessibilityLabel={`Revoke access to ${route.target.title || route.alias || 'chat'}`} accessibilityState={{ disabled, busy }} disabled={disabled} onPress={() => void revoke(route)} style={({ pressed }) => [styles.routeRevoke, { opacity: disabled || pressed ? 0.5 : 1 }]}>{busy ? <ActivityIndicator size="small" color={colors.red} /> : <Text style={{ color: colors.red, fontSize: 12, fontWeight: '700' }} localize>Revoke</Text>}</Pressable>
   }
   return <Modal
     visible={visible}
@@ -1122,8 +1125,8 @@ export function ChatTargetPicker({ visible, width, query, sourceSessionId, suppo
       <View style={[styles.targetPickerPanel, tablet && styles.targetPickerPanelTablet]}>
         <View style={[styles.targetPickerHeader, { borderColor: colors.border }]}>
           <View style={styles.targetPickerHeading}>
-            <Text style={[styles.targetPickerTitle, { color: colors.text }]}>Reference another chat</Text>
-            <Text style={[styles.targetPickerSubtitle, { color: colors.muted }]}>Choose a chat. New access is granted when you send.</Text>
+            <Text style={[styles.targetPickerTitle, { color: colors.text }]} localize>Reference another chat</Text>
+            <Text style={[styles.targetPickerSubtitle, { color: colors.muted }]} localize>Choose a chat. New access is granted when you send.</Text>
           </View>
           <SheetCloseButton onPress={onClose} label="Close chat picker" testID="chat-target-picker-close" />
         </View>
@@ -1144,10 +1147,10 @@ export function ChatTargetPicker({ visible, width, query, sourceSessionId, suppo
             style={[styles.targetSearchInput, { color: colors.text }]}
           />
         </View>
-        {referenceLimitReached ? <View accessibilityRole="alert" testID="chat-target-reference-limit" style={[styles.referenceWarning, styles.targetLimitWarning]}><AlertCircle size={14} color={colors.red} /><Text style={[styles.referenceWarningText, { color: colors.red }]}>Maximum {MAX_CHAT_REFERENCES} chat references reached. Remove one before adding another.</Text></View> : null}
-        {loading ? <View testID="chat-routes-loading" style={styles.routeNotice}><ActivityIndicator size="small" color={colors.blue} /><Text style={{ color: colors.muted }}>Refreshing granted access…</Text></View> : null}
-        {error ? <View testID="chat-routes-error" accessibilityRole="alert" style={styles.routeNotice}><Text style={{ color: colors.red, flex: 1 }}>{error}</Text><Pressable testID="chat-routes-retry" accessibilityRole="button" accessibilityLabel="Retry loading granted chat access" disabled={!connected || loading} onPress={() => { if (remoteComposerScopeIsCurrent(profileId, generation, sourceSessionId)) void useAppStore.getState().refreshAgentRoutes(sourceSessionId, generation) }} style={styles.routeRevoke}><Text style={{ color: colors.blue }}>Retry</Text></Pressable></View> : null}
-        <Pressable testID="chat-target-team-network" accessibilityRole="button" accessibilityLabel="Reference a server inbox with @@" onPress={onTeamNetwork} style={[styles.targetRow, { marginHorizontal: 16, backgroundColor: colors.surface, borderColor: colors.border }]}><Mail size={20} color={colors.blue} /><Text style={{ color: colors.blue }}>Servers (@@) · Team Network inbox</Text></Pressable>
+        {referenceLimitReached ? <View accessibilityRole="alert" testID="chat-target-reference-limit" style={[styles.referenceWarning, styles.targetLimitWarning]}><AlertCircle size={14} color={colors.red} /><Text style={[styles.referenceWarningText, { color: colors.red }]} localize>Maximum {MAX_CHAT_REFERENCES} chat references reached. Remove one before adding another.</Text></View> : null}
+        {loading ? <View testID="chat-routes-loading" style={styles.routeNotice}><ActivityIndicator size="small" color={colors.blue} /><Text style={{ color: colors.muted }} localize>Refreshing granted access…</Text></View> : null}
+        {error ? <View testID="chat-routes-error" accessibilityRole="alert" style={styles.routeNotice}><Text style={{ color: colors.red, flex: 1 }}>{error}</Text><Pressable testID="chat-routes-retry" accessibilityRole="button" accessibilityLabel="Retry loading granted chat access" disabled={!connected || loading} onPress={() => { if (remoteComposerScopeIsCurrent(profileId, generation, sourceSessionId)) void useAppStore.getState().refreshAgentRoutes(sourceSessionId, generation) }} style={styles.routeRevoke}><Text style={{ color: colors.blue }} localize>Retry</Text></Pressable></View> : null}
+        <Pressable testID="chat-target-team-network" accessibilityRole="button" accessibilityLabel="Reference a server inbox with @@" onPress={onTeamNetwork} style={[styles.targetRow, { marginHorizontal: 16, backgroundColor: colors.surface, borderColor: colors.border }]}><Mail size={20} color={colors.blue} /><Text style={{ color: colors.blue }} localize>Servers (@@) · Team Network inbox</Text></Pressable>
         <FlatList
           testID="chat-target-list"
           data={targets}
@@ -1156,11 +1159,11 @@ export function ChatTargetPicker({ visible, width, query, sourceSessionId, suppo
           keyboardDismissMode="on-drag"
           onScrollBeginDrag={dismissAppKeyboard}
           contentContainerStyle={[styles.targetList, !targets.length && styles.targetListEmpty]}
-          ListEmptyComponent={<View style={styles.targetEmpty}><MessageSquareShare size={28} color={colors.muted} /><Text style={[styles.targetEmptyTitle, { color: colors.text }]}>No matching chats</Text><Text style={[styles.targetEmptyBody, { color: colors.muted }]}>Try another title, folder, backend, or chat ID.</Text></View>}
+          ListEmptyComponent={<View style={styles.targetEmpty}><MessageSquareShare size={28} color={colors.muted} /><Text style={[styles.targetEmptyTitle, { color: colors.text }]} localize>No matching chats</Text><Text style={[styles.targetEmptyBody, { color: colors.muted }]} localize>Try another title, folder, backend, or chat ID.</Text></View>}
           ListFooterComponent={<View style={{ gap: 8 }}>
-            {detachedGrants.map(route => <View key={route.route_id} testID={`chat-detached-route-${route.route_id}`} style={[styles.targetRow, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={styles.targetIdentity}><Text style={[styles.targetTitle, { color: colors.text }]}>{route.target.title || route.alias || 'Unavailable chat'}</Text><Text style={[styles.targetMeta, { color: colors.muted }]}>Granted · {routeActionLabel(route)} · {route.target.available ? 'Available' : 'Target unavailable'}</Text></View>{routeRevokeButton(route)}</View>)}
-            {routeSnapshot && routeCapacityReached(routes, routeSnapshot.max_routes, references) ? <Text testID="chat-route-capacity" style={{ color: colors.orange, fontSize: 12 }}>Route access limit reached. Granted chats remain available; revoke one to grant another.</Text> : null}
-            {routes.length ? <Text style={{ color: colors.muted, fontSize: 12 }}>Revoke removes this chat’s granted cross-chat access. Removing a draft reference does not revoke access.</Text> : null}
+            {detachedGrants.map(route => <View key={route.route_id} testID={`chat-detached-route-${route.route_id}`} style={[styles.targetRow, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={styles.targetIdentity}><Text style={[styles.targetTitle, { color: colors.text }]}>{route.target.title || route.alias || 'Unavailable chat'}</Text><Text style={[styles.targetMeta, { color: colors.muted }]} localize>Granted · {routeActionLabel(route)} · {route.target.available ? 'Available' : 'Target unavailable'}</Text></View>{routeRevokeButton(route)}</View>)}
+            {routeSnapshot && routeCapacityReached(routes, routeSnapshot.max_routes, references) ? <Text testID="chat-route-capacity" style={{ color: colors.orange, fontSize: 12 }} localize>Route access limit reached. Granted chats remain available; revoke one to grant another.</Text> : null}
+            {routes.length ? <Text style={{ color: colors.muted, fontSize: 12 }} localize>Revoke removes this chat’s granted cross-chat access. Removing a draft reference does not revoke access.</Text> : null}
           </View>}
           renderItem={({ item }) => {
             const count = queuedCount(item.id)
@@ -1183,7 +1186,7 @@ export function ChatTargetPicker({ visible, width, query, sourceSessionId, suppo
               style={({ pressed }) => [styles.targetRow, styles.routeTarget, tablet && styles.targetRowTablet, { backgroundColor: pressed ? colors.raised : colors.surface, opacity: disabled ? 0.45 : 1 }]}
             >
               <View style={[styles.targetBackend, { backgroundColor: colors.raised }]}><BackendMark backend={item.backend} size={22} /></View>
-              <View style={styles.targetIdentity}><Text style={[styles.targetTitle, { color: colors.text }]} numberOfLines={1}>{item.title || item.id}</Text><Text style={[styles.targetMeta, { color: colors.muted }]}>{grant ? `Granted · ${routeActionLabel(grant)}` : `Will grant when sent · ${requestReplySupported ? 'Send + Ask' : 'Send'}`}</Text><Text style={[styles.targetMeta, { color: colors.muted }]} numberOfLines={1}>{meta} · {status}</Text></View>
+              <View style={styles.targetIdentity}><Text style={[styles.targetTitle, { color: colors.text }]} numberOfLines={1}>{item.title || item.id}</Text><Text style={[styles.targetMeta, { color: colors.muted }]}>{grant ? `Granted · ${routeActionLabel(grant)}` : `Will grant when sent · ${requestReplySupported ? 'Send + Ask' : 'Send'}`}</Text><Text style={[styles.targetMeta, { color: colors.muted }]} numberOfLines={1} localize>{meta} · {status}</Text></View>
             </Pressable>{grant ? routeRevokeButton(grant) : null}</View>
           }}
         />
@@ -1334,7 +1337,7 @@ function AttachmentShelf({ sessionId, uploads, pending, failed, connectionReady,
       return <View key={`pending:${file.uri}`} testID={`attachment-pending-${index}`} style={[styles.upload, { backgroundColor: colors.raised, borderColor: colors.border }]}>
         <Pressable disabled={!source} accessibilityRole={source ? 'button' : undefined} accessibilityLabel={source ? `Preview ${file.name}` : file.name} onPress={() => source && onPreview(file.name, source)} style={styles.uploadIdentity}>
           <View style={[styles.fileIconWell, { backgroundColor: colors.surface }]}>{source ? <Image source={source} contentFit="cover" style={StyleSheet.absoluteFill} /> : video ? <VideoIcon size={21} color={colors.muted} strokeWidth={1.8} /> : <FileIcon size={21} color={colors.muted} strokeWidth={1.8} />}<View style={styles.uploadBusy}><ActivityIndicator size="small" color="white" /></View></View>
-          <View style={styles.uploadText}><Text style={[styles.uploadName, { color: colors.text }]} numberOfLines={1}>{file.name}</Text><Text style={[styles.uploadMeta, { color: colors.blue }]} numberOfLines={1}>Uploading…</Text></View>
+          <View style={styles.uploadText}><Text style={[styles.uploadName, { color: colors.text }]} numberOfLines={1}>{file.name}</Text><Text style={[styles.uploadMeta, { color: colors.blue }]} numberOfLines={1} localize>Uploading…</Text></View>
         </Pressable>
         <View style={styles.uploadActionSpacer} />
       </View>
@@ -1342,7 +1345,7 @@ function AttachmentShelf({ sessionId, uploads, pending, failed, connectionReady,
     {failed.map((file, index) => <View key={`failed:${file.uri}`} testID={`attachment-failed-${index}`} style={[styles.upload, { backgroundColor: `${colors.red}12`, borderColor: colors.red }]}>
       <Pressable disabled={retryDisabled} accessibilityRole="button" accessibilityLabel={`Retry ${file.name}`} onPress={() => onRetry(file)} style={styles.uploadIdentity}>
         <View style={[styles.fileIconWell, { backgroundColor: colors.surface }]}>{isImageUpload(file) ? <Image source={{ uri: file.uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : isVideoUpload(file) ? <VideoIcon size={21} color={colors.red} strokeWidth={1.8} /> : <FileIcon size={21} color={colors.red} strokeWidth={1.8} />}<View style={styles.uploadError}><AlertCircle size={15} color="white" fill={colors.red} /></View></View>
-        <View style={styles.uploadText}><Text style={[styles.uploadName, { color: colors.text }]} numberOfLines={1}>{file.name}</Text><Text style={[styles.uploadMeta, { color: colors.red }]} numberOfLines={1}>Upload failed · Tap to retry</Text></View>
+        <View style={styles.uploadText}><Text style={[styles.uploadName, { color: colors.text }]} numberOfLines={1}>{file.name}</Text><Text style={[styles.uploadMeta, { color: colors.red }]} numberOfLines={1} localize>Upload failed · Tap to retry</Text></View>
       </Pressable>
       <IconButton icon={X} size={14} disabled={disabled} onPress={() => onRemoveFailed(file.uri)} label={`Remove ${file.name}`} />
     </View>)}
@@ -1525,7 +1528,7 @@ export function QueueShelf({ sessionId, profileId, profileGeneration, networkDis
   }
   const queueBusy = Boolean(busyTurn) || Boolean(editing) || turns.some(value => pendingQueuedRunIds.has(value.queued_id) || skippingDeliveryIds.has(`${sessionId}:${value.queued_id}`))
   return <View style={styles.queue}>
-    {turns.length ? <Text style={[styles.queueLabel, { color: colors.muted }]}>Queued {turns.length}</Text> : null}
+    {turns.length ? <Text style={[styles.queueLabel, { color: colors.muted }]} localize>Queued {turns.length}</Text> : null}
     {runStatus ? <View testID="queued-run-status" accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.queueStatus, { backgroundColor: runStatus.tone === 'error' ? `${colors.red}14` : `${colors.yellow}14`, borderColor: runStatus.tone === 'error' ? colors.red : colors.yellow }]}>
       <AlertCircle size={14} color={runStatus.tone === 'error' ? colors.red : colors.yellow} />
       <Text style={[styles.queueStatusText, { color: colors.text }]}>{runStatus.message}</Text>
@@ -1570,7 +1573,7 @@ export function QueueShelf({ sessionId, profileId, profileGeneration, networkDis
             }}
             multiline
             style={[styles.queueInput, { color: colors.text }]}
-          /> : <Pressable accessibilityRole={crossChatDelivery ? undefined : 'button'} accessibilityLabel={agentMessage ? `${sender}: ${turnText}` : crossChatDelivery ? 'Incoming cross-chat delivery' : 'Edit queued message'} accessibilityState={{ disabled: crossChatDelivery || networkDisabled || queueBusy }} disabled={crossChatDelivery || networkDisabled || queueBusy} style={styles.queuePrompt} onPress={() => { if (remoteComposerScopeIsCurrent(profileId, profileGeneration, sessionId)) beginEdit(turn) }}>{agentMessage ? <Text style={{ color: agentPalette.sender, fontSize: 11, fontWeight: '700' }}>{sender}</Text> : null}<Text style={[styles.queueText, { color: colors.text }]} numberOfLines={3}>{turnText}</Text>{crossChatDelivery && !agentMessage ? <Text style={{ color: colors.muted, fontSize: 10 }}>Cross-chat delivery · starts automatically</Text> : !agentMessage && pausedLabel ? <Text style={{ color: colors.orange, fontSize: 10 }}>{pausedLabel}</Text> : null}</Pressable>}
+          /> : <Pressable accessibilityRole={crossChatDelivery ? undefined : 'button'} accessibilityLabel={agentMessage ? `${sender}: ${turnText}` : crossChatDelivery ? 'Incoming cross-chat delivery' : 'Edit queued message'} accessibilityState={{ disabled: crossChatDelivery || networkDisabled || queueBusy }} disabled={crossChatDelivery || networkDisabled || queueBusy} style={styles.queuePrompt} onPress={() => { if (remoteComposerScopeIsCurrent(profileId, profileGeneration, sessionId)) beginEdit(turn) }}>{agentMessage ? <Text style={{ color: agentPalette.sender, fontSize: 11, fontWeight: '700' }}>{sender}</Text> : null}<Text style={[styles.queueText, { color: colors.text }]} numberOfLines={3}>{turnText}</Text>{crossChatDelivery && !agentMessage ? <Text style={{ color: colors.muted, fontSize: 10 }} localize>Cross-chat delivery · starts automatically</Text> : !agentMessage && pausedLabel ? <Text style={{ color: colors.orange, fontSize: 10 }}>{pausedLabel}</Text> : null}</Pressable>}
           {!crossChatDelivery && rowReferences.length ? <ChatReferenceShelf
             references={rowReferences}
             referenceSupported={referenceSupported}
@@ -1591,12 +1594,12 @@ export function QueueShelf({ sessionId, profileId, profileGeneration, networkDis
             testID={`queued-chat-references-${turn.queued_id}`}
           /> : null}
           {crossChatDelivery ? <View style={styles.queueActions}><View style={styles.toolbarSpacer} /><Pressable testID={`queued-skip-${turn.queued_id}`} accessibilityRole="button" accessibilityLabel={`Remove queued message from ${sender}`} accessibilityHint={!canSkip ? 'Update AgentsServer to safely remove this delivery.' : undefined} accessibilityState={{ disabled: networkDisabled || queueBusy || !canSkip, busy }} disabled={networkDisabled || queueBusy || !canSkip} onPress={() => void act(turn.queued_id, () => skipDelivery(sessionId, turn.queued_id, profileGeneration))} style={({ pressed }) => [styles.routeRevoke, { opacity: networkDisabled || queueBusy || !canSkip || pressed ? 0.45 : 1 }]}>{busy ? <ActivityIndicator size="small" color={colors.red} /> : <Trash2 size={16} color={colors.red} />}</Pressable></View> : editing === turn.queued_id ? <View style={styles.queueEditActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Cancel queued message edit" disabled={Boolean(busyTurn)} onPress={cancelEdit} style={({ pressed }) => [styles.queueEditButton, { backgroundColor: colors.raised, opacity: busyTurn || pressed ? 0.5 : 1 }]}><Text style={[styles.queueEditButtonText, { color: colors.text }]}>Cancel</Text></Pressable>
-            <Pressable testID={`queued-save-${turn.queued_id}`} accessibilityRole="button" accessibilityLabel="Save queued message" accessibilityState={{ disabled: networkDisabled || busy || !editText.trim() || !validEditReferences, busy }} disabled={networkDisabled || busy || !editText.trim() || !validEditReferences} onPress={() => void commitEdit(turn)} style={({ pressed }) => [styles.queueEditButton, { backgroundColor: colors.blue, opacity: networkDisabled || busy || !editText.trim() || !validEditReferences || pressed ? 0.45 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : <><Check size={14} color="white" /><Text style={[styles.queueEditButtonText, { color: 'white' }]}>Save</Text></>}</Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cancel queued message edit" disabled={Boolean(busyTurn)} onPress={cancelEdit} style={({ pressed }) => [styles.queueEditButton, { backgroundColor: colors.raised, opacity: busyTurn || pressed ? 0.5 : 1 }]}><Text style={[styles.queueEditButtonText, { color: colors.text }]} localize>Cancel</Text></Pressable>
+            <Pressable testID={`queued-save-${turn.queued_id}`} accessibilityRole="button" accessibilityLabel="Save queued message" accessibilityState={{ disabled: networkDisabled || busy || !editText.trim() || !validEditReferences, busy }} disabled={networkDisabled || busy || !editText.trim() || !validEditReferences} onPress={() => void commitEdit(turn)} style={({ pressed }) => [styles.queueEditButton, { backgroundColor: colors.blue, opacity: networkDisabled || busy || !editText.trim() || !validEditReferences || pressed ? 0.45 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : <><Check size={14} color="white" /><Text style={[styles.queueEditButtonText, { color: 'white' }]} localize>Save</Text></>}</Pressable>
           </View> : <View style={styles.queueActions}>
             <Pressable testID={`queued-send-now-${turn.queued_id}`} accessibilityRole="button" accessibilityLabel="Run queued message now" accessibilityHint={blockedByEarlierDelivery ? 'Wait for the earlier delivery barrier to finish.' : undefined} accessibilityState={{ disabled: networkDisabled || queueBusy || blockedByEarlierDelivery, busy }} disabled={networkDisabled || queueBusy || blockedByEarlierDelivery} onPress={() => void act(turn.queued_id, () => runNow(sessionId, turn.queued_id, profileGeneration)).then(sent => { if (sent && remoteComposerScopeIsCurrent(profileId, profileGeneration, sessionId)) onSent() })} style={({ pressed }) => [styles.runNow, { opacity: networkDisabled || blockedByEarlierDelivery || pressed || queueBusy && !busy ? 0.45 : 1 }]}>
               {busy ? <ActivityIndicator size="small" color={colors.yellow} /> : <CornerDownRight size={14} color={colors.yellow} />}
-              <Text style={{ color: colors.yellow, fontSize: 11, fontWeight: '800' }}>Run now</Text>
+              <Text style={{ color: colors.yellow, fontSize: 11, fontWeight: '800' }} localize>Run now</Text>
             </Pressable>
             <View style={styles.toolbarSpacer} />
             <IconButton icon={ArrowUp} size={13} disabled={networkDisabled || index === 0 || queueBusy || queuedMoveCrossesDeliveryBarrier(allTurns, turn.queued_id, 'up')} onPress={() => void act(turn.queued_id, () => move(sessionId, turn.queued_id, 'up', profileGeneration))} label="Move up" />
