@@ -94,10 +94,21 @@ jobs:
         working-directory: mobile-react
       - name: Verify manual server connection and profile management
         run: |
-          node --test tests/server-manual-connection.test.mjs tests/server-profiles.test.mjs
+          node --test tests/server-manual-connection.test.mjs tests/server-profiles.test.mjs tests/server-qr-scanner.test.mjs tests/multi-server-isolation.test.mjs
+          node scripts/run-history-tests.mjs src/lib/server-address-selection.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/server-connection-link.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.address-fallback.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.server-removal.test.ts --native-mocks
+        working-directory: mobile-react
+      - name: Verify media actions and native integration contracts
+        run: |
+          pnpm test:downloads
+          node scripts/run-history-tests.mjs src/lib/file-transfer.test.ts --native-mocks
+          node --test tests/media-save-config.test.mjs tests/expo-ui-touch-lifecycle.test.mjs tests/expo-hmr-recovery.test.mjs tests/backend-mark.test.mjs
         working-directory: mobile-react
       - name: Verify mobile latest-first sync and stable text rendering
         run: |
+          node scripts/run-history-tests.mjs src/api/AgentServerClient.cancellation.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/lib/server-profiles.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/storage/cache.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/store/useAppStore.integration.test.ts --native-mocks

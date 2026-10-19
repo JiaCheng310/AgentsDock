@@ -1,5 +1,21 @@
 import type { Session } from '@shared/types'
 
+export type SidebarStatus = 'unread' | 'running'
+
+export function isUnread(session: Session): boolean {
+  return Boolean(session.manual_unread) || (session.latest_agent_event_seq ?? 0) > (session.last_read_agent_event_seq ?? 0)
+}
+
+export function sidebarSessionGroups(sessions: Session[], activeSessionIds: ReadonlySet<string>) {
+  const groups: Record<SidebarStatus | 'ordinary', Session[]> = { unread: [], running: [], ordinary: [] }
+  for (const session of sessions) {
+    if (!session.archived && activeSessionIds.has(session.id)) groups.running.push(session)
+    else if (!session.archived && isUnread(session)) groups.unread.push(session)
+    else groups.ordinary.push(session)
+  }
+  return groups
+}
+
 /**
  * Cheap preflight for a possible direct-create placeholder. Callers must also
  * prove its direct-create marker and one-event timeline before removing it.
@@ -117,6 +133,11 @@ export function digestTargetSections(
   return sections
 }
 
-export function navigableSessions(sessions: Session[], folderOrder: string[], collapsedFolders: Set<string>): Session[] {
-  return orderedActiveSessions(sessions, folderOrder).filter(session => session.pinned || !collapsedFolders.has(session.folder?.trim() || 'General'))
+export function navigableSessions(sessions: Session[], folderOrder: string[], collapsedFolders: Set<string>, activeSessionIds: ReadonlySet<string> = new Set(), collapsedStatuses: ReadonlySet<SidebarStatus> = new Set(), pinnedCollapsed = false): Session[] {
+  const groups = sidebarSessionGroups(sessions, activeSessionIds)
+  return [
+    ...(!collapsedStatuses.has('unread') ? groups.unread : []),
+    ...(!collapsedStatuses.has('running') ? groups.running : []),
+    ...orderedActiveSessions(groups.ordinary, folderOrder).filter(session => session.pinned ? !pinnedCollapsed : !collapsedFolders.has(session.folder?.trim() || 'General'))
+  ]
 }

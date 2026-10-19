@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { formatBytes } from '../../lib/format'
 import { isFileTransferBusy, type FileTransferState } from '../../lib/file-transfer'
 import { radius, usePalette } from '../../theme'
@@ -10,7 +10,8 @@ export function FileTransferNotice({ state, onCancel, onDismiss }: { state: File
   const busy = isFileTransferBusy(state)
   const cancellable = state.phase === 'downloading'
   const fraction = state.totalBytes && state.bytesWritten != null ? Math.min(1, state.bytesWritten / state.totalBytes) : null
-  const title = state.message || (state.phase === 'choosing' ? 'Choose a folder to save this file.'
+  const title = state.message || (state.phase === 'permission' ? 'Checking permission to save to Photos...'
+    : state.phase === 'choosing' ? 'Choose a folder to save this file.'
     : state.phase === 'saving' ? `Saving ${state.filename} to the selected folder…`
       : state.phase === 'sharing' ? 'Choose an app in the share sheet.'
         : `Downloading ${state.filename}…`)
@@ -24,6 +25,7 @@ export function FileTransferNotice({ state, onCancel, onDismiss }: { state: File
       {progress ? <Text testID="file-transfer-progress" style={{ color: colors.muted, fontSize: 11 }}>{progress}</Text> : null}
       {fraction != null && state.phase === 'downloading' ? <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.floor(fraction * 100) }} style={[styles.track, { backgroundColor: colors.raised }]}><View style={[styles.fill, { backgroundColor: colors.blue, width: `${fraction * 100}%` }]} /></View> : null}
     </View>
+    {state.canOpenSettings ? <Pressable accessibilityRole="button" accessibilityLabel="Open photo settings" onPress={() => void Linking.openSettings().catch(() => undefined)} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>Settings</Text></Pressable> : null}
     {cancellable || !busy ? <Pressable accessibilityRole="button" accessibilityLabel={cancellable ? 'Cancel download' : 'Dismiss download status'} testID={cancellable ? 'file-transfer-cancel' : 'file-transfer-dismiss'} onPress={cancellable ? onCancel : onDismiss} style={styles.action}><Text style={{ color: colors.blue, fontSize: 12, fontWeight: '700' }}>{cancellable ? 'Cancel' : 'Dismiss'}</Text></Pressable> : null}
   </View>
 }

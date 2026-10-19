@@ -94,10 +94,12 @@ test('connection edits carry only the freshly tested identity', () => {
   assert.match(source, /identityResetUnconfirmed/)
 })
 
-test('server removal and identity reset require native confirmation', () => {
+test('server removal permits the active profile and still requires native confirmation', () => {
   assert.match(source, /Alert\.alert\([\s\S]*?Remove server/)
   assert.match(source, /Alert\.alert\([\s\S]*?Allow identity reset/)
-  assert.match(source, /attributes: \{ disabled: disabled \|\| active, destructive: !active \}/)
+  assert.match(source, /id: 'remove',[\s\S]*?attributes: \{ disabled, destructive: true \}/)
+  assert.doesNotMatch(source, /disabled: disabled \|\| active|destructive: !active/)
+  assert.match(source, /text: 'Remove server', style: 'destructive', onPress: \(\) => \{ void removeProfile\(profile\) \}/)
 })
 
 test('server management controls retain touch-safe minimum dimensions', () => {

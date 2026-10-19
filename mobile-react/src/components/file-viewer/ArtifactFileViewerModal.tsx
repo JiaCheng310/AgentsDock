@@ -40,9 +40,10 @@ import { EmptyState, IconButton, SheetCloseButton } from '../ui'
 import { FilePreview, type LoadedFileText } from './FilePreview'
 import type { ArtifactFileViewerRequest } from './FileViewerContext'
 import { ArtifactVideoPlayer } from './ArtifactVideoPlayer'
-import { artifactTransferRequest, type FileTransferAction } from '../../lib/file-transfer'
+import { artifactTransferRequest, canSaveToPhotos, type FileTransferAction } from '../../lib/file-transfer'
 import { useFileTransfer } from './useFileTransfer'
 import { FileTransferNotice } from './FileTransferNotice'
+import { DownloadActionSheet } from './DownloadActionSheet'
 
 interface ArtifactConnectionScope {
   readonly client: AgentServerClient
@@ -122,6 +123,7 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
   const removePin = useAppStore(state => state.removePin)
   const [currentId, setCurrentId] = useState<string | null>(request.initialId)
   const [overflowOpen, setOverflowOpen] = useState(false)
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
   const [error, setError] = useState('')
   const [workspaceInfo, setWorkspaceInfo] = useState<WorkspaceInfo | null>(null)
@@ -183,6 +185,7 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
   }, [currentId, navigation.currentId])
   useEffect(() => {
     setOverflowOpen(false)
+    setDownloadMenuOpen(false)
     setError('')
     navigationInFlightRef.current = false
   }, [file?.id])
@@ -216,6 +219,22 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
     dismissAppKeyboard()
     void fileTransfer.start(artifactTransferRequest(file, request.sessionId, connection.client, action, () => artifactConnectionIsCurrent(connection)))
   }, [connection, file, fileTransfer.start, request.sessionId])
+  const openDownloadMenu = useCallback(() => {
+    if (!file || fileTransfer.busy || !artifactConnectionIsCurrent(connection)) return
+    dismissAppKeyboard()
+    // iOS supplies Save Image/Video, Save to Files and app destinations in its
+    // system share sheet. Android keeps explicit saves alongside its chooser.
+    if (Platform.OS === 'ios') {
+      transfer('share')
+      return
+    }
+    setDownloadMenuOpen(true)
+  }, [connection, file, fileTransfer.busy, transfer])
+  const closeDownloadMenu = useCallback(() => setDownloadMenuOpen(false), [])
+  const selectDownloadAction = useCallback((action: FileTransferAction) => {
+    setDownloadMenuOpen(false)
+    transfer(action)
+  }, [transfer])
   const togglePin = useCallback(async () => {
     if (!file || pinBusy || !artifactConnectionIsCurrent(connection)) return
     setPinBusy(true)
@@ -285,7 +304,7 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
     loadText={loadText}
     loadPDF={loadPDF}
     registerVideoPause={registerActiveVideoPause}
-    onDownload={() => void transfer('download')}
+    onDownload={openDownloadMenu}
     onClose={closeViewer}
   />
 
@@ -304,7 +323,7 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
       onPrevious={() => navigate(navigation.previousId)}
       onNext={() => navigate(navigation.nextId)}
       onShare={() => void transfer('share')}
-      onDownload={() => void transfer('download')}
+      onDownload={openDownloadMenu}
       onPin={() => void togglePin()}
       onOverflow={() => setOverflowOpen(value => !value)}
     />
@@ -312,8 +331,16 @@ function ScopedArtifactFileViewer({ request, connection, modalPadding, onClose }
       actions={actionLayout.overflow}
       pinned={pinned}
       disabled={fileTransfer.busy || pinBusy}
-      onDownload={() => void transfer('download')}
+      onDownload={openDownloadMenu}
       onPin={() => void togglePin()}
+    /> : null}
+    {downloadMenuOpen ? <DownloadActionSheet
+      key={file.id}
+      filename={file.filename}
+      allowPhotos={canSaveToPhotos(file.filename, file.content_type)}
+      bottomInset={modalPadding.paddingBottom}
+      onSelect={selectDownloadAction}
+      onClose={closeDownloadMenu}
     /> : null}
     <FileTransferNotice state={fileTransfer.state} onCancel={fileTransfer.cancel} onDismiss={fileTransfer.dismiss} />
     {error ? <View style={[styles.inlineError, { backgroundColor: `${colors.red}12`, borderColor: `${colors.red}38` }]}><Text style={[styles.inlineErrorText, { color: colors.red }]}>{error}</Text></View> : null}
@@ -739,7 +766,7 @@ const styles = StyleSheet.create({
   sidebarName: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
   sidebarMeta: { fontSize: 10, lineHeight: 14, marginTop: 2 },
   phoneOverflow: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  phoneAction: { minWidth: 116, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  phoneAction: { minWidth: 0, flexShrink: 1, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   phoneNavigation: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   phoneNavigationCount: { minWidth: 72, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'], textAlign: 'center' },
 })

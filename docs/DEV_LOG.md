@@ -1,5 +1,98 @@
 # Public development log
 
+## 2026-10-18 - Validate cross-device pairing and mobile reliability changes
+
+- Prepare the accumulated connection-sharing, mobile recovery, media action and
+  desktop sidebar changes against main 126c74f7. Update four source-contract
+  assertions for multi-address health validation and active/final profile removal,
+  retaining identity, namespace and durable-write ordering checks. Add the new
+  QR, roaming, removal, media permission and HTTP cancellation regressions to CI.
+- Verification: 128 mobile UI/configuration checks, rendered transfer checks,
+  focused client/store suites and 940 desktop tests pass. Sync stress completes
+  40 cycles with 36,000 events plus duplicates and 146 bounded reads. Thirty-one
+  server discovery, CLI lifecycle and packaging checks pass from an isolated
+  clean source fixture. Both TypeScript checks, desktop compilation, iOS/Android
+  production JS exports and iOS native dependency parity pass.
+- Actual iOS simulator input repeats video share-sheet open/cancel four times,
+  image preview reopen/share-sheet open/cancel four times, then six cycles of
+  Servers -> Settings -> Appearance. Download and Pin remain the only preview
+  overflow actions; theme selection, navigation and dismissal keep working.
+  Media downloads use the authenticated test server. Restore the System theme.
+- The user separately confirmed the final download interaction on their physical
+  iPhone. No physical device was operated during this verification round. Android
+  native saving/camera and third-party share delivery remain unverified; source
+  and component checks are not device acceptance. No app-store upload, npm
+  publication or production server deployment is included.
+
+## 2026-10-18 - Consolidate mobile preview download actions
+
+- Keep Download and Pin in a single compact row, removing the separate Photos
+  toolbar action. iOS Download now stages authenticated bytes and opens the
+  system share sheet directly, exposing applicable photo/video saving, Files
+  destinations and installed apps without an extra custom menu. Preserve the
+  existing Share shortcut and do not claim that dismissing the sheet saved or
+  sent anything.
+- Android Download uses a bottom chooser for Save to Files, Save to Photos and
+  Share / Open in. Cancellation starts no transfer; stale chat/menu callbacks
+  cannot operate on a replacement chat. Documents do not offer photo saving.
+- Verification on main 126c74f7 plus pending changes: rendered transfer checks,
+  19 transfer unit tests, TypeScript and iOS/Android production JS exports pass.
+  The rebuilt iOS Dev simulator exercised the actual authenticated test server,
+  system share sheet, repeated presentation and real PNG/MP4 photo-library
+  saves. Independently verify saved media dimensions/duration and a 597860-byte
+  PNG written through the system Save to Files destination picker.
+- Android and tablet routing have component coverage, not new native-device
+  acceptance. External messages and third-party app delivery were not sent as
+  part of testing. This interaction change requires no additional native module,
+  server update, release or installation over the existing rebuilt Dev app.
+
+## 2026-10-18 - Save mobile chat images and videos to Photos
+
+- Add Save to Photos to image/video preview actions on phones and tablets,
+  retaining Download and Share. Reuse authenticated, chat-scoped downloads,
+  progress, cancellation, integrity checks and temporary-file cleanup. Report
+  success only after the native library confirms the save; denied permission
+  offers a Settings action. No server change is required.
+- Add source-built Expo MediaLibrary with iOS add-only permission. Android 10+
+  uses scoped MediaStore insertion without library reads; older storage writes
+  stop at API 28. A composed-config regression guards plugin ordering and keeps
+  broad media read permissions and legacy storage mode disabled.
+- Validation on main 126c74f7 plus pending branch changes: 19 transfer unit tests,
+  rendered file-transfer behavioral checks, nine platform/config checks,
+  TypeScript, iOS/Android production JS exports, both iOS native Debug builds,
+  native dependency parity and packaged framework ABI checks pass.
+- Actual iPhone-layout simulator actions downloaded synthetic attachments from
+  an authenticated test server and saved a 1000x4800 PNG and a 720x1280 six-second
+  MP4. Repeat both saves using only the system's add-only grant, with no Photos
+  read grant; verify dimensions and duration independently in the photo library.
+  Light/dark previews, the native permission prompt and denied-access feedback
+  were exercised. Denied access added no asset and never claimed success.
+- The Settings action opens system Settings, but this simulator lands on the
+  root page rather than the app permission page; direct permission navigation
+  still needs physical-device acceptance. Android native saving and iPad native
+  layout are not yet accepted; their control/permission paths use component
+  fixtures. The separate iPhone Dev app was rebuilt, installed and launched
+  successfully, without writing test media to the user's real photo library.
+  No release, upload, server restart or publication.
+
+## 2026-10-18 - Integrate current main into the connection and mobile fixes
+
+- Update the working branch to main 126c74f7 while preserving the pending
+  mobile, desktop and QR changes. Resolve the development-log and installer
+  manifest conflicts by retaining both sets of additions, including the shared
+  analytics module and terminal QR runtime files.
+- Verification: 335 focused desktop tests, 81 mobile checks, both TypeScript
+  checks, desktop production compilation and compiled-entry verification pass.
+  Eleven installer/archive checks pass from an isolated clean source snapshot.
+  The initial live-source archive check correctly rejected generated bytecode;
+  the running service and its cache were not modified to bypass that guard.
+- The merged native macOS desktop build passes repeated Pinned folding,
+  keyboard expansion, preference reload and light/dark/narrow UI checks in an
+  isolated offscreen profile. Correct the local test setup to reload its reset
+  preference before repeating the workflow. Mobile source and native dependencies
+  were unchanged by upstream; no new physical-device acceptance was performed.
+- Source integration only: no commit, push, publication or server restart.
+
 ## 2026-10-17 — Refresh privacy-limited desktop and sharing metrics
 
 - Integrate current main into the existing sharing-analytics work, preserving
@@ -75,6 +168,322 @@
   builds pass. Actual Mixpanel ingestion, other browser engines, and live
   queued acceptance are not validated here (queued/refused receipt semantics
   are covered by targeted bridge tests). No release or server deployment.
+
+## 2026-10-18 - Restore desktop Pinned group folding
+
+- Connect the Pinned header to a dedicated collapse state and right-aligned
+  arrow. Persist the preference in the existing server-scoped desktop cache;
+  folders named Pinned remain independent. Chat pins and folder assignments do
+  not change. Next/previous-chat navigation skips hidden pinned rows, while
+  unread/running pinned chats remain eligible in their visible status groups.
+  Emergency notifications retain the existing automatic section expansion.
+- Reproduced the unresponsive header in an isolated native Electron window
+  before the fix. The locally compiled app then passed mouse collapse/expand,
+  Enter/Space activation, preference restoration after reload, repeated use,
+  same-name folder independence and light/dark/narrow presentation checks.
+  Pinning a disposable chat crossed the real authenticated test-server boundary;
+  folding persisted locally. Test chats were removed without running a provider.
+- Validation: 55 focused sidebar/session tests, two emergency-state regressions,
+  TypeScript, production compilation and compiled-entry verification pass. The
+  two initial folding/navigation regressions failed before the implementation.
+  Native testing used an offscreen macOS Electron 43.1.1 development process
+  with source changes over 4ef55959, not an installed release. Windows/Linux
+  native acceptance was not performed. No server update, publication or merge.
+
+## 2026-10-18 - Recover lazy media previews after a Dev transport interruption
+
+- Backport Expo's upstream HMR recovery fix to the pinned Expo 57.0.4 package
+  through a scoped pnpm patch. Lazy imports after a lost Metro graph now call
+  the platform reload helper instead of accessing `window.location` on native.
+  This affects development recovery, not production chat synchronization, and
+  does not change the native dependency ABI.
+- Stage iOS video previews with a foreground file-system download. The same
+  authenticated sample failed in the background URLSession and downloaded
+  successfully in the foreground session. Existing cancellation, authentication,
+  cache ownership and integrity checks remain in place.
+- Verification: 51 HMR and interaction checks, TypeScript, video-staging and
+  deferred-import tests, and iOS/Android production JavaScript exports pass.
+  The HMR regressions fail before the patch and pass afterward.
+- Actual iOS simulator UI reproduced the reported undefined `reload` error
+  before the patch. After the same forced Metro graph loss, the app reloaded
+  without that error and reopened the chat. Subsequent automated preview-open
+  assertions did not pass; full preview and video playback acceptance remain
+  incomplete. The user separately confirmed opening works on the physical
+  phone after reloading the patched Dev app.
+- No Android native acceptance or release-binary validation was performed.
+  Changes remain local source only; no server update, PR or release.
+
+## 2026-10-18 - Decouple selected-chat recovery from slow session lists
+
+- Foreground recovery waits for server identity validation, but no longer waits
+  for the session list before fetching the selected chat and reopening its live
+  stream. Joining an already-pending list refresh follows the same path.
+- Reconnect restores a cached selection immediately after validation. A late
+  list response does not restart that selection or supersede a newer selection;
+  a selected chat removed from the server still falls back to an available chat.
+- Request the same `summary=true` session list as desktop. Existing merge rules
+  retain omitted detail fields and honor explicit reset values.
+- Skip a redundant legacy tail request only when the returned total proves all
+  events are present and neither side of the page is omitted. Unknown totals
+  and incomplete pages retain the compatibility fallback. Latest-first bounded
+  paging, cache visibility and authoritative stream cursors remain unchanged.
+- The new foreground regression fails on the prior implementation and passes
+  with this fix. Lifecycle, reconnect, validation rejection, latest-first paging,
+  compatibility, client cancellation, profile isolation, cache adoption and
+  state-hardening checks pass. Stress validation passes 40 cycles and 36,000
+  events with 146 bounded reads; TypeScript and iOS/Android production JavaScript
+  exports pass.
+- Actual iOS simulator UI checks use an isolated authenticated HTTP/WebSocket
+  fixture. After a cold launch, foregrounding with a 5.002-second session-list
+  response starts the selected tail immediately and opens one stream 5 ms later.
+  A legacy one-message response delayed by 1.5 seconds now takes one request and
+  opens its stream in 1.506 seconds, instead of two serial requests. Both checks
+  retain the visible message and reach Live without another screen tap.
+- These are controlled transport measurements, not production latency promises
+  or acceptance on the affected user's server. Android native/device acceptance
+  and matching the reported TestFlight binary to source remain pending. Changes
+  are local source only; no release, server deployment or PR was created.
+
+## 2026-10-18 - Verify npm connection commands and complete setup QR output
+
+- Keep `agentsdock token [NAME]` as the combined URL/token/QR entry point and
+  `agentsdock pair [NAME]` as the QR-only shortcut. Clarify the first-install,
+  setup and new-instance output in command help and package documentation.
+- Real npm lifecycle tests exposed truncated terminal QR output: nonblocking
+  tty writes stopped under buffer pressure, sometimes splitting UTF-8 symbols.
+  Retrying nonblocking writes also allowed npm's progress indicator to corrupt
+  the QR. Use normal blocking tty writes, preserve partial-write offsets, and
+  bound retries of transient write errors. Credential output still goes only
+  to the controlling terminal, never captured npm output or debug logs.
+- Verify the complete generated QR, not merely a heading, under ordinary npm
+  installation and `--foreground-scripts`, with an authenticated local HTTP
+  fixture. Verify headless omission, repeat-install safety and log secrecy.
+  Service creation and instance discovery in this lifecycle test are synthetic;
+  no native fresh-default service was created or replaced in this iteration.
+- Verification: 35 focused Node checks and all five package tests pass. The
+  complete-QR lifecycle check also passes three consecutive runs in both npm
+  output modes. Package tests run from an isolated source snapshot so live
+  Python bytecode does not bypass or weaken the runtime packaging allowlist.
+- Availability: local source only; no global CLI replacement, server restart,
+  npm publication or mobile build.
+
+## 2026-10-18 - Bound native HTTP reads and recover from canceled sync requests
+
+- Reproduce the native fetch cancellation error with a deliberately slow HTTP
+  response in an isolated iOS Dev simulator. This is a transport exception
+  exposed through app error state, not a development-only warning overlay.
+- Cover response bodies as well as headers with the existing request deadline.
+  Race the operation against cancellation because the installed Expo iOS native
+  text reader can remain pending after its transport has been canceled. A
+  partial JSON response reproduced the indefinite Syncing state before this
+  additional deadline guard; aborting the socket alone was insufficient.
+- Preserve client/caller cancellation ownership, normalize timeouts and unexpected
+  native interruptions, and keep confirmed HTTP failures distinct. A stalled
+  401 body still revokes validation. Late responses cannot publish a second
+  rejection, and mutations are not automatically retried.
+- Keep transient automatic session-list failures in profile connection state,
+  preserving cached chats and unrelated user-action errors. Selected-chat reads
+  continue through the existing bounded recovery sequence without a screen tap.
+- Native UI checks against an isolated authenticated HTTP/WebSocket fault fixture
+  pass for stalled headers and partial JSON bodies: the cached message remains,
+  the approximately 12-second deadline closes the request, and automatic recovery
+  returns to Live with no global error banner. A 30-second session-list timeout
+  leaves the healthy timeline Live, marks the profile degraded, and clears that
+  diagnostic on the next successful refresh. This is fault-injection transport
+  validation, not live-provider or affected-user-server acceptance.
+- Twelve cancellation regressions, client scopes, store integration, bounded
+  timeline recovery, lifecycle and address fallback checks pass. The sync stress
+  check passes 40 cycles with 36,000 events; TypeScript and iOS/Android production
+  JavaScript exports pass. The exact reported TestFlight binary was not rebuilt
+  or matched to a release source manifest. No physical device, working server,
+  release, publication or merge was operated for this investigation.
+
+## 2026-10-18 - Fix intermittent iOS Settings taps after native menus
+
+- A physical-device native snapshot found stale `RCTSurfaceTouchHandler`s on
+  ordinary Settings views beneath the modal's own handler. Expo UI 57.0.4's
+  RNHostView attached these handlers but never detached them before Fabric
+  reused the views. This matches upstream Expo #47713, not a disabled theme
+  option or a server synchronization dependency.
+- Pin Expo UI to 57.0.7, which includes the upstream disappearance/deinit
+  cleanup. Build ExpoUI from source against the installed ExpoModulesCore and
+  verify package/pod/source parity. Do not change Settings actions to fire on
+  touch-down or replace their existing scrolling and modal interactions.
+- Add a dependency lifecycle regression and a native Maestro workflow that
+  cycles Servers -> Settings -> Appearance, asserts selected themes and returns
+  to System. The old simulator binary reproduced an ignored Appearance tap
+  after closing Servers, remaining on the category page. Simulator-only push
+  entitlement overlays were dismissed separately, not treated as this failure.
+- The rebuilt simulator passes the same six-cycle drawer/settings workflow,
+  including selected-state assertions for each Light/Dark switch and working
+  category/back/close actions. This is actual native UI input, not handler calls.
+- Focused checks (20), TypeScript, iOS/Android production JavaScript exports,
+  native dependency parity and both iOS Debug builds pass. The rebuilt Dev app
+  is installed on the independent physical-device and simulator identifiers;
+  the user confirms Settings navigation and theme buttons work on the phone.
+  No production installation, server configuration or chat content is changed.
+  Android device acceptance and longer physical-device testing remain pending.
+
+## 2026-10-18 - Add desktop unread and running sidebar groups
+
+- Match mobile's temporary status grouping: Unread first with a blue dot,
+  Running next with a green dot, then ordinary sections. Active work takes
+  precedence over unread state; archived chats stay archived. Each chat appears
+  once, retaining its saved folder and pinned state. Empty status groups hide.
+- Add independent status collapse controls and right-aligned folder/group arrows.
+  Keep status groups out of folder drop targets and match next/previous-chat
+  navigation to the visible group order. Collapse state resets on workspace
+  adoption and does not write server preferences.
+- Verification: focused sidebar/grouping/drag/navigation/design checks, the
+  desktop regression suite, TypeScript, production compilation and output checks
+  pass. An isolated native Electron window exercises real menu marking, collapse
+  and keyboard expansion against the authenticated test server. A disposable
+  live Codex turn moves Running -> Unread -> original folder; reading removes
+  empty groups. Light/dark and narrow-window screenshots confirm dot sizing and
+  rightmost arrows. Temporary chats are removed afterward; no working chats or
+  production app are replaced. Other desktop operating systems are not exercised.
+- Availability: local source and desktop preview only; no server update or
+  public release is required or performed for this grouping change.
+
+## 2026-10-18 - Restore green mobile sent-message bubbles
+
+- Set the shared user-message surface to soft green in light mode and muted
+  deep green in dark mode. Keep assistant surfaces, text, layout and behavior
+  unchanged; document both colors in the mobile design tokens.
+- Verification: eight theme checks, including primary/secondary text contrast,
+  TypeScript and iOS/Android Hermes exports pass. Actual iOS simulator taps
+  exercise theme switching and chat reopening with temporary in-memory message
+  fixtures; both green bubbles render correctly. Restore the prior workspace
+  and system theme afterward. No provider message was sent; this is visual
+  acceptance, not a new server integration or Android-device check.
+- Availability: local development source/preview only, no public release.
+
+## 2026-10-18 - Keep mobile agent marks independent of development networking
+
+- Embed the original Claude/Codex PNG bytes in the shared backend-mark component,
+  preserving the artwork and Cursor's vector mark. Both Debug and Release now
+  render these icons without fetching a separate image from Metro.
+- Generate the embedded sources during installation and verify byte-for-byte
+  artwork parity, self-contained sources and repeated mounts in four focused
+  component checks. TypeScript and iOS/Android Hermes production exports pass.
+- On a physical iPhone running the independent Dev app, a native bundler-host
+  correction restores launch over the tailnet. A subsequent cold launch without
+  an explicit host argument shows the connected home screen and both bitmap
+  marks. Simulator taps open, close and reopen My agents with all marks visible.
+  No chat writes, production-app replacement or server changes are involved.
+- Document the distinction between the Debug bundle host and the chat server.
+  Debug still needs a reachable Metro service; embedding these marks does not
+  make the entire development build standalone. Android device UI and a physical
+  Wi-Fi-to-cellular switch after this change have not been exercised.
+- Availability: local development source and installed iOS Dev preview only;
+  no public release or store submission.
+
+## 2026-10-17 - Allow removing the current mobile server
+
+- Enable Remove for every saved connection, including the active and final
+  profile, with a confirmation explaining that remote chats/tasks are retained.
+  Select the next saved profile when available; otherwise clear the active
+  workspace and show setup. Empty profile settings survive a cold launch.
+- Persist removal before detaching the local client or deleting its credential.
+  Preserve identity-scoped caches and drafts for re-addition, invalidate old
+  requests, and do not require remote connectivity or completion of active work.
+  A profile-settings write failure leaves the original connection and token intact.
+- Verification: menu/confirmation regressions, real-HTTP store fixtures for
+  active/inactive/final/offline removal, busy state, late replies, storage failure,
+  credential cleanup, empty startup and re-addition pass. Existing profile,
+  cache, store and multi-address reconnect regressions, TypeScript and
+  iOS/Android Hermes production exports pass. Fixture requests confirm removal
+  does not send remote stop/delete commands; busy state is simulated, not a
+  newly started live provider task.
+- In the installed iOS simulator, actual menu taps exercised cancellation and
+  active/final removal. A cold restart retained the empty list. Re-adding the
+  same isolated server through Add and refreshing returned the same chats over
+  the production authenticated transport. QR payload injection was test setup,
+  not physical camera acceptance. Physical-phone/Android UI remain unverified.
+- Availability: local development source only; no server update, public release,
+  or store submission is needed or performed for this change.
+
+## 2026-10-17 - Automatically select shared server addresses on mobile
+
+- Add QR format v2 with up to six explicit candidate addresses and a required
+  durable server identity; retain v1 parsing and single-address sharing.
+- CLI automatic pairing includes authenticated LAN/Tailscale candidates with
+  one identity. Desktop QR sharing asks the selected remote server for its own
+  binding-aware addresses through a native-token-only endpoint. Older/offline
+  servers retain the saved single address; discovery never uses desktop NICs.
+- Mobile staggers bounded health probes, selects the first identity match and
+  cancels losers. All failures produce one error. Saved alternatives support
+  reconnect without duplicating profiles or changing cache/draft ownership.
+  Explicitly reusing a scanned saved identity can refresh its addresses without
+  replacing credentials. Manual address edits or identity resets clear old routes.
+- Verification: 30 mobile component checks, nine parser/selection checks,
+  real-HTTP mobile store roaming/persistence and existing profile/client/store
+  regressions pass. Desktop client/service/contract checks pass (645 tests),
+  as do 25 server discovery/binding checks and 33 CLI/lifecycle checks.
+  Both TypeScript checks, desktop compilation and iOS/Android Hermes exports pass.
+- Actual offscreen desktop UI generated a multi-address QR against the isolated
+  test server; independent native image decoding confirmed the advertised routes
+  and authenticated identity. The CLI also authenticated both actual routes.
+  The installed iOS simulator accepted the decoded payload, saved through an
+  actual Add tap, and reconnected both directions while one route was deliberately
+  rejected by a test-only fetch wrapper. All-route failure and recovery retained
+  the profile; afterward the wrapper/profile were removed and selection restored.
+- This is not physical camera or off-Wi-Fi phone acceptance. Actual iPhone
+  Tailscale roaming and Android device UI remain unverified. Only the designated
+  isolated local test service was switched to source; no production deployment,
+  global CLI replacement or release was performed.
+
+## 2026-10-17 - Simplify mobile QR connection setup
+
+- Add server shows Scan QR code, a subtle "or add manually" caption and all
+  three manual steps immediately, without an expansion action. Scanning shows a
+  compact name/address confirmation; Edit details reveals the masked manual
+  fields. Saving still requires successful authenticated health and the QR's
+  expected identity. Existing profiles are not silently overwritten.
+- Use a square camera viewport with a separate width constraint, QR icon and
+  terminal/desktop source guidance. Only the scanner expands the native sheet
+  to full height; ordinary server management retains half/full detents.
+- Document LAN, Tailscale, remote desktop, localhost/tunnel and HTTPS cases.
+  Format v1 still carries one URL, without automatic network failover. Verify
+  the existing interactive token command displays all discovered address
+  categories, token and terminal QR together; update its help accordingly.
+- Verification: TypeScript, 28 mobile component checks, 22 binding/address
+  checks and 15 CLI checks pass. The camera-enabled iOS simulator native build
+  and iOS/Android production exports pass. After making manual steps immediately
+  visible, TypeScript and the 28 component checks pass again; actual simulator UI
+  verifies the caption, all three fields, scanner back navigation and drawer
+  close/reopen without an expansion action. Earlier checks cover camera permission
+  and compact confirmation. Native camera viewport bounds are 360 by 360 points.
+- A decoded QR injected into the actual simulator app reaches the real test
+  server, passes identity validation, and saves/activates through an actual Add
+  tap. This is not a physical camera scan. The temporary profile is removed and
+  prior selection restored. A real PTY token-command run verifies terminal QR
+  output and authenticated health without recording credentials.
+- Physical iPhone/Android camera capture, off-Wi-Fi tailnet routing and public
+  HTTPS/proxy acceptance remain unverified. No public release, global CLI
+  replacement, server restart or network-policy changes in this iteration.
+- Additional observation outside the QR change: after switching Appearance to
+  dark, the Settings close action did not dismiss the sheet on two simulator
+  attempts. Restarting the QA app was needed to continue; do not treat this as
+  resolved or assume it is only automation timing. No unrelated Settings fix
+  is included in this iteration. After restart, dark-mode QR choice, scanner
+  and dismissal pass actual UI checks; the test theme is restored afterward.
+
+## 2026-10-17 - Stabilize mobile server setup step badges
+
+- Replace the three native rounded-border badges with fixed 24-point SVG
+  circles and numbers. A physical iPhone light-theme screenshot showed step
+  two stretched into a horizontal oval; the previous overflow clipping did
+  not prevent it. Preserve theme colors, step accessibility labels and all
+  connection behavior. The underlying native rendering cause is not confirmed.
+- Verification: TypeScript and 27 focused server form/scanner tests pass.
+  Actual iOS simulator light-theme checks exercised three drawer reopen,
+  expansion, input focus and return cycles; inspected all three circular
+  badges in the expanded sheet. Corrected automation-only close selectors,
+  keyboard dismissal and screenshot output paths during the run.
+- Restarted the attached iPhone's separate Dev app and observed a fresh Metro
+  bundle connection. Physical-device visual confirmation remains pending:
+  runtime inspection timed out. No production app or server data changed.
 
 ## 2026-10-17 — Make Gemini a built-in provider
 
@@ -579,6 +988,40 @@
   new-chat dialog and native select-popup acceptance remain pending. Imports,
   automatic titles, attachments, fork, skills UI and mobile are not included.
   See the server's Gemini preview record for precise limits and remaining gates.
+## 2026-10-17 - Camera-based server pairing
+
+- Add a live QR scanner inside the existing mobile Add Server drawer. Reuse the
+  versioned CLI payload, mask the token, authenticate the decoded address, and
+  require any encoded server identity to match before enabling Add. Scanning
+  never saves immediately; cancel, stale tests and duplicate camera events do
+  not replace existing profiles. Manual connection remains available.
+- Request camera access only on scanner entry, release the preview in the
+  background, support denied-permission recovery, and keep older Dev binaries
+  usable until their native camera update is installed. No microphone access,
+  QR-image import, connection deep-link activation or third-party QR service.
+- Interactive installation and token display render a locally generated QR
+  after authenticated health. Fresh npm postinstall writes it only to the
+  controlling terminal, not lifecycle logs. QR failures are nonfatal. Include
+  the renderer and its notices in the exact server runtime file inventory.
+- Build iOS camera code from source, matching the existing video dependency
+  policy. The precompiled camera framework failed the bundled ABI gate; the
+  source-built Dev app passes dependency parity and bundled-framework checks.
+- Verification: TypeScript, 383 mobile UI/source tests, QR parser cases, 32 CLI
+  tests, 120 installer/CLI-package tests, 33 focused installer/package checks,
+  two process-startup tests, and iOS/Android Hermes exports. Nested QR payload
+  directories reject linked parents in both packaging and installation.
+  A real isolated server installation emitted a terminal QR; an independent
+  Vision decode of its PNG authenticated the exact encoded identity. Simulator
+  UI verification filled a real decoded payload, tested, saved and switched,
+  then restored the original profile and removed the disposable profile.
+- Integrate current main and update the isolated local test server without
+  replacing the stopped legacy test instance or its data. Install and launch
+  the signed camera-enabled iPhone Dev app under its separate bundle identifier;
+  leave the production app unchanged.
+- Acceptance boundary: the simulator received an injected decoded barcode
+  event, not a physical camera image. Live phone capture and Android native
+  interaction still require device verification. No release or upload.
+
 ## 2026-10-17 - Validate the mobile UI review candidate
 
 - Update rendering-test host mocks for the appearance preference and shared

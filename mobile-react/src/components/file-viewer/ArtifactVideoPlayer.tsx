@@ -165,7 +165,9 @@ function StagedIOSArtifactVideo({ file, connection, remoteSource, registerPause,
       const task = FileSystem.createDownloadResumable(
         remoteSource.uri,
         cacheDestination,
-        { headers: remoteSource.headers },
+        // Preview staging is cancelled when the app leaves the foreground.
+        // Keep its download in-process instead of the iOS background daemon.
+        { headers: remoteSource.headers, sessionType: FileSystem.FileSystemSessionType.FOREGROUND },
         value => {
           if (!stillCurrent()) return
           lastProgressAt = Date.now()

@@ -304,6 +304,8 @@ export interface StoredServerProfile {
   id: string
   name: string
   serverURL: string
+  /** Explicitly shared QR addresses, bound to serverIdentity. */
+  serverURLs?: string[]
   serverIdentity: string | null
   serverConfigured: boolean
   /** Selects the only credential record that is authoritative for this profile. */
@@ -324,7 +326,7 @@ export interface PublicServerProfile extends StoredServerProfile {
 
 export interface StoredProfileSettings {
   schemaVersion: 2
-  activeProfileId: string
+  activeProfileId: string | null
   profiles: StoredServerProfile[]
   fontScale: number
 }
@@ -352,6 +354,7 @@ export interface WorkspacePreferences {
 export interface AddServerProfileInput {
   name?: string
   serverURL: string
+  serverURLs?: string[]
   accessToken?: string | null
   serverIdentity?: string | null
   serverConfigured?: boolean
@@ -361,6 +364,7 @@ export interface AddServerProfileInput {
 export interface UpdateServerProfileInput {
   name?: string
   serverURL?: string
+  serverURLs?: string[]
   /** Undefined preserves the stored credential; null or an empty string removes it. */
   accessToken?: string | null
   serverIdentity?: string | null

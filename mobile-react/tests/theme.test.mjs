@@ -46,7 +46,7 @@ function luminance(hex) {
   return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
 }
 
-test('primary and secondary text retain readable contrast on neutral surfaces in both themes', () => {
+test('primary and secondary text retain readable contrast on content surfaces in both themes', () => {
   assert.deepEqual(Object.keys(exports.light), Object.keys(exports.dark))
   for (const palette of [exports.light, exports.dark]) {
     for (const text of ['text', 'muted']) {
@@ -60,6 +60,17 @@ test('primary and secondary text retain readable contrast on neutral surfaces in
     assert.notEqual(palette.blue, palette.green)
     assert.notEqual(palette.red, palette.green)
   }
+})
+
+test('user bubbles have a distinct green surface in both themes', () => {
+  for (const palette of [exports.light, exports.dark]) {
+    const [red, green, blue] = palette.user.slice(1).match(/../g).map(value => parseInt(value, 16))
+    assert.ok(green > red && green > blue, 'User bubbles must retain their green tint')
+    assert.notEqual(palette.user, palette.raised)
+    assert.notEqual(palette.user, palette.surface)
+  }
+  assert.ok(luminance(exports.light.user) > 0.8)
+  assert.ok(luminance(exports.dark.user) < 0.1)
 })
 
 test('subtle dates remain readable while control outlines differ from separators', () => {
