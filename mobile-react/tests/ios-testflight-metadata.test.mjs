@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertUnusedBuild, releaseConfig } from '../scripts/ios-testflight-metadata.mjs'
+import { assertUnusedBuild, assertOpenVersion, releaseConfig } from '../scripts/ios-testflight-metadata.mjs'
 
 const app = { expo: { version: '0.1.2', ios: { bundleIdentifier: 'com.zhengyiluo.ZenithDock', buildNumber: '189' } } }
 const config = releaseConfig(app)
@@ -33,4 +33,13 @@ test('older iOS marketing versions may use independent timestamp build numbers',
     ...versions, { id: 'old', attributes: { version: '0.1.0', platform: 'IOS' } },
   ]))
   assert.throws(() => assertUnusedBuild(config, [build('188'), older], versions))
+})
+
+test('a closed App Store version requires a new marketing version before compiling', () => {
+  const approved = [{ attributes: { versionString: '0.1.2', appStoreState: 'READY_FOR_SALE' } }]
+  assert.throws(() => assertOpenVersion(config, approved))
+  assert.doesNotThrow(() => assertOpenVersion({ ...config, version: '0.1.3' }, approved))
+  assert.doesNotThrow(() => assertUnusedBuild({ ...config, version: '0.1.3' }, [build('188')], versions))
+  assert.throws(() => assertOpenVersion(config, [{ attributes: { versionString: '0.1.2', appStoreState: 'PENDING_DEVELOPER_RELEASE' } }]))
+  assert.doesNotThrow(() => assertOpenVersion(config, [{ attributes: { versionString: '0.1.2', appStoreState: 'PREPARE_FOR_SUBMISSION' } }]))
 })

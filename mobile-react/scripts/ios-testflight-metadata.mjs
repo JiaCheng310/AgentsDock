@@ -17,7 +17,7 @@ export function assertUnusedBuild(config, builds, included) {
   const versions = new Map(included.map(item => [item.id, item.attributes]))
   const latestVersion = versions.get(builds[0].relationships?.preReleaseVersion?.data?.id)
   assert.equal(latestVersion?.platform, 'IOS')
-  assert.equal(config.version, latestVersion.version, 'Keep the existing TestFlight version line')
+  assert.ok(compareVersions(config.version, latestVersion.version) >= 0, 'Do not upload an older TestFlight version')
   for (const item of builds) {
     const version = versions.get(item.relationships?.preReleaseVersion?.data?.id)
     assert.equal(version?.platform, 'IOS', 'Every build must have an iOS version relationship')
@@ -25,6 +25,28 @@ export function assertUnusedBuild(config, builds, included) {
     if (version.version !== config.version) continue
     assert.match(item.attributes.version, /^[1-9]\d*$/, 'Review non-integer build numbering manually')
     assert.ok(BigInt(item.attributes.version) < BigInt(config.build), `Existing ${version.version} (${item.attributes.version}) requires build-number review`)
+  }
+}
+
+function compareVersions(left, right) {
+  assert.match(left, /^\d+\.\d+\.\d+$/)
+  assert.match(right, /^\d+\.\d+\.\d+$/)
+  const a = left.split('.').map(Number)
+  const b = right.split('.').map(Number)
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
+}
+
+export function assertOpenVersion(config, versions) {
+  const closed = new Set([
+    'ACCEPTED', 'PENDING_APPLE_RELEASE', 'PENDING_DEVELOPER_RELEASE',
+    'PROCESSING_FOR_APP_STORE', 'PROCESSING_FOR_DISTRIBUTION', 'READY_FOR_SALE',
+    'READY_FOR_DISTRIBUTION', 'PREORDER_READY_FOR_SALE', 'PENDING_CONTRACT',
+    'DEVELOPER_REMOVED_FROM_SALE', 'REMOVED_FROM_SALE', 'REPLACED_WITH_NEW_VERSION',
+  ])
+  for (const item of versions) {
+    if (!closed.has(item.attributes.appStoreState)) continue
+    const version = item.attributes.versionString
+    assert.ok(compareVersions(config.version, version) > 0, `Apple has already approved ${version}; select a newer marketing version`)
   }
 }
 
@@ -65,6 +87,11 @@ async function main(mode) {
     'fields[preReleaseVersions]': 'version,platform',
   }
   if (mode === 'check') {
+    const storeVersions = await get(`/v1/apps/${encodeURIComponent(appId)}/appStoreVersions`, {
+      'filter[platform]': 'IOS', 'fields[appStoreVersions]': 'versionString,appStoreState', limit: '200',
+    })
+    assert.ok(!storeVersions.links?.next, 'Review paginated App Store version history manually')
+    assertOpenVersion(config, storeVersions.data)
     const builds = []
     const versions = []
     let page = await get('/v1/builds', query)

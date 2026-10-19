@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$SOURCE_SHA" = "$GITHUB_SHA"
-          node --test scripts/tests/ios_testflight_workflow.test.mjs mobile-react/tests/ios-testflight-metadata.test.mjs
+          node --test scripts/tests/ios_testflight_workflow.test.mjs mobile-react/tests/ios-testflight-metadata.test.mjs mobile-react/tests/ios-archive-symbols.test.mjs
 
       - name: Check Apple access and build-number availability
         env:
@@ -92,6 +92,8 @@ jobs:
 
       - name: Generate production iOS project and verify native parity
         working-directory: mobile-react
+        env:
+          RCT_SYMBOLICATE_PREBUILT_FRAMEWORKS: '1'
         run: |
           set -euo pipefail
           xcodebuild -version
@@ -146,6 +148,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :NSPhotoLibraryAddUsageDescription' "$APP/Info.plist"
           codesign --verify --deep --strict "$APP"
           pnpm verify:ios-archive-abi "$RUNNER_TEMP/AgentsDock.xcarchive"
+          node scripts/collect-ios-archive-symbols.mjs "$RUNNER_TEMP/AgentsDock.xcarchive" ios/Pods
 
       - name: Recheck build number immediately before upload
         env:

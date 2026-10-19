@@ -2,7 +2,7 @@
   "expo": {
     "name": "AgentsDock",
     "slug": "agentsdock-react",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "scheme": "com.zhengyiluo.ZenithDock",
     "orientation": "default",
     "icon": "./assets/icon.png",
