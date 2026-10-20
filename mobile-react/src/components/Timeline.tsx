@@ -4,7 +4,7 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list'
 import { ArrowDown, ArrowUp, RefreshCw } from 'lucide-react-native'
 import { codexLifecycleSemanticKey, isHandoffDigestEvent, isTimelineError, projectPresentableHistory, projectTimeline, type TimelineRow } from '../lib/timeline'
 import { shouldFinishTimelineKeyboardDismissal } from '../lib/keyboard-gesture'
-import { liveTimelineAdvanced, shouldShowTimelineLatest, timelineMaintainVisiblePosition, timelineTargetRowIndex } from '../lib/timeline-history-navigation'
+import { liveTimelineAdvanced, shouldShowInitialTimelineLoading, shouldShowTimelineLatest, timelineMaintainVisiblePosition, timelineTargetRowIndex } from '../lib/timeline-history-navigation'
 import { mergeHistoryWithLiveSnapshot } from '../lib/timeline-memory'
 import { reuseStableTimelineRows } from '../lib/timeline-row-reuse'
 import { useAppStore } from '../store/useAppStore'
@@ -24,6 +24,7 @@ const MAX_RECYCLED_TIMELINE_ITEMS = 18
 export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSettleRequest, bottomInset, onReview }: { sessionId: string; scrollRequest: number; keyboardVisible: boolean; keyboardSettleRequest: number; bottomInset: number; onReview: (runId: string) => void }) {
   const colors = usePalette()
   const liveSnapshot = useAppStore(state => state.snapshots[sessionId])
+  const selectedSession = useAppStore(state => state.sessions.find(session => session.id === sessionId))
   const profileGeneration = useAppStore(state => state.profileGeneration)
   const historyWindow = useAppStore(state => state.historyWindow)
   const exitHistory = useAppStore(state => state.exitHistory)
@@ -380,7 +381,15 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   )
 
   const selectedSyncStatus = syncSessionId === sessionId ? syncStatus : 'cached'
-  if (!snapshot && (loading || selectedSyncStatus === 'syncing' || selectedSyncStatus === 'reconnecting')) return <Loading label={selectedSyncStatus === 'reconnecting' ? 'Reconnecting to this chat' : 'Loading latest messages'} />
+  const hasKnownHistory = Math.max(
+    snapshot?.total ?? 0,
+    snapshot?.latestSeq ?? 0,
+    snapshot?.session.latest_event_seq ?? 0,
+    selectedSession?.latest_event_seq ?? 0,
+  ) > 0
+  if (shouldShowInitialTimelineLoading({ rowCount: rows.length, loading, hasKnownHistory, syncStatus: selectedSyncStatus })) {
+    return <Loading label={selectedSyncStatus === 'reconnecting' ? 'Reconnecting to this chat' : 'Loading latest messages'} />
+  }
   return (
     <View style={styles.root} onLayout={handleLayout}>
       <FlashList

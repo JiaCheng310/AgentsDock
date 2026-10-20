@@ -24,7 +24,7 @@ import {
 import { formatDateTime, messageText } from '../lib/format'
 import { canQueryScheduledJobHistory } from '../lib/job-history'
 import { registerCodeReviewFallback, reviewFallbackForEvents, summarizeStructuredToolDiff } from '../lib/code-review'
-import { foldMarkdownSource } from '../lib/math'
+import { foldMarkdownSource, visibleMarkdownPreview } from '../lib/math'
 import {
   inlineRoutePresentation,
   timelineChatReferenceIsRemote,
@@ -124,7 +124,7 @@ function MessageRowView({ row, sessionId, fontScale }: { row: Extract<TimelineRo
   const [expanded, setExpanded] = useRecyclingState(false, [row.key])
   const [feedback, setFeedback] = useRecyclingState<'Copied' | 'Pinned' | 'Unpinned' | 'Copy failed' | 'Pin failed' | null>(null, [row.key])
   const folded = fold.folded && !expanded
-  const visible = folded ? `${fold.visible.trimEnd()}\n\n…` : full
+  const visible = folded ? visibleMarkdownPreview(full, fold, MESSAGE_PREVIEW_CHARACTER_LIMIT) : full
   const visibleInlineRoutes = useMemo(
     () => inlineRoutes
       ? timelineInlineReferencesForText(visible, inlineRoutes.references, sessionId)
