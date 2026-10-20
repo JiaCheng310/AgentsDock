@@ -19,22 +19,7 @@
 
     var language = (document.documentElement.lang || '').toLowerCase();
     var isZh = language.indexOf('zh') === 0;
-    var isTraditional = language === 'zh-hant' || language === 'zh-tw';
-    var labels = isTraditional ? {
-      setup: '安裝與連線',
-      iphone: '用戶端安裝',
-      agents: '連線 agents',
-      firstChat: '第一個對話',
-      features: '功能指南',
-      shortcuts: '鍵盤快速鍵',
-      update: '更新',
-      language: '語言',
-      server: '管理伺服器',
-      advanced: '進階安裝',
-      multipleServers: '多伺服器',
-      backup: '備份與解除安裝',
-      reportIssue: '回報問題'
-    } : isZh ? {
+    var labels = isZh ? {
       setup: '安装与连接',
       iphone: '客户端安装',
       agents: '连接 agents',
@@ -65,7 +50,7 @@
     };
 
     var groups = isZh ? [
-      { label: isTraditional ? '開始使用' : '开始使用', items: [
+      { label: '开始使用', items: [
         ['setup.html', labels.setup],
         ['iphone.html', labels.iphone],
         ['agents.html', labels.agents],
@@ -77,13 +62,13 @@
         ['update.html', labels.update],
         ['language.html', labels.language]
       ] },
-      { label: isTraditional ? '伺服器' : '服务器', items: [
+      { label: '服务器', items: [
         ['server.html', labels.server],
         ['advanced-install.html', labels.advanced],
         ['multiple-servers.html', labels.multipleServers],
         ['backup-uninstall.html', labels.backup]
       ] },
-      { label: isTraditional ? '支援' : '支持', items: [
+      { label: '支持', items: [
         ['report-issue.html', labels.reportIssue]
       ] }
     ] : [

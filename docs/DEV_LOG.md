@@ -22,6 +22,21 @@ painful to rediscover later.
   active server and push the latest server repository/code to GitHub so app and
   server contract versions do not drift.
 
+## 2026-10-19 - Retire Traditional Chinese website pages
+
+- Kept English and Simplified Chinese as the website's two languages. Removed
+  Traditional Chinese from language menus, shared navigation labels, alternate
+  metadata, and the sitemap; updated the language guide and maintenance notes.
+- Replaced the 24 retired pages with noindex redirects to their matching
+  Simplified Chinese pages. Browser redirects preserve query strings and
+  section anchors, with a meta-refresh and link fallback without JavaScript.
+- Verified all 48 current localized pages at desktop and mobile widths,
+  language switching, mobile navigation, and all 24 legacy redirects. No
+  horizontal overflow or script errors were found. Static checks passed for
+  2,442 local links, assets, and fragments, plus script syntax and sitemap XML.
+- Approved for website publication and mirror sync. Client languages and
+  AgentsServer remain unchanged; no application release is included.
+
 ## 2026-10-14 - Correct the npm setup output examples
 
 - Replaced the raw installer progress and setup JSON in all three setup guides

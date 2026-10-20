@@ -12,7 +12,7 @@
   btn.type = 'button';
   btn.className = 'nav-toggle';
   var language = (document.documentElement.lang || '').toLowerCase();
-  btn.setAttribute('aria-label', language === 'zh-hant' || language === 'zh-tw' ? '選單' : language.indexOf('zh') === 0 ? '菜单' : 'Menu');
+  btn.setAttribute('aria-label', language.indexOf('zh') === 0 ? '菜单' : 'Menu');
   btn.setAttribute('aria-expanded', 'false');
   btn.innerHTML =
     '<svg class="nav-toggle-open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>' +

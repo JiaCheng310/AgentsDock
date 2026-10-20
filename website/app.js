@@ -35,11 +35,10 @@ function setDesktopVersionLabel(release) {
 
   const language = (document.documentElement.lang || '').toLowerCase()
   const isChinese = language.startsWith('zh')
-  const isTraditional = language === 'zh-hant' || language === 'zh-tw'
 
   if (release.prerelease) {
     label.textContent = isChinese
-      ? `${isTraditional ? '桌面預覽版' : '桌面预览版'} ${version}`
+      ? `桌面预览版 ${version}`
       : `Desktop preview ${version}`
     return
   }
