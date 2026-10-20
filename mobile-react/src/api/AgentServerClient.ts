@@ -138,6 +138,13 @@ export class AgentServerClientUnvalidatedError extends Error {
   }
 }
 
+export class AgentServerTurnAcceptedError extends Error {
+  constructor(cause: unknown) {
+    super('The server accepted this message, but its response could not be reconciled. Refresh the chat before sending it again.', { cause })
+    this.name = 'AgentServerTurnAcceptedError'
+  }
+}
+
 export class WebSocketConnectionError extends Error {
   constructor(
     public code: number,
@@ -487,7 +494,7 @@ export class AgentServerClient {
     return (await this.get<{ results?: TimelineSearchResult[] }>(`/api/search?${params}`)).results ?? []
   }
 
-  sendTurn(
+  async sendTurn(
     sessionId: string,
     prompt: string,
     fileIds: string[],
@@ -508,7 +515,15 @@ export class AgentServerClient {
     if (clientCapabilities.length) body.client_capabilities = [...clientCapabilities]
     if (chatReferences.length) body.chat_references = chatReferences.map(reference => ({ ...reference }))
     if (teamReferences.length) body.team_references = teamReferences.map(reference => ({ ...reference }))
-    return this.post(`/api/sessions/${encodeURIComponent(sessionId)}/turns`, body)
+    let accepted = false
+    try {
+      return await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`, {
+        method: 'POST', body: JSON.stringify(body),
+      }, 30_000, false, 'standard', () => { accepted = true })
+    } catch (error) {
+      if (accepted) throw new AgentServerTurnAcceptedError(error)
+      throw error
+    }
   }
   async stopTurn(sessionId: string): Promise<TurnStopResult> {
     const response = await this.post<Partial<TurnStopResult>>(`/api/sessions/${encodeURIComponent(sessionId)}/stop`, {})
@@ -1010,6 +1025,7 @@ export class AgentServerClient {
     timeoutMs = 30_000,
     allowUnvalidated = false,
     authentication: 'standard' | 'team-network' | 'native-control' = 'standard',
+    onAccepted?: () => void,
   ): Promise<T> {
     const scope = this.captureScope(allowUnvalidated)
     const headers = new Headers(init.headers)
@@ -1032,9 +1048,9 @@ export class AgentServerClient {
       const value = await response.json() as T
       this.assertScopeActive(scope)
       return value
-    })
+    }, onAccepted)
   }
-  private async fetchWithTimeout<T>(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response, signal: AbortSignal) => Promise<T>): Promise<T> {
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response, signal: AbortSignal) => Promise<T>, onAccepted?: () => void): Promise<T> {
     const controller = new AbortController()
     const externalSignals = [scopeSignal, init.signal].filter((signal): signal is AbortSignal => Boolean(signal))
     const abortListeners: Array<{ signal: AbortSignal; listener: () => void }> = []
@@ -1065,6 +1081,7 @@ export class AgentServerClient {
       // Bound the entire read independently, while also aborting the transport.
       const value = await Promise.race([aborted, (async () => {
         const response = await fetch(url, { ...init, signal: controller.signal })
+        if (response.ok) onAccepted?.()
         throwIfAborted(controller.signal)
         receivedResponse = response
         return consume(response, controller.signal)

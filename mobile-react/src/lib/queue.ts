@@ -1,6 +1,7 @@
 import type { Event, Health, QueuedCrossChatDeliveryIdentity, QueuedTurn } from '../types'
 import { crossChatCapabilityVersion, crossChatHandoffsAvailable, exactQueuedDeliverySkipAvailable } from './chat-references'
 import { isAsyncCrossChatMessage } from './timeline'
+import { isNativeGoalSteerEvent } from './native-goal-steering'
 
 export function isUserQueuedTurn(turn: QueuedTurn): boolean {
   return turn.purpose !== 'handoff_digest'
@@ -75,6 +76,11 @@ export function queuedMoveCrossesDeliveryBarrier(
 }
 
 export function updateQueuedTurns(current: QueuedTurn[], event: Event): QueuedTurn[] {
+  if (isNativeGoalSteerEvent(event) && event.queued_id) {
+    // An acknowledgement consumes exactly its same-chat durable queue owner.
+    // Equal prompts and another chat's IDs are not evidence of consumption.
+    return current.filter(value => value.queued_id !== event.queued_id || value.session_id !== event.session_id)
+  }
   if ((event.type === 'turn_queued' || event.type === 'turn_queue_delivery_fenced') && event.queued_id) {
     const prompt = event.display_prompt ?? event.prompt ?? event.request_prompt ?? ''
     const turn: QueuedTurn = {

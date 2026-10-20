@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-20 — Prepare mobile goal-follow-up reliability candidate
+
+- Show authoritative native Codex goal follow-ups as user messages within the
+  existing run, with chronological output and bounded reasoning-trace slices.
+  Reconcile queue membership independently of transcript cursors, and retain
+  live queue changes when an older history response arrives.
+- Keep acknowledged sends consumed when response decoding fails. Resolve
+  uncertain Run now delivery only from an exact acknowledgement, not merely
+  an absent queued item; preserve server/chat ownership and completed-run state.
+- Reproduced the missing bubble in an isolated Release iOS simulator through
+  the authenticated production transport and a real native Codex goal.
+  Queue and Run now succeeded, the original shell continued, and the provider
+  completed both requested markers, but the baseline transcript omitted the
+  follow-up. No production service or user chat was modified.
+- Focused queue, accepted-send, timeline-slice and adjacent recovery regressions
+  pass, including the existing large-history stress check. Candidate
+  0.1.3 (190) still requires packaged native acceptance before TestFlight upload.
+  The separately reported clipped-message rendering issue is not claimed fixed.
+- Add a manually dispatched, exact-source TestFlight workflow with build-number,
+  archive metadata, native ABI, symbol and tester-group verification. Source
+  preparation only; no TestFlight publication or server deployment in this entry.
+
 ## 2026-10-20 — Verify history repair in the local desktop
 
 - Integrate the existing repair-budget fix without changing Electron UI code.

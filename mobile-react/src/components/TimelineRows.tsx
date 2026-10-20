@@ -20,6 +20,7 @@ import {
   mergeJobHistoryEvents,
   providerInteractionAuditSummary,
   rowText,
+  traceEventsWithinRow,
 } from '../lib/timeline'
 import { formatDateTime, messageText } from '../lib/format'
 import { canQueryScheduledJobHistory } from '../lib/job-history'
@@ -279,13 +280,13 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
   const displayEvents = useMemo(() => {
     const promotedIds = new Set(row.promotedCommentaryIds)
     const merged = loadedEvents ? mergeTraceEvents(row.events, loadedEvents) : row.events
-    return merged.filter(event => (
+    return traceEventsWithinRow(row, merged).filter(event => (
       !promotedIds.has(event.id)
       // Commentary already owns the live assistant surface. Keep it out of
       // both sampled and remotely loaded active trace detail.
       && (includeCommentary || !row.active || event.phase !== 'commentary')
     ))
-  }, [includeCommentary, loadedEvents, row.active, row.events, row.promotedCommentaryIds])
+  }, [includeCommentary, loadedEvents, row.active, row.events, row.promotedCommentaryIds, row.afterSeq, row.throughSeq])
   const traceSummary = useMemo(() => {
     let toolEventCount = 0
     let thoughtCount = 0
@@ -337,7 +338,7 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
   const showMore = async () => {
     if (!runId || loadingMoreRef.current) return
     const generation = loadGeneration.current
-    const cursor = nextAfter
+    const cursor = Math.max(nextAfter, row.afterSeq ?? 0)
     loadingMoreRef.current = true
     setLoadingMore(true)
     setLoadError(null)
@@ -350,11 +351,12 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
         || current.selectedSessionId !== sessionId
       ) return
       const nextCursor = page.next_after ?? cursor
-      const bounded = boundLoadedTraceEvents(mergeTraceEvents(loadedEvents ?? [], page.events))
+      const bounded = boundLoadedTraceEvents(traceEventsWithinRow(row, mergeTraceEvents(loadedEvents ?? [], page.events)))
       setLoadedEvents(bounded.events)
       setNextAfter(nextCursor)
       setDetailLimited(bounded.limited)
-      setHasMore(page.has_more && nextCursor > cursor && !bounded.limited)
+      setHasMore(page.has_more && nextCursor > cursor && !bounded.limited
+        && (row.throughSeq === undefined || nextCursor < row.throughSeq))
     } catch (error) {
       const current = useAppStore.getState()
       if (

@@ -2,10 +2,16 @@ import type { AgentFile, Event } from '../types'
 import { messageText } from './format'
 import { foldMarkdownSource } from './math'
 import { importedCrossChatDelivery, type ImportedCrossChatDelivery } from './imported-cross-chat-delivery'
+import { isNativeGoalSteerEvent } from './native-goal-steering'
 
 export type TimelineRow = MessageRow | TraceRow | ProgressRow | MediaRow | SystemRow | JobRow
 export interface MessageRow { kind: 'message'; key: string; seq: number; role: 'user' | 'assistant'; events: Event[]; files: AgentFile[] }
-export interface TraceRow { kind: 'trace'; key: string; seq: number; events: Event[]; promotedCommentaryIds: string[]; runId?: string | null; active: boolean }
+export interface TraceRow {
+  kind: 'trace'; key: string; seq: number; events: Event[]; promotedCommentaryIds: string[]; runId?: string | null; active: boolean
+  /** Display-only bounds within a native run shared by multiple goal inputs. */
+  afterSeq?: number
+  throughSeq?: number
+}
 export interface ProgressRow { kind: 'progress'; key: string; seq: number; events: Event[]; hiddenCount: number }
 export interface MediaRow { kind: 'media'; key: string; seq: number; files: AgentFile[] }
 export interface SystemRow {
@@ -40,6 +46,8 @@ interface Turn {
   finishedSeq?: number
   failedAt?: string
   stoppedAt?: string
+  afterSeq?: number
+  throughSeq?: number
 }
 
 // A terminal exchange summary must override stale "active" leg packets, but
@@ -115,10 +123,16 @@ function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProje
   const currentOccurrenceByRun = new Map<string, { key: string; started: boolean }>()
   for (const event of ordered) {
     const primaryRunId = event.run_id?.trim() || ''
-    const stableOccurrenceId = jobOccurrenceIdentity(event)
+    const nativeGoalInput = isNativeGoalSteerEvent(event)
+    const stableOccurrenceId = nativeGoalInput ? '' : jobOccurrenceIdentity(event)
     if (primaryRunId) {
       let occurrence = currentOccurrenceByRun.get(primaryRunId)
-      if (stableOccurrenceId) {
+      if (nativeGoalInput) {
+        // The run owner stays native, but prior scheduled-work metadata must
+        // not absorb subsequent human-goal output into an earlier job card.
+        occurrence = { key: `${primaryRunId}\0goal-input:${event.seq}`, started: true }
+        currentOccurrenceByRun.set(primaryRunId, occurrence)
+      } else if (stableOccurrenceId) {
         const startsOccurrence = event.type === 'turn_started' || event.type === 'job_ran' || event.type === 'job_started'
         const stable = { key: `${primaryRunId}\0occurrence:${stableOccurrenceId}`, started: startsOccurrence }
         if (!occurrence || occurrence.key === stable.key || startsOccurrence) currentOccurrenceByRun.set(primaryRunId, stable)
@@ -150,6 +164,7 @@ function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProje
   const groupByOccurrence = new Map<string, string>()
   const jobByExplicitGroup = new Map<string, string>()
   for (const event of ordered) {
+    if (isNativeGoalSteerEvent(event)) continue
     const jobId = String(event.job_id || event.job?.id || '').trim()
     const groupId = event.job_timeline_group_id?.trim() || ''
     if (jobId && groupId) jobByExplicitGroup.set(groupId, jobId)
@@ -175,6 +190,7 @@ function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProje
       stableOccurrenceId && explicitJobId ? `${explicitJobId}\0occurrence:${stableOccurrenceId}` : runId
     )
     const topLevel = event.type === 'emergency_alert_raised'
+      || isNativeGoalSteerEvent(event)
       || Boolean(providerInteractionAuditKey(event))
       || Boolean(codexLifecycleSemanticKey(event))
       || isHandoffDigestEvent(event)
@@ -185,6 +201,7 @@ function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProje
       const boundaryKey = providerInteractionAuditKey(event)
         || codexLifecycleSemanticKey(event)
         || crossChatSemanticKey(event)
+        || (isNativeGoalSteerEvent(event) ? `turn:${event.run_id}:start-${event.seq}` : null)
         || (event.run_id ? `turn:${event.run_id}` : `event:${event.id}`)
       if (!createdKeys.has(boundaryKey)) {
         createdKeys.add(boundaryKey)
@@ -237,6 +254,8 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
   const crossChatTerminalStatusByExchange = new Map<string, NonNullable<Event['exchange_status']>>()
   const stopRows = new Map<string, SystemRow>()
   const providerInteractionRows = new Map<string, SystemRow>()
+  const nativeGoalInputIds = new Set<string>()
+  const nativeGoalInputKeys = new Set<string>()
   let active: Turn | null = null
 
   // Provider output from scheduled work does not always repeat job_title.
@@ -477,6 +496,33 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
       items.push({ kind: 'system', key: `event:${event.id}`, seq: event.seq, event })
       continue
     }
+    if (isNativeGoalSteerEvent(event)) {
+      const key = `turn:${event.run_id}:start-${event.seq}`
+      const identity = `${event.session_id}\0${event.run_id}\0${event.id}`
+      // Replay the same authoritative receipt once, without merging distinct
+      // human inputs merely because their text happens to match.
+      if (nativeGoalInputIds.has(identity) || nativeGoalInputKeys.has(key)) continue
+      nativeGoalInputIds.add(identity)
+      nativeGoalInputKeys.add(key)
+      const previous = turns.get(event.run_id!)
+      if (previous) {
+        // Settle only the preceding display slice, not the native run. Later
+        // provider output and the real terminal event retain this same owner.
+        previous.finishedAt ||= event.ts
+        previous.throughSeq = Math.min(previous.finishedSeq ?? event.seq - 1, event.seq - 1)
+      }
+      const next = createTurn(event, key)
+      next.afterSeq = event.seq
+      if (messageText(event).trim() || event.file_ids?.length) next.user = event
+      for (const id of event.file_ids ?? []) {
+        const file = filesById.get(id)
+        if (file && nativeGoalFileBelongsToSession(file, event.session_id)
+          && !next.files.some(value => value.id === id)) next.files.push(file)
+      }
+      turns.set(event.run_id!, next)
+      active = next
+      continue
+    }
     if (event.type === 'turn_started') {
       const interruptedRunId = event.steer_interrupted_run_id?.trim()
       const predecessor = interruptedRunId ? turns.get(interruptedRunId) : null
@@ -543,6 +589,10 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
           if (
             'kind' in item
             || !item.user?.file_ids?.includes(file.id)
+            || isNativeGoalSteerEvent(item.user) && (
+              event.session_id !== item.user.session_id
+              || !nativeGoalFileBelongsToSession(file, item.user.session_id)
+            )
             || item.files.some(value => value.id === file.id)
           ) continue
           item.files.push(file)
@@ -593,7 +643,8 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
   for (const item of displayItems.sort((a, b) => a.seq - b.seq)) {
     if ('kind' in item) { rows.push(item); continue }
     const inputFileIds = new Set(item.user?.file_ids ?? [])
-    const inputFiles = item.files.filter(file => inputFileIds.has(file.id))
+    const inputFiles = item.files.filter(file => inputFileIds.has(file.id)
+      && (!item.user || !isNativeGoalSteerEvent(item.user) || nativeGoalFileBelongsToSession(file, item.user.session_id)))
     const outputFiles = item.files.filter(file => !inputFileIds.has(file.id))
     const mediaRow: MediaRow | null = outputFiles.length ? {
       kind: 'media',
@@ -665,6 +716,8 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
         promotedCommentaryIds: item.promotedCommentaryIds,
         runId: item.runId,
         active: traceActive,
+        ...(item.afterSeq !== undefined ? { afterSeq: item.afterSeq } : {}),
+        ...(item.throughSeq !== undefined ? { throughSeq: item.throughSeq } : {}),
       })
     }
     if (traceActive && currentTurn?.key === item.key) {
@@ -695,6 +748,17 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
   // it after lifecycle markers and already-positioned completed answers mirrors
   // Mac without allowing a successor's progress to reshuffle older rows.
   return liveProgress ? [...orderedRows, liveProgress] : orderedRows
+}
+
+function nativeGoalFileBelongsToSession(file: AgentFile, sessionId: string): boolean {
+  return !file.session_id || file.session_id === sessionId
+}
+
+/** Full-run lazy detail must not cross an accepted goal input's display slice. */
+export function traceEventsWithinRow(row: TraceRow, events: readonly Event[]): Event[] {
+  if (row.afterSeq === undefined && row.throughSeq === undefined) return events as Event[]
+  return events.filter(event => (row.afterSeq === undefined || event.seq > row.afterSeq)
+    && (row.throughSeq === undefined || event.seq <= row.throughSeq))
 }
 
 function jobOccurrenceIdentity(event: Event): string {
