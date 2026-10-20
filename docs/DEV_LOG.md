@@ -1,5 +1,51 @@
 # Public development log
 
+## 2026-10-20 — Verify history repair in the local desktop
+
+- Integrate the existing repair-budget fix without changing Electron UI code.
+  The combined branch passes 67 focused history/paging tests, desktop type
+  checking, and the production Electron build.
+- After an explicitly authorized local restart, AgentsServer 1.0.11-beta.2
+  with the narrow source patch returns ordinary prompts and replies that its
+  unpatched history page omitted. No conversation history was deleted.
+- Reopened the actual desktop through its production transport, inspected
+  restored historical user messages, and clicked the latest-message control.
+  Recent user messages were visible directly, without opening thinking traces.
+- The user also reports recovery in a second, unchanged client after the server
+  restart. That report is separate from the directly exercised desktop checks.
+- This verifies the targeted history failure, not full cross-machine/provider
+  parity. No public release was published.
+
+## 2026-10-17 — Keep chat messages visible in repair-heavy history pages
+
+- Fix #91: reserve semantic-page slots for ordinary user prompts and assistant
+  output before emitting same-ID history repair receipts. Give repairs a
+  separate bounded allowance while retaining the absolute response cap,
+  existing replay suppression, trace access and older-page cursors.
+- Five focused regressions cover default and small pages, older-page reads,
+  active/interrupted turns, dense corrections and the absolute response limit.
+  The original allocation fails the new message-retention checks. All 159
+  targeted paging, job-history, async-message, Claude-repair and Codex model
+  retirement checks pass after integrating the latest main branch.
+  The wider Codex native-proof suite has one existing malformed-provider-line
+  failure, reproduced with the unmodified allocation; it is not fixed here.
+- An isolated offscreen native Electron development app used production
+  IPC/HTTP against the changed server source and synthetic Codex history with
+  real native-replay proof. The 48-item response retained all 169 corrections
+  and the latest user/final messages. Native input exercised trace expansion,
+  collapse, older-history loading and reload: prompt/final output stayed
+  visible without opening the trace. No real provider turn was submitted.
+- Python source compilation and the dependency lock check pass. After an
+  explicitly authorized local server patch and restart, the real desktop
+  transport returned ordinary prompts and assistant output in the default
+  history page; the user confirmed that the conversation was visible again.
+  The post-restart UI automation did not establish its visibility assertion,
+  so user confirmation and the earlier isolated native checks are recorded
+  separately. This does not establish full provider-content parity.
+- Availability: source branch and local server patch only; requires a server
+  update, not a desktop UI change. No public release or cross-machine
+  acceptance claim. Existing conversation history was retained.
+
 ## 2026-10-18 - Preview Simplified Chinese on mobile
 
 - Add a first-pass device-local System / English / Simplified Chinese choice in mobile
