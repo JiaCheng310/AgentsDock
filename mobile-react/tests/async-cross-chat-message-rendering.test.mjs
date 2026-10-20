@@ -19,6 +19,7 @@ const fixture = {
 }
 globalThis.__asyncChatMessageFixture = fixture
 const mocks = {
+  './store/useAppearanceStore': `export const useAppearanceStore = selector => selector({ preference: 'system' });`,
   'react-native': `import { createElement } from 'react';
     export const View='View', Text='Text', ActivityIndicator='ActivityIndicator', ScrollView='ScrollView', Image='Image', TouchableWithoutFeedback='TouchableWithoutFeedback';
     export const Pressable = props => createElement('Pressable', props, typeof props.children === 'function' ? props.children({ pressed: false }) : props.children);

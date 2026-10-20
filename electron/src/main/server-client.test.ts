@@ -271,6 +271,20 @@ describe('Team Mail metadata websocket', () => {
 describe('AgentServerClient Claude session policy', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
+  it('preserves Gemini custom API selection when creating a chat', async () => {
+    const request = vi.fn(async (_input: unknown, init: RequestInit = {}) => {
+      expect(JSON.parse(String(init.body))).toMatchObject({ backend: 'gemini', provider_connection: 'custom' })
+      return new Response(JSON.stringify({ session: { id: 'gemini-chat', title: 'Gemini', folder: 'General', cwd: '/work', backend: 'gemini', provider_connection: 'custom' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', request)
+    const client = new AgentServerClient('http://example.test:7850', 'token')
+    try {
+      expect((await client.createSession({ backend: 'gemini', provider_connection: 'custom', cwd: '/work', title: 'Gemini', folder: 'General' })).backend).toBe('gemini')
+      expect(request).toHaveBeenCalledOnce()
+    } finally { client.dispose() }
+  })
+
   it('includes the additive Claude permission mode when creating a chat', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = []
     vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init: RequestInit = {}) => {
@@ -1367,6 +1381,37 @@ describe('AgentServerClient server-wide Codex goals', () => {
       expect(call.headers.cookie).toBeUndefined()
       expect(call.headers['sec-fetch-mode']).toBeUndefined()
       expect(call.headers.authorization).toBeUndefined()
+    }
+  })
+})
+
+describe('AgentServerClient QR address discovery', () => {
+  it('uses the exact native authenticated prefixed route without browser headers or redirects', async () => {
+    const requests: IncomingMessage[] = []
+    await withLocalHTTPServer(async (request, response) => {
+      requests.push(request)
+      if (requests.length === 2) {
+        response.writeHead(302, { Location: '/must-not-follow' })
+        response.end()
+      } else {
+        response.setHeader('Content-Type', 'application/json')
+        response.end(JSON.stringify({ version: 1, server_identity: 'fixture', urls: ['http://192.168.1.2:7852'] }))
+      }
+    }, async baseURL => {
+      const client = new AgentServerClient(`${baseURL}/mounted`, 'fixture-token')
+      try {
+        await expect(client.connectionAddresses()).resolves.toMatchObject({ server_identity: 'fixture' })
+        await expect(client.connectionAddresses()).rejects.toThrow()
+      } finally { client.dispose() }
+    })
+    expect(requests).toHaveLength(2)
+    for (const request of requests) {
+      expect(request.method).toBe('GET')
+      expect(request.url).toBe('/mounted/api/connection-addresses')
+      expect(request.headers['x-agentsdock-token']).toBe('fixture-token')
+      expect(request.headers['sec-fetch-mode']).toBeUndefined()
+      expect(request.headers.origin).toBeUndefined()
+      expect(request.headers.authorization).toBeUndefined()
     }
   })
 })

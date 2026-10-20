@@ -45,6 +45,8 @@
   AgentsDock brings <strong>Claude Code</strong>, <strong>Codex</strong>,
   <strong>Cursor</strong>, and <strong>OpenCode</strong> into one desktop and
   mobile workspace for coding and research.
+  <strong>Gemini</strong> is also supported on desktop through an API connection
+  in versions containing the Gemini integration.
   <br />
   <br />
   <strong>Desktop:</strong>

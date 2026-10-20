@@ -1,14 +1,20 @@
 import type { AgentFile } from '@shared/types'
 import { t } from '@shared/i18n'
 import { useAppStore } from '../store/app-store'
+import { trackOperation } from './analytics'
+
+/** Preserve the native request/error contract; report no file metadata. */
+export function requestNativeFileOpen(sessionId: string, file: AgentFile): Promise<void> {
+  return trackOperation('file_open_requested', () => window.agentsDock.files.open(sessionId, file))
+}
 
 export function openAgentFile(sessionId: string, file: AgentFile): Promise<boolean> {
-  return openFileWithFeedback(file.title || file.filename, () => window.agentsDock.files.open(sessionId, file))
+  return openFileWithFeedback(file.title || file.filename, () => requestNativeFileOpen(sessionId, file))
 }
 
 export function openLinkedFile(sessionId: string, target: string): Promise<boolean> {
   const filename = target.replace(/\\/g, '/').split('/').at(-1) || target
-  return openFileWithFeedback(filename, () => window.agentsDock.files.openLinked(sessionId, target))
+  return openFileWithFeedback(filename, () => trackOperation('file_open_requested', () => window.agentsDock.files.openLinked(sessionId, target)))
 }
 
 async function openFileWithFeedback(filename: string, open: () => Promise<void>): Promise<boolean> {

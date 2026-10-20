@@ -230,7 +230,7 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
     try {
       const test = window.agentsDock.codex?.testProvider
       if (typeof test !== 'function') { setProviderError('providerUpdate'); return }
-      const pending = trackOperation('provider_connection_tested', () => test(scope, { base_url: baseURL.trim(), api_key: apiKey }), value => value.ok)
+      const pending = trackOperation('provider_connection_tested', () => test(scope, { base_url: baseURL.trim(), api_key: apiKey }), value => value.ok, { backend: 'codex' })
       apiKey = ''
       const next = await pending
       if (request !== testRequestRef.current || !ownsScope(scope) || revision !== draftRevisionRef.current) return
@@ -254,7 +254,7 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
     try {
       const save = window.agentsDock.codex?.setProvider
       if (typeof save !== 'function') { setProviderError('providerUpdate'); return }
-      const pending = trackOperation('provider_connection_saved', () => save(scope, { base_url: baseURL.trim(), api_key: apiKey, verify_connection: true }), value => value.configured)
+      const pending = trackOperation('provider_connection_saved', () => save(scope, { base_url: baseURL.trim(), api_key: apiKey, verify_connection: true }), value => value.configured, { backend: 'codex' })
       apiKey = ''
       const next = await pending
       if (request !== providerRequestRef.current || !ownsScope(scope)) return
@@ -282,7 +282,7 @@ export function CodexAuthSettings({ connected, profileId, profileGeneration, ser
     try {
       const reset = window.agentsDock.codex?.resetProvider
       if (typeof reset !== 'function') { setProviderError('providerUpdate'); return }
-      const next = await trackOperation('provider_connection_forgotten', () => reset(scope), value => !value.configured)
+      const next = await trackOperation('provider_connection_forgotten', () => reset(scope), value => !value.configured, { backend: 'codex' })
       if (request !== providerRequestRef.current || !ownsScope(scope)) return
       setProvider(next)
       setProviderScope(scope)

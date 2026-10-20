@@ -3,7 +3,7 @@ import { customModelBackend, customModelInput, type CustomModelBackend, type Cus
 import { cliAccountBackend, type CLIAccountBackend, connectionRequest, type ConnectionBackend, type ConnectionAction, type ProviderConnectionRequest, type ProviderConnectionReply } from '../shared/provider-connections'
 import { app, BrowserWindow, clipboard, dialog, nativeImage, Notification, shell } from 'electron'
 import QRCode from 'qrcode'
-import { localOnlyServerUrl, serverConnectionLink, type ServerConnectionQr } from '../shared/server-connection-link'
+import { localOnlyServerUrl, normalizeConnectionURLs, serverConnectionLink, type ServerConnectionQr } from '../shared/server-connection-link'
 import { discoverLocalServers, type DiscoveredLocalServer } from './local-server-discovery'
 import { applyOpenCodeSessionEvent } from '../shared/opencode'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -24,6 +24,7 @@ import { sideChatSyncAvailable, type SyncedSideChat, sideQuestionLimit, sideQues
 import { parseBulletinHintRefresh } from '../shared/team-bulletin-hints'
 import {
   cursorLocalSessionImportSupported,
+  geminiLocalSessionImportSupported,
   localSessionImportBatchLimit,
   localSessionImportListLimit,
   parseBulkImportSessionItems,
@@ -173,6 +174,7 @@ import { SubagentEventProjector } from './subagent-projection'
 import { mergeTimelineSearchResults } from './search'
 import type { TeamHubConfigureServerRoleInput, TeamHubDiscovery, TeamHubScope, TeamHubServerScope } from '../shared/team-hub'
 import type { TeamHubBootstrapProof, TeamHubBootstrapProofInput } from './team-hub-service'
+import { TeamHubStoppedHostingError } from './team-hub-role-change'
 import type {
   SecurePeerActivateInput,
   SecurePeerApproveInput,
@@ -881,47 +883,71 @@ export class AppService {
       ...(input.renameOnly === true ? { require_existing_host: true as const } : {}),
       ...(networkName === undefined ? {} : { network_name: networkName })
     }
-    const receipt = input.role === 'host'
-      ? await context.scope.client.enableTeamHubHost(request)
-      : await context.scope.client.disableTeamHubHost(request)
-    this.requireSecurePeerControlContext(context)
-    requireExactTeamHubServerRoleReceipt(receipt, {
-      requestId,
-      serverIdentity: context.expected.serverIdentity,
-      serverInstanceId: context.serverInstanceId,
-      serverName,
-      role: input.role
-    })
-    if (input.renameOnly === true && !['rename', 'already_host'].includes(receipt.operation)) {
-      throw new Error('AgentsServer did not confirm an existing Host rename.')
-    }
+    try {
+      const receipt = input.role === 'host'
+        ? await context.scope.client.enableTeamHubHost(request)
+        : await context.scope.client.disableTeamHubHost(request)
+      this.requireSecurePeerControlContext(context)
+      requireExactTeamHubServerRoleReceipt(receipt, {
+        requestId,
+        serverIdentity: context.expected.serverIdentity,
+        serverInstanceId: context.serverInstanceId,
+        serverName,
+        role: input.role
+      })
+      if (input.renameOnly === true && !['rename', 'already_host'].includes(receipt.operation)) {
+        throw new Error('AgentsServer did not confirm an existing Host rename.')
+      }
 
-    const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
-    this.assertCurrentScope(context.scope)
-    const current = this.teamHubServerScope()
-    if (
-      current.profileId !== context.expected.profileId
-      || current.profileGeneration !== context.expected.profileGeneration
-      || current.serverIdentity !== context.expected.serverIdentity
-      || health.ok !== true
-      || health.server_identity !== context.expected.serverIdentity
-      || health.server_instance_id !== context.serverInstanceId
-    ) throw staleProfileError()
-    const enabledCapability = requireTeamHubHostControlCapability(
-      health.capabilities?.team_hub_host_control_v1
-    )
-    if (!enabledCapability.available || enabledCapability.enabled !== (input.role === 'host')) {
-      throw new Error(enabledCapability.message || 'AgentsServer did not apply the Team Network role.')
+      const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
+      this.assertCurrentScope(context.scope)
+      const current = this.teamHubServerScope()
+      if (
+        current.profileId !== context.expected.profileId
+        || current.profileGeneration !== context.expected.profileGeneration
+        || current.serverIdentity !== context.expected.serverIdentity
+        || health.ok !== true
+        || health.server_identity !== context.expected.serverIdentity
+        || health.server_instance_id !== context.serverInstanceId
+      ) throw staleProfileError()
+      const enabledCapability = requireTeamHubHostControlCapability(
+        health.capabilities?.team_hub_host_control_v1
+      )
+      if (!enabledCapability.available || enabledCapability.enabled !== (input.role === 'host')) {
+        throw new Error(enabledCapability.message || 'AgentsServer did not apply the Team Network role.')
+      }
+      const discovery = parseTeamHubDiscovery(
+        health.capabilities?.team_hub_v1,
+        context.expected.serverIdentity
+      )
+      if (discovery.designatedHost !== (input.role === 'host')) {
+        throw new Error('AgentsServer did not apply the requested Team Network role.')
+      }
+      this.adoptHealth(context.scope, health)
+      return discovery
+    } catch (error) {
+      let stopped = false
+      if (input.role === 'member') {
+        // Demotion may commit before its response, follow-up health read, or
+        // previous-member recovery fails. Confirm the explicit role once;
+        // absent capabilities or cached discovery do not prove a transition.
+        try {
+          this.requireSecurePeerControlContext(context)
+          const health = await this.readActivityHealth(context.scope, () => context.scope.client.health())
+          this.requireSecurePeerControlContext(context)
+          const hostControl = requireTeamHubHostControlCapability(health.capabilities?.team_hub_host_control_v1)
+          const hub = health.capabilities?.team_hub_v1
+          if (health.ok === true && health.server_identity === context.expected.serverIdentity
+            && health.server_instance_id === context.serverInstanceId && hostControl.available
+            && hostControl.enabled === false && hub?.designated_host === false) {
+            parseTeamHubDiscovery(hub, context.expected.serverIdentity)
+            this.adoptHealth(context.scope, health)
+            stopped = true
+          }
+        } catch { /* Preserve the mutation error when the actual role is unknown. */ }
+      }
+      throw stopped ? new TeamHubStoppedHostingError(error) : error
     }
-    const discovery = parseTeamHubDiscovery(
-      health.capabilities?.team_hub_v1,
-      context.expected.serverIdentity
-    )
-    if (discovery.designatedHost !== (input.role === 'host')) {
-      throw new Error('AgentsServer did not apply the requested Team Network role.')
-    }
-    this.adoptHealth(context.scope, health)
-    return discovery
   }
 
   /**
@@ -1858,10 +1884,29 @@ export class AppService {
 
   async serverConnectionQr(profileId: string): Promise<ServerConnectionQr> {
     const { token, profile, revision, assertCurrent } = await this.serverCredentialForSharing(profileId)
-    const dataUrl = await QRCode.toDataURL(serverConnectionLink({ serverUrl: profile.serverUrl, accessToken: token,
-      name: profile.name, serverIdentity: profile.serverIdentity ?? null }), { width: 512, margin: 4, errorCorrectionLevel: 'M' })
+    let serverUrls: string[] | undefined
+    let identity = profile.serverIdentity ?? null
+    const probe = this.clientFactory(profile.serverUrl, token)
+    try {
+      let advertised: Awaited<ReturnType<AgentServerClient['connectionAddresses']>> | null = null
+      try { advertised = await probe.connectionAddresses() } catch { /* Offline/older servers retain their saved single address. */ }
+      assertCurrent()
+      if (advertised) {
+        if (advertised.version !== 1 || typeof advertised.server_identity !== 'string' || !advertised.server_identity.trim() || !Array.isArray(advertised.urls)) throw new Error('Invalid server connection addresses.')
+        if (identity && advertised.server_identity !== identity) throw new Error('Server identity mismatch. Check this saved connection before sharing.')
+        identity = advertised.server_identity
+        const urls = advertised.urls.length ? normalizeConnectionURLs(advertised.urls) : []
+        // The remote server supplies its addresses; never use this desktop's interfaces.
+        const primary = localOnlyServerUrl(profile.serverUrl) && urls.length ? [] : [profile.serverUrl]
+        serverUrls = normalizeConnectionURLs([...new Set([...primary, ...urls])].slice(0, 6))
+        if (serverUrls.length < 2 && serverUrls[0] === profile.serverUrl) serverUrls = undefined
+      }
+    } finally { probe.dispose() }
+    const serverUrl = serverUrls?.[0] ?? profile.serverUrl
+    const dataUrl = await QRCode.toDataURL(serverConnectionLink({ serverUrl, ...(serverUrls ? { serverUrls } : {}), accessToken: token,
+      name: profile.name, serverIdentity: identity }), { width: 512, margin: 4, errorCorrectionLevel: 'M' })
     assertCurrent()
-    return { dataUrl, serverUrl: profile.serverUrl, revision, localOnly: localOnlyServerUrl(profile.serverUrl) }
+    return { dataUrl, serverUrl, revision, localOnly: localOnlyServerUrl(serverUrl) }
   }
 
   async saveServerConnectionQr(profileId: string, revision: number): Promise<boolean> {
@@ -2564,7 +2609,9 @@ export class AppService {
     const scope = this.captureScope()
     await this.ensureValidatedScope(scope)
     const capability = requireLocalSessionImportCapability(this.health)
-    const candidates = cursorLocalSessionImportSupported(this.health)
+    const candidates = geminiLocalSessionImportSupported(this.health)
+      ? await scope.client.listLocalSessions(localSessionImportListLimit(capability), cursorLocalSessionImportSupported(this.health), true)
+      : cursorLocalSessionImportSupported(this.health)
       ? await scope.client.listLocalSessions(localSessionImportListLimit(capability), true)
       : await scope.client.listLocalSessions(localSessionImportListLimit(capability))
     this.assertCurrentScope(scope)
@@ -2578,6 +2625,9 @@ export class AppService {
     const normalized = parseBulkImportSessionItems(items, localSessionImportListLimit(capability))
     if (normalized.some(item => item.backend === 'cursor') && !cursorLocalSessionImportSupported(this.health)) {
       throw new Error('Cursor Import Chat requires a server with Cursor local import support.')
+    }
+    if (normalized.some(item => item.backend === 'gemini') && !geminiLocalSessionImportSupported(this.health)) {
+      throw new Error('Gemini Import Chat requires a server with Gemini local import support.')
     }
     const batchLimit = localSessionImportBatchLimit(capability)
     const results: BulkImportSessionResult[] = []
@@ -3783,6 +3833,14 @@ export class AppService {
 
   async claudeRuntime(sessionId: string): Promise<ClaudeRuntimeSnapshot> {
     return this.providerRequest(scope => scope.client.claudeRuntime(sessionId))
+  }
+
+  async geminiRuntime(sessionId: string) {
+    return this.providerRequest(scope => scope.client.geminiRuntime(sessionId))
+  }
+
+  async resolveGeminiInteraction(sessionId: string, interactionId: string, response: Record<string, JsonValue>) {
+    return this.providerRequest(scope => scope.client.resolveGeminiInteraction(sessionId, interactionId, response))
   }
 
   async setClaudeGoal(sessionId: string, condition: string): Promise<ClaudeRuntimeSnapshot> {
@@ -6426,6 +6484,7 @@ export class AppService {
       selectedSessionId: this.focusedSessionId,
       folderOrder: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'folderOrder', [] as string[]), []),
       collapsedFolders: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'collapsedFolders', [] as string[]), []),
+      pinnedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'pinnedCollapsed', false), false),
       archivedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'archivedCollapsed', false), false),
       inspectorVisible: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'inspectorVisible', false), false),
       activeProfileId: scope.profileId,
@@ -7758,11 +7817,14 @@ export function mergeSessionSummaries(previous: Session[], incoming: Session[]):
 }
 
 function preserveCustomProviderModels(previous: Session, incoming: Session): Session {
-  const saved = previous.codex_provider_catalog
-  const summary = incoming.codex_provider_catalog
-  if (incoming.codex_provider !== 'custom' || previous.codex_provider !== 'custom' || !saved || !summary
+  const codex = incoming.backend === 'codex'
+  const field = codex ? 'codex_provider_catalog' : 'provider_connection_catalog'
+  const choice = codex ? 'codex_provider' : 'provider_connection'
+  const saved = previous[field]
+  const summary = incoming[field]
+  if (incoming.backend !== previous.backend || incoming[choice] !== 'custom' || previous[choice] !== 'custom' || !saved || !summary
     || !summary.configured || saved.base_url !== summary.base_url || summary.models !== undefined) return incoming
-  return { ...incoming, codex_provider_catalog: {
+  return { ...incoming, [field]: {
     ...summary,
     ...(saved.models !== undefined ? { models: saved.models } : {}),
     ...(saved.model_efforts !== undefined ? { model_efforts: saved.model_efforts } : {}),

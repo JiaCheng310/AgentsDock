@@ -20,6 +20,7 @@ import { ChatPane } from './components/ChatPane'
 import { ChatSplitView } from './components/ChatSplitView'
 import { CodeReview } from './components/CodeReview'
 import { ClaudeInteractionShelf } from './components/ClaudeInteractionShelf'
+import { GeminiInteractionShelf } from './components/GeminiInteractionShelf'
 import { ClaudeRuntimeProvider } from './components/ClaudeRuntimeContext'
 import { CodexInteractionShelf } from './components/CodexInteractionShelf'
 import { CodexRuntimeProvider } from './components/CodexRuntimeContext'
@@ -144,7 +145,11 @@ function AppWorkspace() {
   const [sideChatController] = useState(() => new SideChatController())
   const [inspectorTab, setInspectorTab] = useState<InspectorWorkspaceTab>(readInspectorTab)
   const preferredInspectorTab = useRef(readInspectorTab())
+  const inspectorTabRef = useRef(inspectorTab)
+  inspectorTabRef.current = inspectorTab
   const chooseInspectorTab = useCallback((tab: InspectorWorkspaceTab) => {
+    if (tab === 'files' && (inspectorTabRef.current !== 'files' || !useAppStore.getState().inspectorVisible)) trackEvent('workspace_files_opened')
+    inspectorTabRef.current = tab
     if (tab !== 'review') {
       preferredInspectorTab.current = tab
       saveInspectorTab(tab)
@@ -834,6 +839,7 @@ function AppWorkspace() {
       <div className="chat-workspace-shelves">
         <CodexInteractionShelf key={`codex-interactions:${selectedRenderKey}`} />
         <ClaudeInteractionShelf key={`claude-interactions:${selectedRenderKey}`} />
+        <GeminiInteractionShelf key={`gemini-interactions:${selectedRenderKey}`} session={selectedSession} />
       </div>
       {selectedSession && <EmergencyTimelineDock
         key={`emergency:${selectedRenderKey}`}

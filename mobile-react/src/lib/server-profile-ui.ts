@@ -24,6 +24,7 @@ export interface ServerProfileDraftValues {
   profileId: string | null
   name: string
   serverUrl: string
+  serverUrls?: string[]
   accessToken: string
   clearAccessToken: boolean
   resetServerIdentity: boolean
@@ -33,6 +34,8 @@ export interface ServerProfileTestInput {
   profileId?: string
   serverUrl: string
   accessToken?: string | null
+  signal?: AbortSignal
+  timeoutMs?: number
 }
 
 export interface ServerConnectionTestResult {
@@ -45,6 +48,7 @@ export interface ServerConnectionTestResult {
 export interface CreateServerProfileInput {
   name?: string
   serverUrl: string
+  serverUrls?: string[]
   accessToken?: string | null
   serverIdentity?: string | null
   serverSetupComplete: true
@@ -53,6 +57,7 @@ export interface CreateServerProfileInput {
 export interface UpdateServerProfileInput {
   name?: string
   serverUrl?: string
+  serverUrls?: string[]
   /** Undefined preserves the stored credential; null removes it. */
   accessToken?: string | null
   /** Identity returned by the successful test for this exact connection edit. */
@@ -172,6 +177,7 @@ export function buildCreateServerProfileInput(
   return {
     ...(draft.name.trim() ? { name: draft.name.trim() } : {}),
     serverUrl: normalizeServerURL(draft.serverUrl),
+    ...(draft.serverUrls ? { serverUrls: draft.serverUrls } : {}),
     ...(accessToken !== undefined ? { accessToken } : {}),
     serverIdentity: serverIdentity ?? null,
     serverSetupComplete: true,

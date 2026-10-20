@@ -17,12 +17,12 @@ import {
 } from '../lib/timeline-inline-references'
 import { texToSvg } from '../lib/tex-svg'
 import { scaleChatFont } from '../lib/typography'
-import { usePalette } from '../theme'
+import { radius, usePalette } from '../theme'
 
 const mathMarkdown = installMathMarkdown(new MarkdownIt({ typographer: true }))
 const Markdown = MarkdownRenderer as ComponentType<MarkdownProps & { children: ASTNode[] }>
 const EMPTY_CHAT_REFERENCES: readonly ChatReference[] = []
-const inlineReferenceStyles = StyleSheet.create({ marker: { borderRadius: 4, fontWeight: '800' } })
+const inlineReferenceStyles = StyleSheet.create({ marker: { borderRadius: radius.sm, fontWeight: '800' } })
 
 export function MarkdownContent({
   value,

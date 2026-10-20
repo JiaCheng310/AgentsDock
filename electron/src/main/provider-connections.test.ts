@@ -14,6 +14,30 @@ const empty = { ...config, configured: false, has_api_key: false, base_url: null
   auth_header: null, checked_at: null, last_result: null }
 
 describe('settings-only provider connection native transport', () => {
+  it('keeps Gemini protocol/header separate and uses native authenticated approval routes', async () => {
+    const gemini = { ...input, base_url: 'https://generativelanguage.googleapis.com', model: null, protocol: 'gemini' as const, auth_header: 'x-goog-api-key' as const }
+    expect(connectionRequest('gemini', 'save', gemini)).toEqual(gemini)
+    expect(() => connectionRequest('gemini', 'save', { ...gemini, auth_header: 'bearer' })).toThrow()
+    expect(() => connectionRequest('opencode', 'save', gemini)).toThrow()
+    const paths: string[] = []
+    const pending = { id: 'geminireq_' + 'a'.repeat(32), session_id: 'session-gemini', method: 'item/tool/requestApproval', params: { availableDecisions: ['accept', 'decline'] } }
+    const server = createServer(async (req, res) => {
+      for await (const _chunk of req) { /* synthetic credentials only */ }
+      expect(req.headers['x-agentsdock-token']).toBe('synthetic-admin')
+      expect(req.headers['sec-fetch-mode']).toBeUndefined()
+      expect(req.headers.origin).toBeUndefined()
+      paths.push(req.url!)
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(req.method === 'GET' ? { pending_interactions: [pending] } : { interaction: pending }))
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const client = new AgentServerClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, 'synthetic-admin')
+    try {
+      expect((await client.geminiRuntime('session-gemini')).pending_interactions).toHaveLength(1)
+      await client.resolveGeminiInteraction('session-gemini', pending.id, { decision: 'accept' })
+      expect(paths).toHaveLength(2)
+    } finally { client.dispose(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
   it('permits only the exact native Cursor credential and model routes', async () => {
     const calls: string[] = []
     const cursorConfig = { ...config, backend: 'cursor', scope: 'per_chat', base_url: 'https://api2.cursor.sh', model: 'auto', protocol: 'cursor' }

@@ -3,6 +3,8 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import QRCode from 'qrcode'
+import { parseServerConnectionLink } from '../shared/server-connection-link'
 import type {
   BulkImportSessionItem,
   BulkImportSessionResult,
@@ -415,6 +417,16 @@ describe('opening artifact files externally', () => {
 })
 
 describe('session summary merging', () => {
+  it.each(['gemini', 'claude', 'opencode', 'cursor'] as const)('retains %s models through slim polls, but honors Forget and a changed endpoint', backend => {
+    const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
+      models: [{ value: 'test-model', label: 'Test model' }] }
+    const existing: Session = { id: 'chat', title: 'Chat', backend, provider_connection: 'custom', provider_connection_catalog: catalog }
+    const { models: _models, ...summary } = catalog
+    expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: summary }])[0].provider_connection_catalog?.models).toEqual(catalog.models)
+    for (const changed of [{ ...summary, configured: false }, { ...summary, base_url: 'https://second.example' }, { ...summary, models: [] }]) {
+      expect(mergeSessionSummaries([existing], [{ ...existing, provider_connection_catalog: changed }])[0].provider_connection_catalog?.models ?? []).toEqual([])
+    }
+  })
   it('keeps the retained endpoint model list when a slim summary omits it', () => {
     const catalog = { configured: true, available: true, model: null, base_url: 'https://first.example/v1',
       models: [{ value: 'first/model', label: 'First' }], model_efforts: { 'first/model': [{ value: 'high', label: 'High' }] } }
@@ -2150,6 +2162,49 @@ describe('embedded Team Hub discovery', () => {
       confirmed: true, server_name: 'Atlas'
     })
   })
+
+  it.each(['request-failed', 'health-failed', 'missing-capability'] as const)(
+    'recovers only explicitly confirmed demotion after %s', async fault => {
+      const { service, scope } = serviceWithCapability({ available: false, designated_host: true })
+      const hostControl = {
+        available: true, enabled: true, can_enable: false, can_disable: true, version: 1,
+        status_path: '/api/admin/team-hub/host', enable_path: '/api/admin/team-hub/host/enable',
+        disable_path: '/api/admin/team-hub/host/disable', message: 'Ready.', action: null
+      }
+      const memberHub = { available: false, designated_host: false, version: 1,
+        base_path: null, hub_id: null, host_server_identity: null, message: 'Member.', action: null }
+      const nextHealth = {
+        ok: true, server_identity: 'server-a', server_instance_id: 'instance-a',
+        capabilities: fault === 'missing-capability' ? {} : {
+          team_hub_v1: memberHub, team_hub_host_control_v1: { ...hostControl, enabled: false }
+        }
+      }
+      const disableTeamHubHost = vi.fn(async (input: { request_id: string }) => {
+        if (fault !== 'health-failed') throw new Error('Host stop response lost.')
+        return { phase: 'complete', request_id: input.request_id, operation: 'disable',
+          server_identity: 'server-a', server_instance_id: 'instance-a', server_name: 'Studio',
+          reconnect_required: false, message: 'Stopped.', team_hub: memberHub }
+      })
+      const health = vi.fn().mockResolvedValue(nextHealth)
+      if (fault === 'health-failed') health.mockRejectedValueOnce(new Error('Health response lost.'))
+      Object.assign(scope.client, { disableTeamHubHost, health })
+      const adoptHealth = vi.fn()
+      Object.assign(service, {
+        health: { ok: true, server_identity: 'server-a', server_instance_id: 'instance-a',
+          capabilities: { team_hub_host_control_v1: hostControl } },
+        readActivityHealth: vi.fn((_scope: unknown, read: () => Promise<Health>) => read()), adoptHealth
+      })
+      await expect(service.configureTeamHubServerRole({
+        profileId: 'profile-a', profileGeneration: 7, serverIdentity: 'server-a'
+      }, { role: 'member', serverName: 'Studio' })).rejects.toMatchObject({
+        name: fault === 'missing-capability' ? 'Error' : 'TeamHubStoppedHostingError',
+        message: fault === 'health-failed' ? 'Health response lost.' : 'Host stop response lost.'
+      })
+      expect(health).toHaveBeenCalledTimes(fault === 'health-failed' ? 2 : 1)
+      if (fault === 'missing-capability') expect(adoptHealth).not.toHaveBeenCalled()
+      else expect(adoptHealth).toHaveBeenCalledWith(scope, nextHealth)
+    }
+  )
 
   it('projects the exact authenticated host capability behind the active server fence', async () => {
     const { service, scope } = serviceWithCapability({
@@ -8041,7 +8096,7 @@ describe('credential-free profile metadata and asynchronous authentication', () 
     await expect(service.serverTokenPreview('b')).rejects.toThrow('no saved access token')
   })
 
-  it('generates and saves a PNG for the selected profile without contacting any server', async () => {
+  it('generates and saves a legacy PNG when address discovery is unavailable without switching profiles', async () => {
     const { service, clientFactory } = prepare(2)
     const qr = await service.serverConnectionQr('b')
     expect(qr.serverUrl).toBe('https://b.test')
@@ -8054,8 +8109,47 @@ describe('credential-free profile metadata and asynchronous authentication', () 
     electronHarness.showSaveDialog.mockResolvedValueOnce({ canceled: false, filePath })
     expect(await service.saveServerConnectionQr('b', qr.revision)).toBe(true)
     expect(readFileSync(filePath)).toEqual(Buffer.from(qr.dataUrl.split(',')[1], 'base64'))
-    expect(clientFactory).not.toHaveBeenCalled()
+    expect(clientFactory).toHaveBeenCalledTimes(2)
+    expect(clientFactory).toHaveBeenLastCalledWith('https://b.test', 'fake-b')
     expect(service.getActiveServer().id).toBe('a')
+  })
+
+  it('shares only the selected server advertised addresses, preserving the configured remote endpoint', async () => {
+    const { service, clientFactory } = prepare(2)
+    const dispose = vi.fn()
+    clientFactory.mockReturnValueOnce({ connectionAddresses: async () => ({ version: 1, server_identity: 'server-b',
+      urls: ['http://100.64.0.2:7852', 'http://192.168.1.2:7852'] }), dispose } as unknown as AgentServerClient)
+    const encode = vi.spyOn(QRCode, 'toDataURL').mockImplementation((() => Promise.resolve('data:image/png;base64,fixture')) as typeof QRCode.toDataURL)
+    try {
+      const result = await service.serverConnectionQr('b')
+      const details = parseServerConnectionLink(encode.mock.calls[0][0] as string)
+      expect(details.serverUrls).toEqual(['https://b.test', 'http://100.64.0.2:7852', 'http://192.168.1.2:7852'])
+      expect(details.serverIdentity).toBe('server-b')
+      expect(details.accessToken).toBe('fake-b')
+      expect(result.serverUrl).toBe('https://b.test')
+      expect(dispose).toHaveBeenCalledOnce()
+      expect(service.getActiveServer().id).toBe('a')
+    } finally { encode.mockRestore() }
+  })
+
+  it('rejects a discovered identity mismatch before creating a credential QR', async () => {
+    const { service, clientFactory, settings } = prepare(2)
+    settings.setProfileServerIdentity('b', 'expected-b')
+    clientFactory.mockReturnValueOnce({ connectionAddresses: async () => ({ version: 1, server_identity: 'different-b', urls: [] }), dispose() {} } as unknown as AgentServerClient)
+    await expect(service.serverConnectionQr('b')).rejects.toThrow('identity mismatch')
+  })
+
+  it('rejects stale address discovery after the saved credentials change', async () => {
+    const { service, clientFactory, settings } = prepare(2)
+    const pending = deferred<{ version: number; server_identity: string; urls: string[] }>()
+    const started = deferred<void>()
+    clientFactory.mockReturnValueOnce({ connectionAddresses: () => { started.resolve(); return pending.promise }, dispose() {} } as unknown as AgentServerClient)
+    const result = service.serverConnectionQr('b')
+    const rejected = expect(result).rejects.toThrow()
+    await started.promise
+    settings.updateProfile('b', { accessToken: 'replacement' })
+    pending.resolve({ version: 1, server_identity: 'server-b', urls: ['http://100.64.0.2:7852'] })
+    await rejected
   })
 
   it('does not save a stale QR after credentials change while the save dialog is open', async () => {
@@ -8472,6 +8566,9 @@ describe('server profile lifecycle', () => {
     mkdirSync(stale, { mode: 0o700 })
     mkdirSync(recent, { mode: 0o700 })
     mkdirSync(unsafe, { mode: 0o755 })
+    // mkdir's requested mode is masked by the process umask. Keep this fixture
+    // genuinely non-private even when the test runner uses a restrictive umask.
+    if (process.platform !== 'win32') chmodSync(unsafe, 0o755)
     mkdirSync(symlinkTarget, { mode: 0o700 })
     symlinkSync(symlinkTarget, symlink)
     writeFileSync(join(stale, 'private.png'), 'stale', { mode: 0o600 })

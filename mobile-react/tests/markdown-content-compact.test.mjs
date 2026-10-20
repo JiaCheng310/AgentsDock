@@ -17,7 +17,7 @@ const mocks = {
   '../lib/markdown-ast': `export const stableMarkdownAst = value => value;`,
   '../lib/tex-svg': `export const texToSvg = () => null;`,
   '../lib/timeline-inline-references': `export const prepareInlineRouteMarkdown = text => ({ text, markers: [] }); export const restoreInlineRouteMarkerText = text => text; export const splitInlineRouteMarkerText = text => [{ text }]; export const timelineChatReferenceIsRemote = () => false; export const inlineRouteReferenceIsInteractive = () => false;`,
-  '../theme': `const colors = { text: '#eeeeee', blue: '#2f8cff', muted: '#999999', raised: '#202225', border: '#2b2d31', surface: '#18191b' }; export const usePalette = () => colors;`,
+  '../theme': `const colors = { text: '#eeeeee', blue: '#2f8cff', muted: '#999999', raised: '#202225', border: '#2b2d31', surface: '#18191b' }; export const usePalette = () => colors; export const radius = { sm: 6 };`,
 }
 const outfile = path.resolve('build/tmp', `markdown-content-compact-${process.pid}.mjs`)
 await mkdir(path.dirname(outfile), { recursive: true })

@@ -45,10 +45,10 @@ export function CustomModelSettings({ backend, active, onSaved, verifyOnSelect =
     setSelected(model); setSaving(true); setFailed(false)
     try {
       const result = await trackOperation('provider_default_model_saved', () => window.agentsDock.customModels!.save({ profileId, profileGeneration }, backend,
-        { model: model || null, expected_revision: catalog.revision }))
+        { model: model || null, expected_revision: catalog.revision }), () => true, { backend })
       if (serial.current !== request) return
       setCatalog({ ...catalog, ...result })
-      if (verifyOnSelect && verifier && (backend === 'claude' || backend === 'opencode')) {
+      if (verifyOnSelect && verifier && (backend === 'claude' || backend === 'opencode' || backend === 'gemini')) {
         await verifier.request({ profileId, profileGeneration }, backend, 'check', { expected_revision: Number(result.revision) })
         if (serial.current !== request) return
       }

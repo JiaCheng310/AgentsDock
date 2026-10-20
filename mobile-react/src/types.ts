@@ -1,4 +1,5 @@
 export type Backend = 'claude' | 'codex' | 'cursor'
+export type ProviderMode = 'default' | 'custom'
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
 export type ServerConnectionState = 'online' | 'degraded' | 'connecting' | 'retrying' | 'offline' | 'cached'
@@ -303,6 +304,8 @@ export interface StoredServerProfile {
   id: string
   name: string
   serverURL: string
+  /** Explicitly shared QR addresses, bound to serverIdentity. */
+  serverURLs?: string[]
   serverIdentity: string | null
   serverConfigured: boolean
   /** Selects the only credential record that is authoritative for this profile. */
@@ -323,13 +326,15 @@ export interface PublicServerProfile extends StoredServerProfile {
 
 export interface StoredProfileSettings {
   schemaVersion: 2
-  activeProfileId: string
+  activeProfileId: string | null
   profiles: StoredServerProfile[]
   fontScale: number
 }
 
 export interface ChatDefaults {
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
   model: string
   effort: string
   folder: string
@@ -349,6 +354,7 @@ export interface WorkspacePreferences {
 export interface AddServerProfileInput {
   name?: string
   serverURL: string
+  serverURLs?: string[]
   accessToken?: string | null
   serverIdentity?: string | null
   serverConfigured?: boolean
@@ -358,6 +364,7 @@ export interface AddServerProfileInput {
 export interface UpdateServerProfileInput {
   name?: string
   serverURL?: string
+  serverURLs?: string[]
   /** Undefined preserves the stored credential; null or an empty string removes it. */
   accessToken?: string | null
   serverIdentity?: string | null
@@ -371,6 +378,10 @@ export interface Session {
   folder?: string | null
   cwd?: string | null
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
+  codex_provider_catalog?: CustomProviderCatalog
+  provider_connection_catalog?: CustomProviderCatalog
   model?: string | null
   effort?: string | null
   system_prompt?: string | null
@@ -455,7 +466,20 @@ export interface RuntimeDiagnostic {
   last_error?: string | null
   last_error_at?: string | null
 }
+export interface CustomProviderCatalog {
+  configured: boolean
+  available: boolean
+  model?: string | null
+  base_url?: string | null
+  models?: RuntimeOption[]
+  efforts?: RuntimeOption[]
+  model_efforts?: Record<string, RuntimeOption[]>
+  default_model?: string | null
+  default_effort?: string | null
+}
 export interface RuntimeBackendCatalog {
+  native_credentials_present?: boolean
+  custom_provider?: CustomProviderCatalog
   models: RuntimeOption[]
   efforts: RuntimeOption[]
   available?: boolean
@@ -1171,6 +1195,8 @@ export interface AgentTeamMailCapability extends ServerCapability {
 }
 
 export interface HealthCapabilities {
+  codex_provider_v1?: { available?: boolean; per_chat?: boolean; per_chat_models?: boolean }
+  provider_connections_v1?: { available?: boolean; per_chat?: boolean; backends?: string[] }
   scheduled_jobs?: ScheduledJobsCapability
   agent_emergency_alerts_v1?: AgentEmergencyAlertsCapability
   provider_jobs_access_control_v1?: ProviderJobsAccessControlCapability
@@ -1314,6 +1340,8 @@ export interface CreateSessionInput {
   folder: string
   cwd: string
   backend: Backend
+  codex_provider?: ProviderMode
+  provider_connection?: ProviderMode
   model?: string | null
   effort?: string | null
   system_prompt?: string | null

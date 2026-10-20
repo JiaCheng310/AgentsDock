@@ -8,6 +8,7 @@ import { nativeFileRefsFromFiles } from '../lib/native-files'
 import { useAppStore } from '../store/app-store'
 import { ChatHeader } from './ChatHeader'
 import { ClaudeInteractionShelf } from './ClaudeInteractionShelf'
+import { GeminiInteractionShelf } from './GeminiInteractionShelf'
 import { ClaudeRuntimeProvider } from './ClaudeRuntimeContext'
 import { CodexInteractionShelf } from './CodexInteractionShelf'
 import { CodexRuntimeProvider } from './CodexRuntimeContext'
@@ -166,6 +167,7 @@ export const ChatPane = memo(function ChatPane({
       <div className="chat-workspace-shelves">
         <CodexInteractionShelf />
         <ClaudeInteractionShelf />
+        <GeminiInteractionShelf session={session} />
       </div>
       <EmergencyTimelineDock sessionId={session.id} focused={focused} />
       <div className="chat-workspace-composer">
