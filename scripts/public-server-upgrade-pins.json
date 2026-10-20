@@ -1,0 +1,24 @@
+{
+  "legacy:1.0.3": {
+    "manifestSha256": "776a04afde1ef1a74d36ba70b5a0b12e660d5ca58d03367386aefcb647666bec",
+    "archiveSha256": "304a1a26a54aeb2336da9557212df8614b41d3ec005654760eb69fc112b043a4"
+  },
+  "npm:1.0.9": {
+    "manifestSha256": "58cffd8372f495f18dcf77d1aff0c8240543548e3b1fa984d35c8993e024df1d",
+    "archiveSha256": "33ca47b105e8d2e8256df6b5c199e0e95972f9228399d8944e32c2e910de8ab8"
+  },
+  "npm:1.0.10": {
+    "manifestSha256": "51cfecbccde885ea9f7f92ed70cdd228a7ed1faba536d871815d33551b25e0be",
+    "archiveSha256": "d599c4ecc6aaa5ddf93ec34d12dfb9848e3298a582bd92be6dc333d723cb2d1c"
+  },
+  "npm:1.0.11-beta.2": {
+    "manifestSha256": "bdb3d7e553890637effb5f4e26481922c66026ff19f84a97aca129968eedcfe3",
+    "archiveSha256": "a98a10103cd8c0a53a5ebdb65fc6374bc252f317bd3b65a830b9928304329d9c"
+  },
+  "app:1.0.10": {
+    "sha256": "e96564f8365a6f9cd4d608a150490518504d5fc6fe6502f3aa91bc6de83b10da"
+  },
+  "app:1.0.11-beta.2": {
+    "sha256": "63e563b43f9d4d93b0d767088f23ae9ddee98288b80bf61d6f7e651d9be34db2"
+  }
+}
