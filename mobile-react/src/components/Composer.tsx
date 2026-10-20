@@ -846,7 +846,7 @@ export function Composer({ sessionId, keyboardVisible, onSent, onOpenMcp }: { se
 
   return (
     <View testID="chat-composer" style={[styles.shell, { backgroundColor: colors.background }]}>
-      {!welcome && backend === 'codex' ? <CodexGoalBar /> : null}
+      {!welcome && backend === 'codex' ? <CodexGoalBar keyboardVisible={keyboardVisible} /> : null}
       {hasAuxiliaryContent && viewportLimits.auxiliaryMaxHeight > 0 ? <ScrollView
         testID="composer-auxiliary-scroll"
         style={[styles.auxiliaryScroll, { maxHeight: viewportLimits.auxiliaryMaxHeight }]}

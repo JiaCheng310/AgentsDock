@@ -130,6 +130,17 @@ export function connectionStateLabel(state: ServerProfileConnectionState): strin
   return 'Cached'
 }
 
+export function displayedServerConnectionState(
+  state: ServerProfileConnectionState,
+  verified: 'online' | 'offline' | undefined,
+  active: boolean,
+  transitioning: boolean,
+): ServerProfileConnectionState {
+  if (!active) return verified ?? 'cached'
+  if (transitioning && verified === 'online' && state !== 'offline') return 'online'
+  return state
+}
+
 export function profileConnectionLabel(profile: Pick<ServerProfileListItem, 'connectionState' | 'lastConnectionError'>): string {
   if (profile.lastConnectionError && /\b(?:401|403|unauthori[sz]ed|forbidden|authentication|access token|bad token|invalid token)\b/i.test(profile.lastConnectionError)) {
     return 'Authentication required'
