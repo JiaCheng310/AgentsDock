@@ -271,6 +271,7 @@ function Command({ icon: Icon, label, onPress, destructive, disabled = false, hi
 function ChoiceField({ title = 'Choose option', value, options, onChange, disabled = false }: { title?: string; value: string; options: RuntimeOption[]; onChange: (value: string) => void; disabled?: boolean }) {
   const colors = usePalette()
   const [open, setOpen] = useState(false)
+  const iosChoicesPresented = useRef(false)
   const choices = options.filter((option, index) => options.findIndex(candidate => candidate.value === option.value) === index)
   const selected = choices.find(option => option.value === value) ?? choices[0]
   const close = () => setOpen(false)
@@ -283,20 +284,27 @@ function ChoiceField({ title = 'Choose option', value, options, onChange, disabl
     if (disabled) return
     dismissAppKeyboard()
     if (Platform.OS === 'ios') {
+      if (iosChoicesPresented.current) return
+      iosChoicesPresented.current = true
       const labels = choices.map(option => option.locked ? `${option.label} (upgrade required)` : option.label)
       const cancelButtonIndex = labels.length
       const disabledButtonIndices = choices.flatMap((option, index) => option.locked ? [index] : [])
-      ActionSheetIOS.showActionSheetWithOptions({
-        title,
-        message: selected?.label ? `Current: ${selected.label}` : undefined,
-        options: [...labels, 'Cancel'],
-        cancelButtonIndex,
-        disabledButtonIndices,
-      }, buttonIndex => {
-        if (buttonIndex === cancelButtonIndex) return
-        const option = choices[buttonIndex]
-        if (option) choose(option)
-      })
+      try {
+        ActionSheetIOS.showActionSheetWithOptions({
+          title,
+          message: selected?.label ? `Current: ${selected.label}` : undefined,
+          options: [...labels, 'Cancel'],
+          cancelButtonIndex,
+          disabledButtonIndices,
+        }, buttonIndex => {
+          iosChoicesPresented.current = false
+          if (buttonIndex === cancelButtonIndex) return
+          const option = choices[buttonIndex]
+          if (option) choose(option)
+        })
+      } catch {
+        iosChoicesPresented.current = false
+      }
       return
     }
     setOpen(true)
