@@ -5,7 +5,7 @@ import { createHash, verify } from 'node:crypto'
 import { createWriteStream, existsSync, readFileSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { execFileSync, spawn } from 'node:child_process'
-import { createServer } from 'node:http'
+import { createServer, request } from 'node:http'
 import { connect as connectTcp } from 'node:net'
 import { userInfo } from 'node:os'
 import { join, relative, resolve } from 'node:path'
@@ -107,7 +107,7 @@ async function appPackage(version) {
   verifyApp(path, version)
   return path
 }
-let client, ownedApp, keychainCreated = false, token, savedId, identity
+let client, ownedApp, keychainCreated = false, token, savedId, identity, savedBefore
 const acceptedPackages = new Map()
 const profileId = `public-upgrade-${baseline}`
 const account = `agent-access-token:${profileId}`
@@ -115,11 +115,23 @@ const keychainService = 'com.zhengyiluo.AgentsDock'
 const port = await freePort()
 const serverUrl = `http://127.0.0.1:${port}`
 async function api(path, body) {
-  const response = await fetch(`${serverUrl}${path}`, { method: body === undefined ? 'GET' : 'POST',
-    headers: { 'X-AgentsDock-Token': token, 'Content-Type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(5_000) })
-  assert(response.ok, `Fixture API returned HTTP ${response.status}`)
-  return response.json()
+  return new Promise((resolveResponse, reject) => {
+    const bytes = body === undefined ? undefined : JSON.stringify(body)
+    const call = request(`${serverUrl}${path}`, { method: bytes === undefined ? 'GET' : 'POST',
+      headers: { 'X-AgentsDock-Token': token ?? '', 'Content-Type': 'application/json',
+        ...(bytes === undefined ? {} : { 'Content-Length': Buffer.byteLength(bytes) }) }, timeout: 5000 }, response => {
+      let text = ''
+      response.setEncoding('utf8')
+      response.on('data', chunk => { text += chunk; if (text.length > 4 * 1024 ** 2) call.destroy(new Error('Response exceeded bound.')) })
+      response.on('end', () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) reject(new Error(`Fixture API HTTP ${response.statusCode}`))
+        else { try { resolveResponse(JSON.parse(text)) } catch (error) { reject(error) } }
+      })
+    })
+    call.on('timeout', () => call.destroy(new Error('Fixture API timeout.')))
+    call.on('error', reject)
+    call.end(bytes)
+  })
 }
 const readToken = () => {
   const values = readFileSync(join(configRoot, 'env'), 'utf8').split(/\r?\n/)
@@ -143,7 +155,8 @@ const proxy = createServer((_req, res) => res.writeHead(405).end())
 proxy.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
 proxy.on('connect', (req, socket, head) => {
   const host = req.url?.match(/^([A-Za-z0-9.-]+):443$/)?.[1]
-  const allowed = host === 'registry.npmjs.org' || host === 'github.com' || host?.endsWith('.githubusercontent.com')
+  const allowed = ['registry.npmjs.org', 'github.com', 'api.github.com', 'pypi.org',
+    'files.pythonhosted.org', 'nodejs.org'].includes(host) || host?.endsWith('.githubusercontent.com')
   if (!allowed) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return }
   const refused = host === 'registry.npmjs.org' && failNpm
   connections.push({ host, refused })
@@ -173,13 +186,15 @@ async function status() {
 }
 async function waitState(label, predicate, timeout = 12 * 60_000) {
   let previous = '', lastPrinted = 0
-  return until(label, async () => {
+  const result = await until(label, async () => {
     const snapshot = await status(), encoded = JSON.stringify(snapshot)
     if (encoded !== previous && Date.now() - lastPrinted > 2000) {
       process.stdout.write(`state ${encoded}\n`); previous = encoded; lastPrinted = Date.now()
     }
-    return predicate(snapshot) ? snapshot : null
+    return predicate(snapshot) || snapshot.records?.some(item => ['failed', 'blocked'].includes(item.phase)) ? snapshot : null
   }, timeout)
+  assert(predicate(result), `${label}: published App reported a terminal failure.`)
+  return result
 }
 const profileDirectory = join(work, 'profile')
 async function launchApp(app, track) {
@@ -201,7 +216,17 @@ async function preserve(version) {
   const saved = await api(`/api/sessions/${encodeURIComponent(savedId)}`)
   assert.equal(saved.session?.title, 'Public upgrade preservation fixture')
   assert.equal(saved.session?.cwd, join(work, 'chat-workspace'))
-  assert.equal(saved.session?.auto_title_enabled, false)
+  for (const key of ['title', 'cwd', 'backend', 'auto_title_enabled']) {
+    // Published 1.0.3 has no auto-title field. Its null projection in newer
+    // schemas is an added default, not loss of a value the old server stored.
+    if (key === 'auto_title_enabled' && savedBefore.session?.[key] === undefined
+      && saved.session?.[key] === null) {
+      report.checks.legacyAbsentAutoTitleProjectedAsNull = true
+      continue
+    }
+    assert.deepEqual(saved.session?.[key], savedBefore.session?.[key], `Persisted session field changed: ${key}`)
+  }
+  assert.deepEqual(saved.events, savedBefore.events, 'Saved session events changed.')
   assert.equal((await readFile(join(installRoot, 'current/VERSION'), 'utf8')).trim(), version)
   const compared = await run('python3', ['-c', `
 import pathlib,sys,tarfile
@@ -269,6 +294,9 @@ try {
     title: 'Public upgrade preservation fixture', auto_title_enabled: false, import_history: false })
   savedId = created.session?.id
   assert(typeof savedId === 'string')
+  savedBefore = await api(`/api/sessions/${encodeURIComponent(savedId)}`)
+  report.checks.baselineAutoTitleValue = savedBefore.session?.auto_title_enabled ?? null
+  report.checks.baselineEventCount = savedBefore.events?.length ?? 0
   phase('real-baseline-installed-and-session-created')
   await mkdir(profileDirectory, { mode: 0o700 })
   await writeFile(join(profileDirectory, 'settings.json'), JSON.stringify({ schemaVersion: 2, activeProfileId: profileId,
