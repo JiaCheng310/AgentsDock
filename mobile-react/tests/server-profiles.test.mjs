@@ -26,7 +26,7 @@ test('server selector is a compact outlined button that opens the sheet directly
   const trigger = source.slice(source.indexOf('export function ServerProfileSelector'), source.indexOf('export function ServerProfilesSheet'))
   assert.match(trigger, /testID="server-profile-selector"/)
   assert.match(trigger, /styles\.selectorName, \{ color: colors\.text \}/)
-  assert.match(trigger, /<ServerConnectionDot state=\{switchingProfileId \? 'connecting' : active\?\.connectionState \?\? 'cached'\}/)
+  assert.match(trigger, /<ServerConnectionDot state=\{switching\?\.connectionState \?\? active\?\.connectionState \?\? 'cached'\}/)
   assert.match(trigger, /numberOfLines=\{1\} ellipsizeMode="tail"/)
   assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| t\('Choose server'\)/)
   assert.doesNotMatch(trigger, /ServerUnreadBadge|MenuView|selectorHost/)
@@ -36,6 +36,17 @@ test('server selector is a compact outlined button that opens the sheet directly
   assert.match(trigger, /backgroundColor: pressed \? colors\.raised : colors\.controlSurface/)
   assert.match(source, /selectorName: \{ \.\.\.typography\.label, flexShrink: 1, minWidth: 0, fontWeight: fontWeight\.semibold \}/)
   assert.match(source, /selector: \{[^\n]*borderRadius: radius\.round[^\n]*borderWidth: 1/)
+})
+
+test('server drawer checks inactive profiles independently of selection', () => {
+  assert.match(appShell, /state\.profiles\.filter\(profile => profile\.id !== state\.activeProfileId && profile\.serverConfigured\)/)
+  assert.match(appShell, /selectServerAddress\([\s\S]*?profile\.serverIdentity,[\s\S]*?testServerProfile\(\{ profileId: profile\.id, serverURL, signal, timeoutMs: 4_000 \}\)/)
+  assert.match(appShell, /Array\.from\(\{ length: Math\.min\(3, candidates\.length\) \}, checkNext\)/)
+  assert.match(appShell, /return \(\) => controller\.abort\(\)/)
+  assert.match(appShell, /displayedServerConnectionState\(profile\.connectionState, serverReachability\[profile\.id\]/)
+  assert.doesNotMatch(appShell, /const candidates[\s\S]*?setServerReachability\(\{\}\)[\s\S]*?let nextIndex/)
+  assert.match(source, /<Check size=\{20\} color=\{colors\.green\} \/>/)
+  assert.match(source, /state === 'online' \|\| state === 'degraded' \? colors\.green : colors\.muted/)
 })
 
 test('server name reserves a stable refresh indicator slot without disabling server switching', () => {

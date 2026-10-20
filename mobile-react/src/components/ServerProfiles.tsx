@@ -114,7 +114,7 @@ export function ServerProfileSelector({
     onPress={onPress}
     style={({ pressed }) => [styles.selector, { borderColor: colors.controlBorder, backgroundColor: pressed ? colors.raised : colors.controlSurface, opacity: unavailable ? 0.4 : 1 }]}
   >
-    <ServerConnectionDot state={switchingProfileId ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
+    <ServerConnectionDot state={switching?.connectionState ?? active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
     <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || t('Choose server')}</Text>
     <View style={styles.selectorRefresh} pointerEvents="none">
       {refreshing ? <ActivityIndicator testID="server-chat-refresh" accessibilityLabel="Refreshing chats" size="small" color={colors.muted} /> : <ChevronDown size={14} color={colors.muted} />}
@@ -615,7 +615,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       onPress={onSwitch}
       style={({ pressed }) => [styles.profileSwitch, { backgroundColor: pressed ? colors.raised : 'transparent', opacity: disabled && !switching ? 0.5 : 1 }]}
     >
-    <ServerConnectionDot state={switching ? 'connecting' : profile.connectionState} label={switching ? t('Connecting to {name}', { name: profile.name }) : t(status)} />
+    <ServerConnectionDot state={profile.connectionState} label={switching ? t('Connecting to {name}', { name: profile.name }) : t(status)} />
     <View style={styles.profileCopy}>
       <View style={styles.profileTitleRow}>
         <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>{profile.name}</Text>
@@ -624,7 +624,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       <Text style={[styles.profileUrl, { color: colors.muted }]} numberOfLines={1}>{profile.serverUrl}</Text>
       {profile.lastConnectionError ? <Text style={[styles.profileDetail, { color: profile.connectionState === 'degraded' ? colors.orange : colors.red }]} numberOfLines={2}>{profile.lastConnectionError}</Text> : null}
     </View>
-    <View style={styles.profileSelection}>{switching ? <ActivityIndicator size="small" color={colors.muted} /> : active ? <Check size={20} color={colors.text} /> : null}</View>
+    <View style={styles.profileSelection}>{switching ? <ActivityIndicator size="small" color={colors.muted} /> : active ? <Check size={20} color={colors.green} /> : null}</View>
     </Pressable>
     {disabled ? <View style={styles.rowMenu}><View
       accessible
@@ -654,7 +654,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
 
 export function ServerConnectionDot({ state, label = connectionStateLabel(state) }: { state: ServerProfileConnectionState; label?: string }) {
   const colors = usePalette()
-  const color = state === 'online' ? colors.green : state === 'degraded' || state === 'retrying' ? colors.orange : state === 'connecting' ? colors.blue : state === 'offline' ? colors.red : colors.muted
+  const color = state === 'online' || state === 'degraded' ? colors.green : colors.muted
   return <View accessible accessibilityRole="image" accessibilityLabel={t(label)} style={[styles.connectionDot, { backgroundColor: color }]} />
 }
 

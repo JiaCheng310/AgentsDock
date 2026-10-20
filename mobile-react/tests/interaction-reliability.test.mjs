@@ -381,7 +381,7 @@ test('battery-critical work is foreground-bound, coalesced, and released', () =>
   const thumbnailLoader = videoThumbnailLoader
   assert.doesNotMatch(thumbnailPreview, /useVideoPlayer/)
   assert.doesNotMatch(thumbnailPreview, /NativeAppState\.addEventListener/)
-  assert.match(thumbnailPreview, /if \(Platform\.OS === 'ios' \|\| !enabled \|\| failed\)/)
+  assert.match(thumbnailPreview, /if \(!enabled \|\| failed\)/)
   assert.match(queuedThumbnailLoader, /NativeAppState\.addEventListener\('change', state => setAppActive\(state === 'active'\)\)/)
   assert.match(queuedThumbnailLoader, /if \(!appActive\)/)
   assert.match(mediaGrid, /const AUTOMATIC_VIDEO_THUMBNAIL_LIMIT = 4/)
@@ -1135,7 +1135,7 @@ test('iOS video opening stages locally and uses an app-owned AVPlayer view inste
   assert.match(nativeVideoView, /UIApplication\.willResignActiveNotification/)
   assert.match(nativeVideoView, /playerLayer\.player\?\.replaceCurrentItem\(with: nil\)/)
   assert.match(mediaGrid, /shouldGenerateAutomaticVideoThumbnail\(Platform\.OS, viewerActive\)/)
-  assert.match(mediaGrid, /if \(Platform\.OS === 'ios' \|\| !enabled \|\| failed\)/)
+  assert.match(mediaGrid, /if \(!enabled \|\| failed\)/)
   assert.doesNotMatch(mediaGrid, /viewerActive \? \[\] : media\.filter\(isVideo\)/)
   assert.match(artifactFileViewer, /const closeViewer = useCallback\([\s\S]*?activeVideoPauseRef\.current\?\.\(\)[\s\S]*?onClose\(\)/)
   assert.match(artifactFileViewer, /onAccessibilityEscape=\{closeViewer\}[\s\S]*?<ViewerHeader[\s\S]*?onClose=\{closeViewer\}/)
