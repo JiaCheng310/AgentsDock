@@ -64,6 +64,9 @@ BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256 = "2735b3a5667da36bc040baecf29630b3fa
 # compile/import checks. Retain all historical pins and unchanged ownership,
 # lock and root-normalization behavior.
 BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256 = "99ed504ea4a98bade394d0926dd83aea6659accb6c2c1c315c494d02499869d3"
+# 1.0.11-beta.12 includes interactive pairing/QR files and shared-chat
+# analytics. Reviewed changes preserve lock, ownership and normalization rules.
+BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256 = "1438e59d5f92be58520d08459ca33890a2309534ee9a028eca887a9f873d4364"
 NPM_BASELINE_VERSIONS = {"stable108": "1.0.8", "beta1085": "1.0.8-beta.5", "beta1101": "1.0.10-beta.1", "stable109": "1.0.9"}
 NPM_BASELINE_TARGETS = {"stable108": ("1.0.9",), "beta1085": ("1.0.9",),
                         "beta1101": ("1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4", "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10"),
@@ -1443,7 +1446,8 @@ def root_normalization_contract(bundle: Path, receipt: dict) -> str:
             with package.extractfile(members[0]) as stream:
                 installers.append(stream.read(2 * 1024 * 1024 + 1))
     # These reviewed candidates, including stable 1.0.10, retain the complete beta.1 installer.
-    expected_hash = (BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.2"
+    expected_hash = (BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.12"
+                     else BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.2"
                      else BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.1"
                      else BETA1101_ROOT_NORMALIZING_INSTALLER_SHA256 if version in {"1.0.10-beta.1", "1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4", "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10"}
                      else STABLE109_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.9"
@@ -1462,7 +1466,7 @@ def native_root_state(fixture: dict) -> dict:
 
 
 def verify_root_normalization(before: dict, after: dict, installer_hash: str) -> dict:
-    need(installer_hash in {ROOT_NORMALIZING_INSTALLER_SHA256, STABLE109_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1101_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256},
+    need(installer_hash in {ROOT_NORMALIZING_INSTALLER_SHA256, STABLE109_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1101_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256, BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256, BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256},
          "Root normalization requires the reviewed signed installer contract.")
     identity = before.get("rootIdentity")
     need(isinstance(identity, list) and len(identity) == 3

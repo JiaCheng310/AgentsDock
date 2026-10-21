@@ -403,6 +403,10 @@ export class AgentServerClient {
     if (response?.side_chat_id !== sideChatId || response.status !== 'closed') throw new Error('side_question_invalid_response')
   }
 
+  async connectionAddresses(): Promise<{ version: number; server_identity: string; urls: string[] }> {
+    return this.privilegedNativeRequest('/api/connection-addresses', { method: 'GET' }, 10_000, 200, 8192)
+  }
+
   async health(timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, redirect: 'follow' | 'error' = 'error'): Promise<Health> {
     const configuration = this.configuration
     const health = await this.request<Health>('/api/health', {
@@ -3327,6 +3331,7 @@ function isPrivilegedNativeControlTarget(
     || !target.pathname.startsWith(`${serverPrefix}/api/`)
   ) return false
   const path = target.pathname.slice(serverPrefix.length)
+  if (path === '/api/connection-addresses') return !target.search && method === 'GET'
   if (/^\/api\/sessions\/[A-Za-z0-9_-]{1,128}\/claude\/goal$/.test(path)) {
     return !target.search && (method === 'PUT' || method === 'DELETE')
   }

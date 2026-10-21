@@ -175,12 +175,12 @@ export function ClaudePermissionMenu({ sessionId, compact }: { sessionId: string
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={[styles.headerMark, { backgroundColor: colors.raised }]}><Shield size={19} color={colors.blue} /></View>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, { color: colors.text }]}>Claude permissions</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Applies to future interactive Claude SDK turns.</Text>
+            <Text style={[styles.title, { color: colors.text }]} localize>Claude permissions</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]} localize>Applies to future interactive Claude SDK turns.</Text>
           </View>
           <View accessibilityLiveRegion="polite" style={styles.saveStatus}>
             {saveState === 'saving' ? <ActivityIndicator size="small" color={colors.blue} /> : null}
-            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]}>
+            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]} localize>
               {saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Not saved' : ''}
             </Text>
           </View>
@@ -194,7 +194,7 @@ export function ClaudePermissionMenu({ sessionId, compact }: { sessionId: string
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
         >
-          <Text style={[styles.label, { color: colors.muted }]}>Permission mode</Text>
+          <Text style={[styles.label, { color: colors.muted }]} localize>Permission mode</Text>
           <View style={[styles.options, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {supportedModes.map(value => <Pressable
               key={value}
@@ -217,9 +217,9 @@ export function ClaudePermissionMenu({ sessionId, compact }: { sessionId: string
               {value === mode ? <Check size={17} color={colors.blue} /> : null}
             </Pressable>)}
           </View>
-          {turnActive ? <Text style={[styles.hint, { color: colors.muted }]}>Stop or wait for this Claude turn before changing access.</Text> : null}
+          {turnActive ? <Text style={[styles.hint, { color: colors.muted }]} localize>Stop or wait for this Claude turn before changing access.</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red }]}>{saveError}</Text> : null}
-          {mode === 'bypassPermissions' ? <Text style={[styles.warning, { color: colors.orange, borderColor: colors.orange }]}>Bypass permissions is enabled for this chat. Explicit deny rules and AgentsDock hooks can still block tools.</Text> : null}
+          {mode === 'bypassPermissions' ? <Text style={[styles.warning, { color: colors.orange, borderColor: colors.orange }]} localize>Bypass permissions is enabled for this chat. Explicit deny rules and AgentsDock hooks can still block tools.</Text> : null}
         </ScrollView>
       </SafeAreaView>
     </Modal> : null}

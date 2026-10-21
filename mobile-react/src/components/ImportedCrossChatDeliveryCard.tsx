@@ -32,7 +32,7 @@ export function ImportedCrossChatDeliveryCard({ row, fontScale }: { row: SystemR
     <MessageSquareShare size={14} color={colors.muted} />
     <View style={styles.content}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={[styles.statusTitle, { color: colors.text }]}>Status update</Text>
+        <Text accessibilityRole="header" style={[styles.statusTitle, { color: colors.text }]} localize>Status update</Text>
         {time ? <Text style={[styles.time, { color: colors.muted }]}>{time}</Text> : null}
       </View>
       <DeliveryMarkdown identity={`${identity}-body`} value={delivery.body} fontScale={fontScale} color={colors.text} controlColor={colors.blue} />
@@ -41,7 +41,7 @@ export function ImportedCrossChatDeliveryCard({ row, fontScale }: { row: SystemR
 
   return <CrossChatConversationSurface testID={identity} palette={palette}>
     <View style={styles.header}>
-      <Text accessibilityRole="header" style={[styles.eyebrow, { color: palette.eyebrow }]}>Agent conversation</Text>
+      <Text accessibilityRole="header" style={[styles.eyebrow, { color: palette.eyebrow }]} localize>Agent conversation</Text>
       {time ? <Text style={[styles.time, { color: palette.participants }]}>{time}</Text> : null}
     </View>
     <View testID={`${identity}-message`} accessibilityLabel={`Imported message from ${delivery.sender}`} style={[
@@ -67,7 +67,7 @@ export function ImportedCrossChatDeliveryCard({ row, fontScale }: { row: SystemR
         style={({ pressed }) => [styles.toggle, { opacity: pressed ? 0.7 : 1 }]}
       >
         {sourceOpen ? <ChevronDown size={13} color={palette.toggle} /> : <ChevronRight size={13} color={palette.toggle} />}
-        <Text style={[styles.toggleLabel, { color: palette.toggle }]}>Source request</Text>
+        <Text style={[styles.toggleLabel, { color: palette.toggle }]} localize>Source request</Text>
       </Pressable>
       {sourceOpen ? <View testID={`${identity}-source`}>
         <DeliveryMarkdown identity={`${identity}-source-body`} value={delivery.sourceRequest} fontScale={fontScale} color={palette.body} controlColor={palette.toggle} />
@@ -90,7 +90,7 @@ function DeliveryMarkdown({ identity, value, fontScale, color, controlColor }: {
       accessibilityState={{ expanded }}
       onPress={() => setExpanded(current => !current)}
       style={({ pressed }) => [styles.toggle, { opacity: pressed ? 0.7 : 1 }]}
-    ><Text style={[styles.toggleLabel, { color: controlColor }]}>{expanded ? 'Show less' : 'Show more'}</Text></Pressable> : null}
+    ><Text style={[styles.toggleLabel, { color: controlColor }]} localize>{expanded ? 'Show less' : 'Show more'}</Text></Pressable> : null}
   </View>
 }
 

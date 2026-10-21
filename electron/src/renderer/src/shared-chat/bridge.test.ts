@@ -5,10 +5,30 @@ import { useAppStore } from '../store/app-store'
 import { cursorBackendAvailable, runtimeSelectionError } from '@shared/runtime-catalog'
 
 const prefix = '/interactive-chat/interactive_' + '1'.repeat(32)
+const analytics = vi.hoisted(() => ({ trackSharedChatEvent: vi.fn() }))
+vi.mock('./analytics', () => analytics)
 const state = { revision: '1111111111111111:1', csrf: 'synthetic-csrf', session: { id: 'shared-one', backend: 'codex', title: 'Synthetic shared chat' }, events: [], queue: [], active: false, jobs: [], goal: { goal: null }, codex_runtime: null, claude_runtime: null, health: null, runtime_catalog: null } as unknown as SharedChatState
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); analytics.trackSharedChatEvent.mockClear() })
 
 describe('the restricted shared browser bridge', () => {
+  it.each([false, true])('counts a confirmed submission (queued=%s), not a refused one', async queued => {
+    let denied = true
+    const request = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith('/state')) return new Response(JSON.stringify(state))
+      const { request_id } = JSON.parse(String(init?.body))
+      return new Response(JSON.stringify(denied
+        ? { accepted: false, request_id, error_code: 'invalid_request', detail: 'Refused' }
+        : { accepted: true, request_id, queued, ...(queued ? { queued_id: 'queue-synthetic' } : {}) }), { status: denied ? 400 : 202 })
+    })
+    const bridge = createSharedChatBridge(prefix, vi.fn(), vi.fn(), request)
+    await bridge.refresh()
+    await expect(bridge.api.turns.send({ sessionId: state.session.id, prompt: 'Synthetic', fileIds: [] })).rejects.toThrow()
+    expect(analytics.trackSharedChatEvent.mock.calls.some(([event]) => event === 'shared_chat_message_sent')).toBe(false)
+    denied = false
+    await bridge.api.turns.send({ sessionId: state.session.id, prompt: 'Synthetic', fileIds: [] })
+    expect(analytics.trackSharedChatEvent).toHaveBeenCalledWith('shared_chat_message_sent', prefix, expect.any(String))
+    bridge.close()
+  })
   it('scopes Gemini runtime and native approvals to the redeemed chat', async () => {
     const gemini = { ...state, session: { ...state.session, backend: 'gemini' }, gemini_runtime: { available: true, pending_interactions: [] } }
     const request = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -48,8 +68,11 @@ describe('the restricted shared browser bridge', () => {
     const bridge = createSharedChatBridge(prefix, vi.fn(), vi.fn(), request)
     await expect(bridge.start()).rejects.toThrow('Enter the invitation token')
     await expect(bridge.redeem('a'.repeat(43))).rejects.toThrow('Invitation expired')
+    expect(analytics.trackSharedChatEvent).not.toHaveBeenCalled()
     await expect(bridge.redeem('b'.repeat(43))).resolves.toBeUndefined()
+    expect(analytics.trackSharedChatEvent).not.toHaveBeenCalled()
     await expect(bridge.start()).resolves.toBeUndefined()
+    expect(analytics.trackSharedChatEvent).toHaveBeenCalledWith('shared_chat_interactive_activated', prefix)
     bridge.close()
   })
 
@@ -127,6 +150,7 @@ describe('the restricted shared browser bridge', () => {
     await bridge.start()
     Stream.instance.dispatchEvent(new MessageEvent('state', { data: JSON.stringify(state) }))
     await expect(bridge.api.turns.send({ sessionId: state.session.id, prompt: 'One synthetic prompt', fileIds: [] })).rejects.toThrow('Acceptance is unconfirmed')
+    expect(analytics.trackSharedChatEvent.mock.calls.some(([event]) => event === 'shared_chat_message_sent')).toBe(false)
     Stream.instance.dispatchEvent(new MessageEvent('state', { data: JSON.stringify({ ...state, revision: '1111111111111111:2' }) }))
     expect(connection).toHaveBeenLastCalledWith('terminal', expect.stringContaining('Acceptance is unconfirmed'))
     await expect(bridge.api.turns.send({ sessionId: state.session.id, prompt: 'One synthetic prompt', fileIds: [] })).rejects.toThrow('Acceptance is unconfirmed')
@@ -182,6 +206,7 @@ describe('the restricted shared browser bridge', () => {
     expect(upload[1]).toMatchObject({ credentials: 'same-origin', headers: { 'X-Chat-CSRF': 'synthetic-csrf', 'Content-Type': 'application/octet-stream', 'X-Chat-Filename': 'file-0.bin' } })
     expect(upload[1]?.body).toBe(files[0])
     await bridge.api.turns.send({ sessionId: state.session.id, prompt: 'Read these files', fileIds: uploaded.map(file => file.id) })
+    expect(analytics.trackSharedChatEvent).toHaveBeenCalledWith('shared_chat_message_sent', prefix, expect.any(String))
     const sent = request.mock.calls.find(([url]) => String(url).endsWith('/prompts'))!
     expect(JSON.parse(String(sent[1]?.body)).upload_ids).toEqual(uploaded.map(file => file.id))
     await expect(bridge.api.turns.send({ sessionId: state.session.id, prompt: 'Wrong file', fileIds: ['file_native'] })).rejects.toThrow('not available')

@@ -5274,7 +5274,7 @@ describe('emergency alert store integration', () => {
     focus.mockRestore()
   })
 
-  it('expands the exact collapsed folder and archived section when a server session event raises emergencies', async () => {
+  it('expands the exact collapsed folder, pinned and archived sections when a server session event raises emergencies', async () => {
     const profile = profileFor('profile-emergency-layout')
     const handlers = new Map<string, (payload: any) => void>()
     Object.defineProperty(window, 'agentsDock', {
@@ -5297,11 +5297,13 @@ describe('emergency alert store integration', () => {
     await useAppStore.getState().initialize()
     const operations = { ...sessionFor('operations-chat'), folder: 'Operations' }
     const archived = { ...sessionFor('archived-chat'), archived: true }
+    const pinned = { ...sessionFor('pinned-chat'), pinned: true }
     useAppStore.setState({
-      sessions: [operations, archived],
+      sessions: [operations, archived, pinned],
       selectedSessionId: operations.id,
       chatPanes: { primary: operations.id, secondary: null },
       collapsedFolders: new Set(['Operations', 'Research']),
+      pinnedCollapsed: true,
       archivedCollapsed: true
     })
 
@@ -5310,30 +5312,34 @@ describe('emergency alert store integration', () => {
       profileGeneration: 4,
       sessions: [
         emergencySessionFor(operations.id, { folder: 'Operations' }),
+        emergencySessionFor(pinned.id, { pinned: true }),
         emergencySessionFor(archived.id, { archived: true })
       ]
     })
 
     expect([...useAppStore.getState().collapsedFolders]).toEqual(['Research'])
+    expect(useAppStore.getState().pinnedCollapsed).toBe(false)
     expect(useAppStore.getState().archivedCollapsed).toBe(false)
   })
 
   it('expands emergency sections while restoring the bootstrap cache', async () => {
     const operations = emergencySessionFor('bootstrap-operations', { folder: 'Operations' })
     const archived = emergencySessionFor('bootstrap-archived', { archived: true })
-    const sessions = new Map([operations, archived].map(session => [session.id, session]))
+    const pinned = emergencySessionFor('bootstrap-pinned', { pinned: true })
+    const sessions = new Map([operations, archived, pinned].map(session => [session.id, session]))
     Object.defineProperty(window, 'agentsDock', {
       configurable: true,
       value: {
         bootstrap: vi.fn().mockResolvedValue({
           settings: { serverUrl: 'http://example.test', hasAccessToken: false, serverSetupComplete: true },
           health: null,
-          sessions: [operations, archived],
+          sessions: [operations, archived, pinned],
           jobs: [],
           runtimeCatalog: null,
           selectedSessionId: operations.id,
           folderOrder: ['Operations', 'Research'],
           collapsedFolders: ['Operations', 'Research'],
+          pinnedCollapsed: true,
           archivedCollapsed: true,
           inspectorVisible: true
         } satisfies BootstrapPayload),
@@ -5364,6 +5370,7 @@ describe('emergency alert store integration', () => {
     await useAppStore.getState().initialize()
 
     expect([...useAppStore.getState().collapsedFolders]).toEqual(['Research'])
+    expect(useAppStore.getState().pinnedCollapsed).toBe(false)
     expect(useAppStore.getState().archivedCollapsed).toBe(false)
   })
 
@@ -6353,6 +6360,7 @@ describe('server profile switching', () => {
   })
 
   it('sends managed restart with the exact canonical workspace scope and adopts only the returned generation', async () => {
+    analytics.trackEvent.mockClear()
     const profileA = { ...profileFor('profile-a'), serverIdentity: 'server-a' }
     const currentChat = { ...sessionFor('chat-a'), title: 'Before restart' }
     const restartedChat = { ...currentChat, title: 'After restart' }
@@ -6394,6 +6402,7 @@ describe('server profile switching', () => {
     expect(useAppStore.getState().switchingProfileId).toBe(profileA.id)
     expect(useAppStore.getState().sessions[0]?.title).toBe('Before restart')
     expect(useAppStore.getState().drafts[currentChat.id]).toBe('preserve until confirmed')
+    expect(analytics.trackEvent).toHaveBeenCalledExactlyOnceWith('server_restart_requested')
 
     response.resolve(restartedPayload)
     await expect(pending).resolves.toBe(true)
@@ -6403,6 +6412,7 @@ describe('server profile switching', () => {
       switchingProfileId: null
     }))
     expect(useAppStore.getState().sessions[0]?.title).toBe('After restart')
+    expect(analytics.trackEvent).toHaveBeenCalledWith('server_restart_reconnected', { success: true })
   })
 
   it('forwards an explicitly confirmed force restart without changing its blocker revision', async () => {
@@ -6448,6 +6458,7 @@ describe('server profile switching', () => {
   })
 
   it('keeps the current workspace intact when restart cannot be confirmed', async () => {
+    analytics.trackEvent.mockClear()
     const profileA = { ...profileFor('profile-a'), serverIdentity: 'server-a' }
     const currentChat = sessionFor('chat-a')
     const restart = vi.fn().mockRejectedValue(new Error('The restart request was not confirmed.'))
@@ -6473,6 +6484,9 @@ describe('server profile switching', () => {
     })
 
     await expect(useAppStore.getState().restartServer('boot-old')).rejects.toThrow('not confirmed')
+    expect(analytics.trackEvent.mock.calls).toEqual([
+      ['server_restart_requested'], ['server_restart_reconnected', { success: false }]
+    ])
 
     const state = useAppStore.getState()
     expect(state.profileGeneration).toBe(4)
@@ -6483,6 +6497,7 @@ describe('server profile switching', () => {
   })
 
   it('ignores a late restart bootstrap after a newer profile-switch intent wins', async () => {
+    analytics.trackEvent.mockClear()
     const profileA = { ...profileFor('profile-a'), serverIdentity: 'server-a' }
     const profileB = { ...profileFor('profile-b'), serverIdentity: 'server-b' }
     const restartResponse = deferred<ProfileBootstrapPayload>()
@@ -6514,6 +6529,7 @@ describe('server profile switching', () => {
     await expect(switching).resolves.toBe(true)
     restartResponse.resolve(profileBootstrap(profileA, [profileA, profileB], 2))
     await expect(restarting).resolves.toBe(false)
+    expect(analytics.trackEvent.mock.calls.filter(([name]) => name === 'server_restart_reconnected')).toEqual([])
 
     expect(useAppStore.getState()).toEqual(expect.objectContaining({
       activeProfileId: profileB.id,

@@ -142,15 +142,17 @@ export function formatDateTime(value?: string | null): string {
   return fullDateTimeFormatter.format(date)
 }
 
-export function formatChatDate(value?: string | null, now = new Date()): string {
+export function formatChatDate(value?: string | null, now = new Date(), locale?: 'en' | 'zh-CN'): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  if (date.toDateString() === now.toDateString()) return 'Today'
+  if (date.toDateString() === now.toDateString()) return locale === 'zh-CN' ? '今天' : 'Today'
   // Calendar subtraction keeps yesterday correct across DST and month/year boundaries.
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  return (date.getFullYear() === now.getFullYear() ? chatDateFormatter : chatDateWithYearFormatter).format(date)
+  if (date.toDateString() === yesterday.toDateString()) return locale === 'zh-CN' ? '昨天' : 'Yesterday'
+  const sameYear = date.getFullYear() === now.getFullYear()
+  if (locale === 'zh-CN') return `${sameYear ? '' : `${date.getFullYear()}年`}${date.getMonth() + 1}月${date.getDate()}日`
+  return (sameYear ? chatDateFormatter : chatDateWithYearFormatter).format(date)
 }
 
 export function errorMessage(error: unknown): string {
@@ -161,11 +163,11 @@ export function backendLabel(backend: Backend): string {
   return backend === 'codex' ? 'Codex' : backend === 'cursor' ? 'Cursor' : 'Claude'
 }
 
-export function runtimeSummary(session: Session): string {
-  const model = session.model?.trim() || 'Server model'
+export function runtimeSummary(session: Session, translate: (source: string) => string = source => source): string {
+  const model = session.model?.trim() || translate('Server model')
   const effort = session.effort?.trim()
   const custom = (session.backend === 'codex' ? session.codex_provider : session.provider_connection) === 'custom'
-  return [backendLabel(session.backend), custom ? 'Custom API' : null, model, effort].filter(Boolean).join(' · ')
+  return [backendLabel(session.backend), custom ? translate('Custom API') : null, model, effort].filter(Boolean).join(' · ')
 }
 
 export function mergeEvents(current: Event[], incoming: Event[]): Event[] {

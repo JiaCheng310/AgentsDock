@@ -156,7 +156,10 @@ function reviewedTestBytes() {
     '    await waitFor(() => expect(teamHub.waitForSecurePeerPairingCompletion).toHaveBeenCalledTimes(1))\n    fireEvent.click')
   const result = {}
   for (const [path, previous, next] of [[usage, beforeUsage, afterUsage], [peer, beforePeer, afterPeer]]) {
-    const after = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')
+    // This exception is bound to sealed 1.0.9, not today's evolving UI tests.
+    // Retain exact historical blobs so shallow/offline checkouts exercise the
+    // same immutable guard without broadening its source or path permissions.
+    const after = readFileSync(new URL(`./fixtures/candidate-prerequisites/${exception.changes[path].after}.txt`, import.meta.url), 'utf8')
     assert.equal(after.split(next).length, 2, 'Reviewed correction must occur exactly once')
     const before = after.replace(next, previous)
     const blob = text => createHash('sha1').update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest('hex')

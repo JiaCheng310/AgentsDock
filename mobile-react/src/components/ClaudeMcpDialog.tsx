@@ -290,8 +290,8 @@ export function ClaudeMcpDialog({ visible, sessionId, onClose }: ClaudeMcpDialog
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={[styles.headerMark, { backgroundColor: colors.raised }]}><Network size={20} color={colors.blue} /></View>
         <View style={styles.headerCopy}>
-          <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Claude MCP servers</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Current Claude session for this chat</Text>
+          <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} localize>Claude MCP servers</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]} localize>Current Claude session for this chat</Text>
         </View>
         {endpointAvailable && connectionReady ? <Pressable
           testID="claude-mcp-refresh"
@@ -334,7 +334,7 @@ export function ClaudeMcpDialog({ visible, sessionId, onClose }: ClaudeMcpDialog
           color={colors.orange}
         /> : initialLoading && !snapshot ? <View accessibilityLiveRegion="polite" style={styles.loading}>
           <ActivityIndicator accessibilityLabel="Loading Claude MCP servers" size="small" color={colors.blue} />
-          <Text style={[styles.loadingText, { color: colors.muted }]}>Loading MCP servers…</Text>
+          <Text style={[styles.loadingText, { color: colors.muted }]} localize>Loading MCP servers…</Text>
         </View> : loadError && !snapshot ? <StateCard
           icon={AlertTriangle}
           title="Couldn’t load MCP servers"
@@ -354,14 +354,14 @@ export function ClaudeMcpDialog({ visible, sessionId, onClose }: ClaudeMcpDialog
           <View accessibilityLiveRegion="polite" style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.summaryCopy}>
               <Text style={[styles.summaryTitle, { color: colors.text }]}>{servers.length ? `${connectedCount} of ${enabledCount} enabled servers connected` : snapshot.truncated ? 'No displayable MCP servers' : 'No MCP servers configured'}</Text>
-              <Text style={[styles.summaryDetail, { color: colors.muted }]}>{snapshot.session_loaded ? 'Changes to enabled servers last only while this Claude session remains loaded.' : 'Claude SDK session is starting for this chat.'}</Text>
+              <Text style={[styles.summaryDetail, { color: colors.muted }]} localize>{snapshot.session_loaded ? 'Changes to enabled servers last only while this Claude session remains loaded.' : 'Claude SDK session is starting for this chat.'}</Text>
             </View>
             {refreshing ? <ActivityIndicator accessibilityLabel="Refreshing Claude MCP servers" size="small" color={colors.blue} /> : <CircleCheck size={18} color={colors.green} />}
           </View>
 
           {snapshot.truncated ? <View accessibilityLiveRegion="polite" style={[styles.notice, { backgroundColor: colors.raised, borderColor: colors.border }]}>
             <AlertTriangle size={17} color={colors.orange} />
-            <Text style={[styles.noticeText, { color: colors.muted }]}>This server has more MCP servers than can be shown here. Use Claude Code on the AgentsServer host to manage the complete list.</Text>
+            <Text style={[styles.noticeText, { color: colors.muted }]} localize>This server has more MCP servers than can be shown here. Use Claude Code on the AgentsServer host to manage the complete list.</Text>
           </View> : null}
 
           {reconnectableCount > 0 ? <Pressable
@@ -373,16 +373,16 @@ export function ClaudeMcpDialog({ visible, sessionId, onClose }: ClaudeMcpDialog
             disabled={actionsDisabled}
             onPress={() => void mutate('reconnect_all', null)}
             style={({ pressed }) => [styles.reconnectAll, { backgroundColor: colors.raised, borderColor: colors.border, opacity: actionsDisabled ? 0.35 : pressed ? 0.62 : 1 }]}
-          >{busyServer === '*' ? <ActivityIndicator size="small" color={colors.blue} /> : <RefreshCw size={17} color={colors.blue} />}<Text style={[styles.reconnectAllText, { color: colors.text }]}>Reconnect unavailable servers</Text></Pressable> : null}
+          >{busyServer === '*' ? <ActivityIndicator size="small" color={colors.blue} /> : <RefreshCw size={17} color={colors.blue} />}<Text style={[styles.reconnectAllText, { color: colors.text }]} localize>Reconnect unavailable servers</Text></Pressable> : null}
 
           {turnActive ? <View accessibilityLiveRegion="polite" style={[styles.notice, { backgroundColor: colors.raised, borderColor: colors.border }]}>
             <Clock3 size={17} color={colors.orange} />
-            <Text style={[styles.noticeText, { color: colors.muted }]}>This is the last loaded status. Wait for Claude to finish before refreshing, enabling, disabling, or reconnecting servers.</Text>
+            <Text style={[styles.noticeText, { color: colors.muted }]} localize>This is the last loaded status. Wait for Claude to finish before refreshing, enabling, disabling, or reconnecting servers.</Text>
           </View> : null}
           {actionError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red, borderColor: colors.red }]}>{actionError}</Text> : null}
           {loadError ? <View accessibilityRole="alert" style={[styles.inlineError, { borderColor: colors.red }]}>
             <Text style={[styles.inlineErrorText, { color: colors.red }]}>{loadError}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Retry loading Claude MCP servers" onPress={() => void load()} style={({ pressed }) => [styles.smallButton, { borderColor: colors.red, opacity: pressed ? 0.6 : 1 }]}><Text style={[styles.smallButtonText, { color: colors.red }]}>Retry</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry loading Claude MCP servers" onPress={() => void load()} style={({ pressed }) => [styles.smallButton, { borderColor: colors.red, opacity: pressed ? 0.6 : 1 }]}><Text style={[styles.smallButtonText, { color: colors.red }]} localize>Retry</Text></Pressable>
           </View> : null}
 
           {servers.length ? <View accessibilityLabel="Configured Claude MCP servers" style={styles.serverList}>
@@ -444,11 +444,11 @@ function McpServerRow({ server, colors, busy, disabled, onEnabledChange, onRecon
       </View>
     </View>
     {server.enabled && server.error ? <Text accessibilityRole="alert" style={[styles.serverError, { color: colors.red }]}>{server.error}</Text> : null}
-    {effectiveStatus === 'needs-auth' ? <Text style={[styles.authHelp, { color: colors.orange }]}>Authentication is required. Open Claude Code in the AgentsDock terminal and run /mcp to authenticate this server.</Text> : null}
+    {effectiveStatus === 'needs-auth' ? <Text style={[styles.authHelp, { color: colors.orange }]} localize>Authentication is required. Open Claude Code in the AgentsDock terminal and run /mcp to authenticate this server.</Text> : null}
     <View style={[styles.serverControls, { borderTopColor: colors.border }]}>
       <View style={styles.enableCopy}>
-        <Text style={[styles.enableTitle, { color: colors.text }]}>Enabled</Text>
-        <Text style={[styles.enableHelp, { color: colors.muted }]}>For the current Claude session</Text>
+        <Text style={[styles.enableTitle, { color: colors.text }]} localize>Enabled</Text>
+        <Text style={[styles.enableHelp, { color: colors.muted }]} localize>For the current Claude session</Text>
       </View>
       {busy ? <ActivityIndicator accessibilityLabel={`Updating ${server.name}`} size="small" color={colors.blue} /> : null}
       <Switch
@@ -468,7 +468,7 @@ function McpServerRow({ server, colors, busy, disabled, onEnabledChange, onRecon
         disabled={reconnectDisabled}
         onPress={onReconnect}
         style={({ pressed }) => [styles.reconnect, { borderColor: colors.border, backgroundColor: colors.raised, opacity: reconnectDisabled ? 0.35 : pressed ? 0.62 : 1 }]}
-      ><RefreshCw size={15} color={colors.muted} /><Text style={[styles.reconnectText, { color: colors.text }]}>Reconnect</Text></Pressable>
+      ><RefreshCw size={15} color={colors.muted} /><Text style={[styles.reconnectText, { color: colors.text }]} localize>Reconnect</Text></Pressable>
     </View>
   </View>
 }

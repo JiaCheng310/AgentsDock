@@ -8,6 +8,7 @@ export const SETTINGS_AGENTS = [
   { id: 'claude', name: 'Claude Code' },
   { id: 'cursor', name: 'Cursor' },
   { id: 'opencode', name: 'OpenCode' },
+  { id: 'gemini', name: 'Gemini' },
 ] as const
 export type SettingsAgent = typeof SETTINGS_AGENTS[number]['id']
 

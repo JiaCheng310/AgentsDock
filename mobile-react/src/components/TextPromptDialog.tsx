@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { radius, usePalette } from '../theme'
+import { t } from '../i18n'
 import { Text, TextInput } from './AppText'
 
 export interface TextPromptOptions {
@@ -60,7 +61,7 @@ export function useTextPrompt() {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Cancel text entry"
+        accessibilityLabel={t('Cancel text entry')}
         style={StyleSheet.absoluteFill}
         onPress={() => settle(null)}
       />
@@ -68,8 +69,8 @@ export function useTextPrompt() {
         accessibilityViewIsModal
         style={[styles.dialog, { backgroundColor: colors.surface, borderColor: colors.border }]}
       >
-        <Text style={[styles.title, { color: colors.text }]}>{request.title}</Text>
-        {request.message ? <Text style={[styles.message, { color: colors.muted }]}>{request.message}</Text> : null}
+        <Text style={[styles.title, { color: colors.text }]}>{t(request.title)}</Text>
+        {request.message ? <Text style={[styles.message, { color: colors.muted }]}>{t(request.message)}</Text> : null}
         <TextInput
           ref={input}
           testID="text-prompt-input"
@@ -89,14 +90,14 @@ export function useTextPrompt() {
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
+            accessibilityLabel={t('Cancel')}
             onPress={() => settle(null)}
             style={({ pressed }) => [styles.button, { backgroundColor: colors.raised, opacity: pressed ? 0.65 : 1 }]}
-          ><Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text></Pressable>
+          ><Text style={[styles.buttonText, { color: colors.text }]} localize>Cancel</Text></Pressable>
           <Pressable
             testID="text-prompt-confirm"
             accessibilityRole="button"
-            accessibilityLabel={request.confirmLabel ?? 'OK'}
+            accessibilityLabel={t(request.confirmLabel ?? 'OK')}
             accessibilityState={{ disabled: !value.trim() }}
             disabled={!value.trim()}
             onPress={() => settle(value)}
@@ -104,7 +105,7 @@ export function useTextPrompt() {
               backgroundColor: request.destructive ? colors.red : colors.blue,
               opacity: !value.trim() ? 0.35 : pressed ? 0.65 : 1,
             }]}
-          ><Text style={[styles.buttonText, { color: 'white' }]}>{request.confirmLabel ?? 'OK'}</Text></Pressable>
+          ><Text style={[styles.buttonText, { color: 'white' }]}>{t(request.confirmLabel ?? 'OK')}</Text></Pressable>
         </View>
       </View> : null}
     </KeyboardAvoidingView>

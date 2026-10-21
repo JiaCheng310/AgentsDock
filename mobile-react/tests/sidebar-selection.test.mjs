@@ -19,9 +19,16 @@ test('temporary status sections have isolated collapse state and cannot be moved
   assert.match(source, /const movable = !item\.status &&/)
   assert.match(source, /if \(sidebarSessionStatus\(session, active\)\) continue/)
   assert.match(source, /if \(status\) \{[\s\S]*?setCollapsedStatuses\([\s\S]*?return\s*\}\s*const next = new Set\(collapsed\)/)
-  assert.match(source, /item\.status === 'unread' \? colors\.blue : colors\.green/)
+  assert.match(source, /item\.status === 'running' \? colors\.green : item\.attentionLevel === 'emergency' \? colors\.red : item\.attentionLevel === 'important' \? colors\.pink : colors\.blue/)
   const folderOptions = source.slice(source.indexOf('const folders = useMemo'), source.indexOf('const movableFolders'))
   assert.doesNotMatch(folderOptions, /SidebarStatus|collapsedStatuses|sidebarSessionSections/)
+})
+
+test('urgent chat labels replace the date and name their status', () => {
+  const row = source.slice(source.indexOf('function SessionRow'), source.indexOf('const styles = StyleSheet.create'))
+  assert.match(row, /\{\(attentionLevel === 'important' \|\| attentionLevel === 'emergency'\)[\s\S]*?<\/Text> : activityDate \? <Text[^>]+>\{activityDate\}<\/Text> : null\}/)
+  assert.match(row, /t\(attentionLevel === 'emergency' \? 'Emergency' : 'Important'\)/)
+  assert.match(source, /sessionLevel: \{ \.\.\.typography\.caption, fontWeight: fontWeight\.semibold/)
 })
 
 test('folder and status headers put the collapse indicator after the count on the right', () => {
@@ -71,10 +78,10 @@ test('chat rows have press feedback but no selected background or blue rail', ()
 })
 
 test('provider requests waiting for the user are unmistakable without polling', () => {
-  assert.match(source, /waiting \? `\$\{runtimeSummary\(session\)\} · waiting for you`/)
+  assert.match(source, /waiting \? `\$\{runtimeSummary\(session, t\)\} · \$\{t\('waiting for you'\)\}`/)
   assert.match(source, /const waitingProviderName = session\.backend === 'claude' \? 'Claude' : 'Codex'/)
   assert.match(source, /accessibilityLabel=\{`\$\{pendingInteractionCount\} \$\{waitingProviderName\} \$\{pendingInteractionCount === 1 \? 'request' : 'requests'\} waiting for you`\}/)
-  assert.match(source, /style=\{\[styles\.waitingBadge, \{ backgroundColor: colors\.orange \}\]\}/)
+  assert.match(source, /style=\{\[styles\.waitingBadge, \{ backgroundColor: colors\.pink \}\]\}/)
   assert.doesNotMatch(source, /setInterval|setTimeout\([^)]*codex|pollCodex/i)
 })
 
@@ -107,7 +114,7 @@ test('home floats two circular actions without a full-width footer surface', () 
 })
 
 test('chat dates keep the activity source but use compact calendar labels and a shared subtle style', () => {
-  assert.match(source, /formatChatDate\(session\.latest_event_at \?\? session\.updated_at \?\? session\.created_at\)/)
+  assert.match(source, /formatChatDate\(session\.latest_event_at \?\? session\.updated_at \?\? session\.created_at, new Date\(\), locale\)/)
   assert.match(source, /styles\.sessionDate, \{ color: colors\.subtle \}/)
   assert.match(source, /sessionDate: \{ \.\.\.typography\.caption, fontWeight: fontWeight\.regular/)
   assert.doesNotMatch(source, /formatChatDateTime/)
@@ -128,7 +135,7 @@ test('home puts the server title first and replaces the refresh button with pull
 
 test('top-right search opens a focused field and closing it clears the filter', () => {
   const searchButton = source.match(/testID="sidebar-search-open"([\s\S]*?)<\/Pressable>/)?.[1] ?? ''
-  assert.match(searchButton, /accessibilityLabel="Search chat"/)
+  assert.match(searchButton, /accessibilityLabel=\{t\('Search chat'\)\}/)
   assert.match(searchButton, /<Search size=\{18\}/)
   assert.doesNotMatch(searchButton, /<Text/)
   assert.match(source, /searchButton: \{ width: 44, height: 44/)
@@ -184,7 +191,7 @@ test('home shares the safe-area background instead of drawing a separate panel',
 test('renaming a chat is offered on both platforms and shares one prompt/update path', () => {
   assert.match(source, /const requestRename = \(\) => \{[\s\S]*?promptText\(\{[\s\S]*?title: 'Rename Chat',[\s\S]*?initialValue: session\.title,[\s\S]*?confirmLabel: 'Rename',[\s\S]*?\}\)\.then\(value => \{[\s\S]*?if \(!sessionScopeIsCurrent\(scope, session\.id\)\) return[\s\S]*?const name = value\?\.trim\(\)[\s\S]*?if \(name && name !== session\.title\) void update\(session\.id, \{ title: name \}, scope\.profileGeneration\)/)
   assert.match(source, /else if \(id === 'rename'\) requestRename\(\)/)
-  assert.match(source, /\{ id: 'rename', title: 'Rename Chat', image: 'pencil' \}/)
+  assert.match(source, /\{ id: 'rename', title: t\('Rename Chat'\), image: 'pencil' \}/)
   assert.match(source, /\{ id: 'rename', title: 'Rename Chat' \}/)
   assert.match(source, /promptText: \(options: TextPromptOptions\) => Promise<string \| null>/)
 })

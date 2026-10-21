@@ -3,6 +3,8 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import QRCode from 'qrcode'
+import { parseServerConnectionLink } from '../shared/server-connection-link'
 import type {
   BulkImportSessionItem,
   BulkImportSessionResult,
@@ -8175,7 +8177,7 @@ describe('credential-free profile metadata and asynchronous authentication', () 
     await expect(service.serverTokenPreview('b')).rejects.toThrow('no saved access token')
   })
 
-  it('generates and saves a PNG for the selected profile without contacting any server', async () => {
+  it('generates and saves a legacy PNG when address discovery is unavailable without switching profiles', async () => {
     const { service, clientFactory } = prepare(2)
     const qr = await service.serverConnectionQr('b')
     expect(qr.serverUrl).toBe('https://b.test')
@@ -8188,8 +8190,47 @@ describe('credential-free profile metadata and asynchronous authentication', () 
     electronHarness.showSaveDialog.mockResolvedValueOnce({ canceled: false, filePath })
     expect(await service.saveServerConnectionQr('b', qr.revision)).toBe(true)
     expect(readFileSync(filePath)).toEqual(Buffer.from(qr.dataUrl.split(',')[1], 'base64'))
-    expect(clientFactory).not.toHaveBeenCalled()
+    expect(clientFactory).toHaveBeenCalledTimes(2)
+    expect(clientFactory).toHaveBeenLastCalledWith('https://b.test', 'fake-b')
     expect(service.getActiveServer().id).toBe('a')
+  })
+
+  it('shares only the selected server advertised addresses, preserving the configured remote endpoint', async () => {
+    const { service, clientFactory } = prepare(2)
+    const dispose = vi.fn()
+    clientFactory.mockReturnValueOnce({ connectionAddresses: async () => ({ version: 1, server_identity: 'server-b',
+      urls: ['http://100.64.0.2:7852', 'http://192.168.1.2:7852'] }), dispose } as unknown as AgentServerClient)
+    const encode = vi.spyOn(QRCode, 'toDataURL').mockImplementation((() => Promise.resolve('data:image/png;base64,fixture')) as typeof QRCode.toDataURL)
+    try {
+      const result = await service.serverConnectionQr('b')
+      const details = parseServerConnectionLink(encode.mock.calls[0][0] as string)
+      expect(details.serverUrls).toEqual(['https://b.test', 'http://100.64.0.2:7852', 'http://192.168.1.2:7852'])
+      expect(details.serverIdentity).toBe('server-b')
+      expect(details.accessToken).toBe('fake-b')
+      expect(result.serverUrl).toBe('https://b.test')
+      expect(dispose).toHaveBeenCalledOnce()
+      expect(service.getActiveServer().id).toBe('a')
+    } finally { encode.mockRestore() }
+  })
+
+  it('rejects a discovered identity mismatch before creating a credential QR', async () => {
+    const { service, clientFactory, settings } = prepare(2)
+    settings.setProfileServerIdentity('b', 'expected-b')
+    clientFactory.mockReturnValueOnce({ connectionAddresses: async () => ({ version: 1, server_identity: 'different-b', urls: [] }), dispose() {} } as unknown as AgentServerClient)
+    await expect(service.serverConnectionQr('b')).rejects.toThrow('identity mismatch')
+  })
+
+  it('rejects stale address discovery after the saved credentials change', async () => {
+    const { service, clientFactory, settings } = prepare(2)
+    const pending = deferred<{ version: number; server_identity: string; urls: string[] }>()
+    const started = deferred<void>()
+    clientFactory.mockReturnValueOnce({ connectionAddresses: () => { started.resolve(); return pending.promise }, dispose() {} } as unknown as AgentServerClient)
+    const result = service.serverConnectionQr('b')
+    const rejected = expect(result).rejects.toThrow()
+    await started.promise
+    settings.updateProfile('b', { accessToken: 'replacement' })
+    pending.resolve({ version: 1, server_identity: 'server-b', urls: ['http://100.64.0.2:7852'] })
+    await rejected
   })
 
   it('does not save a stale QR after credentials change while the save dialog is open', async () => {

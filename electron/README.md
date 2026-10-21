@@ -4,6 +4,23 @@ This directory contains the cross-platform AgentsDock desktop client for
 macOS, Linux, and Windows. The Swift macOS, iOS, and iPadOS applications remain
 in the repository and are not overwritten by the Electron development build.
 
+## Shared-chat analytics bundles
+
+The shared browser keeps generic desktop analytics disabled. Three narrowly
+scoped browser events are documented in `docs/ANALYTICS_EVENTS.md`. Regenerate
+both served artifacts after changing the shared tracker/bridge (from repo root):
+
+```bash
+cd electron
+pnpm exec vite build --config vite.shared-chat.config.ts
+pnpm exec vite build --config vite.share-analytics.config.ts
+cd ..
+node scripts/package_shared_chat_web.mjs electron/out/shared-chat server/interactive_chat_share_web.py
+node scripts/package_shared_chat_analytics.mjs electron/out/share-analytics/snapshot-analytics.js server/shared_chat_analytics_web.py
+```
+
+These generate source artifacts only; server deployment requires separate
+authorization. Read-only pages authorize only the exact bundled script hash.
 ## Gemini
 
 Gemini is a built-in desktop/server provider; no development flag is required.
@@ -95,13 +112,18 @@ URL and connection status. Add server is above the cards. Expand a card for
 separate version and identity rows. A token field shows its first four characters
 with the remainder masked, and Copy at the end copies the complete credential.
 Short tokens stay fully masked. The token field is grouped separately from
-Use/Edit and the red Remove action. The Show QR code entry is temporarily
-commented out; its implementation is retained. Sharing
-does not switch the active server. The active card also contains restart controls.
+Use/Edit and the red Remove action. **Show QR code** locally renders the selected
+saved connection for another device, including servers hosted on other machines.
+It does not require local server installation. Updated servers supply their own
+LAN/Tailscale candidates through authenticated native address discovery; the QR
+then lets mobile choose a reachable address and retain alternatives. Older or
+offline servers fall back to the saved single address. Sharing does not switch
+the active server. The active card also contains restart controls.
 Persistent goals have no server-wide Settings toggle. Updated servers keep the
 capability available by default; each chat retains its own goal controls.
-Connection QR import still needs a matching mobile implementation; the image
-does not make a loopback-only server reachable from a phone. See
+The camera-enabled mobile app can scan it from **Servers > Add Server > Scan QR
+code** and authenticates before saving. Older mobile builds need an app update.
+The image does not make a loopback-only server reachable from a phone. See
 [`SERVER_CONNECTION_SHARING.md`](../docs/SERVER_CONNECTION_SHARING.md) for the
 format and remaining acceptance checks.
 
@@ -157,6 +179,18 @@ boundary. Reopening a stale cache does not replay the entire offline gap;
 older history loads on upward navigation. Failed refreshes retain the cache.
 Incoming events are coalesced to one renderer publish per animation frame.
 Timeline rows are virtualized with stable semantic keys.
+
+The chat sidebar temporarily groups unread and running chats above ordinary
+folders, with a blue dot for Unread and green for Running. Running takes
+precedence while a turn is active. Chats appear only once; their saved folder
+and pinned state are unchanged. Reading a completed chat returns it to its
+ordinary section, and empty status groups disappear. Groups and folders use
+right-aligned collapse arrows. Status collapse state lasts within the current
+workspace, and next/previous-chat shortcuts follow the visible group order.
+Pinned also collapses, remembers its state per server across reopening, and
+stays independent of real folders with the same name.
+Status groups are not folder drop targets; dragging a chat out can still assign
+it to a real folder.
 
 Every selected chat also owns a lightweight workspace surface rooted at its
 server-side `cwd`. The right-hand Details panel has a **Files** tab for browsing

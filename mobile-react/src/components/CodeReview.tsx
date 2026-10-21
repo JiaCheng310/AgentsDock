@@ -44,8 +44,8 @@ export function CodeReview(props: CodeReviewProps) {
   if (props.runId && !connectionReady && !hasLocalFallback) {
     return <Modal key={connectionKey} visible animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} allowSwipeDismissal onRequestClose={props.onClose}>
       <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        <View style={[styles.header, { borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Review</Text><View style={{ flex: 1 }} /><SheetCloseButton onPress={props.onClose} label="Close review" testID="review-unavailable-close" /></View>
-        <View style={styles.unavailable}><Text style={[styles.unavailableText, { color: colors.muted }]}>{connecting || switchingProfileId ? 'Verifying server identity…' : 'Reconnect this server to load the review.'}</Text></View>
+        <View style={[styles.header, { borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]} localize>Review</Text><View style={{ flex: 1 }} /><SheetCloseButton onPress={props.onClose} label="Close review" testID="review-unavailable-close" /></View>
+        <View style={styles.unavailable}><Text style={[styles.unavailableText, { color: colors.muted }]} localize>{connecting || switchingProfileId ? 'Verifying server identity…' : 'Reconnect this server to load the review.'}</Text></View>
       </SafeAreaView>
     </Modal>
   }
@@ -112,10 +112,10 @@ function ScopedCodeReview({ sessionId, runId, onClose, connection, connectionKey
   return <Modal key={connectionKey} visible={Boolean(runId)} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} allowSwipeDismissal onRequestClose={onClose}>
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <View style={[styles.header, { borderColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Review</Text>
-        <Text style={{ color: colors.green }}>+{additions}</Text>
-        <Text style={{ color: colors.red }}>-{deletions}</Text>
-        {conflictCount ? <View accessibilityRole="alert" style={[styles.conflictSummary, { backgroundColor: `${colors.orange}18` }]}><AlertTriangle size={12} color={colors.orange} /><Text style={{ color: colors.orange, fontSize: 10, fontWeight: '800' }}>{conflictCount} conflict{conflictCount === 1 ? '' : 's'}</Text></View> : null}
+        <Text style={[styles.title, { color: colors.text }]} localize>Review</Text>
+        <Text style={{ color: colors.green }} localize>+{additions}</Text>
+        <Text style={{ color: colors.red }} localize>-{deletions}</Text>
+        {conflictCount ? <View accessibilityRole="alert" style={[styles.conflictSummary, { backgroundColor: `${colors.orange}18` }]}><AlertTriangle size={12} color={colors.orange} /><Text style={{ color: colors.orange, fontSize: 10, fontWeight: '800' }} localize>{conflictCount} conflict{conflictCount === 1 ? '' : 's'}</Text></View> : null}
         <View style={{ flex: 1 }} />
         <IconButton icon={Copy} onPress={() => void Clipboard.setStringAsync(diff)} label="Copy diff" />
         <SheetCloseButton onPress={onClose} label="Close review" testID="review-close" />
@@ -138,7 +138,7 @@ function ReviewFileButton({ file, selected, onPress }: { file: DiffFile; selecte
   const conflict = file.conflictCount ? `, ${file.conflictCount} conflict${file.conflictCount === 1 ? '' : 's'}` : ''
   return <Pressable accessibilityRole="button" accessibilityLabel={`Review ${file.path}${conflict}`} accessibilityState={{ selected }} onPress={onPress} style={[styles.file, { backgroundColor: selected ? colors.raised : 'transparent' }]}>
     <View style={styles.fileName}><Text style={{ color: colors.text, fontSize: 11, fontFamily: 'Menlo' }} numberOfLines={2}>{file.path}</Text>{file.conflictCount ? <View style={styles.conflictBadge}><AlertTriangle size={10} color={colors.orange} /><Text style={{ color: colors.orange, fontSize: 9, fontWeight: '800' }}>{file.conflictCount}</Text></View> : null}</View>
-    <Text style={{ color: colors.green, fontSize: 10 }}>+{file.additions}</Text><Text style={{ color: colors.red, fontSize: 10 }}>-{file.deletions}</Text>
+    <Text style={{ color: colors.green, fontSize: 10 }} localize>+{file.additions}</Text><Text style={{ color: colors.red, fontSize: 10 }} localize>-{file.deletions}</Text>
   </Pressable>
 }
 
