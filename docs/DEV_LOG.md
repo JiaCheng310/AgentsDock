@@ -1,5 +1,37 @@
 # Public development log
 
+## 2026-10-20 — Recover Codex model-switch compaction without replacing history
+
+- Address the remaining compaction path in #89; authentication-aware model
+  retirement/default handling remains covered by #92. A compaction failure no
+  longer triggers a bounded-memory replacement thread.
+- Attempt at most one same-thread continuation only after a full native failed
+  turn proves no execution occurred. If the original input was already accepted,
+  continue with empty native input instead of inserting the user message again.
+  Unknown acceptance, output/tool activity, cancellation and lost ownership all
+  prevent automatic replay.
+- Close failed/interrupted automatic-compaction status without reporting success.
+  Explain the selected model and failure stage while retaining the native error;
+  do not invent diagnostics for a fallback error the provider did not expose.
+- Verification: 137 targeted runner, retirement, resume, restart and compaction
+  status tests pass, along with Python source compilation and the dependency
+  lock check. Two new regression tests fail on unmodified main. A wider controls
+  sweep encounters an existing idle-thread-load mock failure, also reproduced
+  on unmodified main; it is not fixed by this change.
+- Personally exercised the actual native Electron client through mouse/keyboard
+  input and production IPC/HTTP against an authorized test server with Codex
+  CLI 0.156.1. Disposable old-model fixtures and a local fault-injection endpoint
+  cover persistent compaction failure, the one-retry limit, native fallback,
+  visible failure status and Stop. After removing the fault injection and
+  restarting the test server, the same native conversation produced a real
+  OpenAI reply recalling its earlier marker. A separate real native continuation
+  confirmed that empty input adds no duplicate user message.
+- The retired-model seed and failures are controlled fixtures, not a claim to
+  reproduce an uncontrolled upstream outage. Cancellation during recovery proof
+  and abandoned-run restart cleanup have deterministic test coverage. No new
+  CLI version, mobile change, public release or production deployment is included;
+  this source fix requires a server update.
+
 ## 2026-10-20 — Fix Claude running-chat fork timestamp precision
 
 - Fix #94: recognize millisecond native timestamps within a second-truncated
