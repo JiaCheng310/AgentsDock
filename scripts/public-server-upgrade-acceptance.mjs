@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { createHash, verify } from 'node:crypto'
 import { createWriteStream, existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer, request } from 'node:http'
 import { connect as connectTcp } from 'node:net'
@@ -107,7 +107,7 @@ async function appPackage(version) {
   verifyApp(path, version)
   return path
 }
-let client, ownedApp, keychainCreated = false, token, savedId, identity, savedBefore
+let client, ownedApp, keychainCreated = false, token, savedId, identity, savedBefore, tmuxConfigCreated = false
 const acceptedPackages = new Map()
 const profileId = `public-upgrade-${baseline}`
 const account = `agent-access-token:${profileId}`
@@ -170,6 +170,7 @@ proxy.on('connect', (req, socket, head) => {
 })
 await new Promise(resolveReady => proxy.listen(0, '127.0.0.1', resolveReady))
 const proxyEnvironment = { HTTPS_PROXY: `http://127.0.0.1:${proxy.address().port}`, NO_PROXY: 'localhost,127.0.0.1' }
+const tmuxConfig = join(home, '.tmux.conf')
 const safe = text => text?.slice(0, 400)
   .replace(/https?:\/\/\S+|\b[A-Za-z0-9_-]{28,}\b/g, '[redacted]')
   .replace(/(?:\/Users|\/home|\/Volumes|\/tmp)\/[^\s,;:)]+/g, '[path]')
@@ -307,9 +308,14 @@ try {
   await run('/usr/bin/security', ['-i'], { input: `add-generic-password -s ${keychainService} -a ${account} -w ${token}\n` })
   keychainCreated = true
   await service('stop')
-  for (const [key, value] of Object.entries(proxyEnvironment)) {
-    await run('/bin/launchctl', ['setenv', key, value]); env[key] = value
-  }
+  // The product deliberately filters daemon bootstrap environment. Configure
+  // the disposable account's standard tmux settings instead of changing that
+  // product boundary. Every newly started updater daemon reads this file.
+  assert(!existsSync(tmuxConfig), 'Refusing to replace an existing tmux configuration.')
+  await writeFile(tmuxConfig, Object.entries(proxyEnvironment)
+    .map(([key, value]) => `set-environment -g ${key} "${value}"`).join('\n') + '\n', { flag: 'wx', mode: 0o600 })
+  tmuxConfigCreated = true
+  if (commandStatus('tmux', ['show-environment', '-g']) === 0) await run('tmux', ['source-file', tmuxConfig])
   await launchApp(stableApp, 'stable')
   await waitState('App records offline server', state => state.records?.some(item => item.phase === 'offline'), 90_000)
   report.checks.offlineIntentRecorded = true
@@ -319,6 +325,8 @@ try {
     state.health?.version === '1.0.10' && state.records?.some(item => item.phase === 'current'))
   await preserve('1.0.10')
   report.checks.stableDownloadHosts = [...new Set(connections.filter(item => !item.refused).map(item => item.host))]
+  assert(report.checks.stableDownloadHosts.includes(baseline === 'legacy103' ? 'github.com' : 'registry.npmjs.org'),
+    'Expected public runtime download origin was not observed.')
   report.checks.offlineReconnectAutomatic = true
   phase('stable-upgrade-through-real-app-completed')
   await openMigrationUpdateSettings(client)
@@ -349,11 +357,12 @@ try {
   report.status = 'failed'
   report.failure = safe(error.message)
   report.finalState = await status().catch(() => null)
+  report.downloadConnections = connections
   process.exitCode = 1
 } finally {
   await closeApp().catch(() => { report.appExit = 'owned-app-cleanup-failed' })
   if (keychainCreated) await run('/usr/bin/security', ['delete-generic-password', '-s', keychainService, '-a', account]).catch(() => {})
-  for (const key of Object.keys(proxyEnvironment)) await run('/bin/launchctl', ['unsetenv', key]).catch(() => {})
+  if (tmuxConfigCreated) await unlink(tmuxConfig)
   for (const socket of sockets) socket.destroy()
   proxy.close()
   privateLog.end()
