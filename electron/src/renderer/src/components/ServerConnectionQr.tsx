@@ -36,7 +36,6 @@ export function ServerConnectionQr({ profile, onClose }: { profile: PublicServer
       <img src={qr.dataUrl} alt={t('serverConnection.qrFor', { server: profile.name })} width={256} height={256} />
       {qr.localOnly && <p className="server-management-warning" role="note">{t('serverConnection.localOnly')}</p>}
       <p>{t('serverConnection.qrPrivate')}</p>
-      <p>{t('serverConnection.mobilePending')}</p>
       <button type="button" className="quiet-button" disabled={saving} onClick={() => void save()}>
         {saving ? <LoaderCircle size={14} className="spin" /> : <Download size={14} />} {t('serverConnection.saveQr')}
       </button>

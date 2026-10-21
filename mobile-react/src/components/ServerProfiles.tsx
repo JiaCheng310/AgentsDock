@@ -11,7 +11,8 @@ import {
 import { ScreenStack, ScreenStackItem } from 'react-native-screens'
 import { MenuView, type MenuAction } from '@expo/ui/community/menu'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Check, ChevronDown, MoreHorizontal, Plus, Server, Wifi } from 'lucide-react-native'
+import Svg, { Circle, Text as SvgText } from 'react-native-svg'
+import { ArrowLeft, Check, ChevronDown, MoreHorizontal, Plus, ScanLine, Server, Wifi } from 'lucide-react-native'
 import {
   buildCreateServerProfileInput,
   buildUpdateServerProfileInput,
@@ -37,6 +38,10 @@ import { fontWeight, radius, spacing, typography, usePalette } from '../theme'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { Text, TextInput } from './AppText'
 import { IconButton, SheetCloseButton } from './ui'
+import { ServerQrScanner } from './ServerQrScanner'
+import type { ServerConnectionDetails } from '../lib/server-connection-link'
+import { selectServerAddress } from '../lib/server-address-selection'
+import { t } from '../i18n'
 
 export type {
   CreateServerProfileInput,
@@ -51,6 +56,7 @@ type Awaitable<T> = T | Promise<T>
 type ActionResult = boolean | void
 type CreatedProfile = string | Pick<ServerProfileListItem, 'id'>
 const serverSheetDetents = [0.5, 1]
+const scannerSheetDetents = [1]
 
 interface CommonServerProfileProps {
   profiles: readonly ServerProfileListItem[]
@@ -73,6 +79,7 @@ export interface ServerProfilesManagerProps extends CommonServerProfileProps {
   onRemoveProfile: (profileId: string) => Awaitable<void>
   onSelected?: () => void
   onClose?: () => void
+  onScannerVisibilityChange?: (visible: boolean) => void
 }
 
 export interface ServerProfilesSheetProps extends ServerProfilesManagerProps {
@@ -101,14 +108,14 @@ export function ServerProfileSelector({
     testID="server-profile-selector"
     accessible
     accessibilityRole="button"
-    accessibilityLabel={`${selectorLabel}${refreshing ? ' Refreshing chats.' : ''}`}
+    accessibilityLabel={`${t(selectorLabel)}${refreshing ? ` ${t('Refreshing chats.')}` : ''}`}
     accessibilityState={{ disabled: unavailable, expanded: false, busy: Boolean(switchingProfileId) || refreshing }}
     disabled={unavailable}
     onPress={onPress}
     style={({ pressed }) => [styles.selector, { borderColor: colors.controlBorder, backgroundColor: pressed ? colors.raised : colors.controlSurface, opacity: unavailable ? 0.4 : 1 }]}
   >
-    <ServerConnectionDot state={switchingProfileId ? 'connecting' : active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
-    <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || 'Choose server'}</Text>
+    <ServerConnectionDot state={switching?.connectionState ?? active?.connectionState ?? 'cached'} label={switching ? `Connecting to ${switching.name}` : active ? profileConnectionLabel(active) : 'No server selected'} />
+    <Text style={[styles.selectorName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{switching?.name || active?.name || t('Choose server')}</Text>
     <View style={styles.selectorRefresh} pointerEvents="none">
       {refreshing ? <ActivityIndicator testID="server-chat-refresh" accessibilityLabel="Refreshing chats" size="small" color={colors.muted} /> : <ChevronDown size={14} color={colors.muted} />}
     </View>
@@ -117,6 +124,8 @@ export function ServerProfileSelector({
 
 export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfilesSheetProps) {
   const colors = usePalette()
+  const [scannerVisible, setScannerVisible] = useState(false)
+  useEffect(() => { if (!visible) setScannerVisible(false) }, [visible])
   // Keep the native presenter alive through dismissal, but never intercept home touches when closed.
   return <View style={StyleSheet.absoluteFill} pointerEvents={visible ? 'box-none' : 'none'}>
     <ScreenStack style={styles.sheet}>
@@ -125,7 +134,7 @@ export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfil
         screenId="servers-drawer"
         activityState={2}
         stackPresentation="formSheet"
-        sheetAllowedDetents={serverSheetDetents}
+        sheetAllowedDetents={scannerVisible ? scannerSheetDetents : serverSheetDetents}
         sheetInitialDetentIndex={0}
         sheetGrabberVisible
         sheetExpandsWhenScrolledToEdge
@@ -135,7 +144,7 @@ export function ServerProfilesSheet({ visible, onClose, ...props }: ServerProfil
         style={styles.sheet}
       >
         <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
-          <ServerProfilesManager {...props} onSelected={onClose} onClose={onClose} />
+          <ServerProfilesManager {...props} onSelected={onClose} onClose={onClose} onScannerVisibilityChange={setScannerVisible} />
         </SafeAreaView>
       </ScreenStackItem> : null}
     </ScreenStack>
@@ -154,17 +163,23 @@ export function ServerProfilesManager({
   onRemoveProfile,
   onSelected,
   onClose,
+  onScannerVisibilityChange,
 }: ServerProfilesManagerProps) {
   const colors = usePalette()
   const [draft, setDraft] = useState<ServerProfileDraftValues | null>(() => initialServerProfileDraft(initialMode, profiles, activeProfileId))
   const [busy, setBusy] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [entryMethod, setEntryMethod] = useState<'manual' | 'qr'>('manual')
+  useEffect(() => { onScannerVisibilityChange?.(scanning) }, [onScannerVisibilityChange, scanning])
+  const [qrIdentity, setQrIdentity] = useState<string | null>(null)
   const [tested, setTested] = useState<ServerConnectionTestResult | null>(null)
   const [feedback, setFeedback] = useState<{ tone: 'error' | 'success' | 'neutral'; message: string } | null>(null)
   const testLease = useRef(0)
+  const testController = useRef<AbortController | null>(null)
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false }
+    return () => { mounted.current = false; testLease.current += 1; testController.current?.abort() }
   }, [])
   const editedProfile = useMemo(() => profiles.find(profile => profile.id === draft?.profileId) ?? null, [draft?.profileId, profiles])
   const duplicateProfile = useMemo(
@@ -196,35 +211,45 @@ export function ServerProfilesManager({
 
   const invalidateTest = () => {
     testLease.current += 1
+    testController.current?.abort()
     setTested(null)
     setFeedback(null)
     if (busy === 'test') setBusy(null)
   }
   const updateDraft = (patch: Partial<ServerProfileDraftValues>, invalidatesTest = false) => {
     if (invalidatesTest) invalidateTest()
-    setDraft(current => current ? { ...current, ...patch } : current)
+    setDraft(current => current ? { ...current, ...(patch.serverUrl !== undefined ? { serverUrls: undefined } : {}), ...patch } : current)
   }
   const openAdd = () => {
     if (busy) return
     invalidateTest()
+    setQrIdentity(null)
+    setEntryMethod('manual')
     setDraft(emptyServerProfileDraft())
   }
   const openEdit = (profile: ServerProfileListItem) => {
     if (busy) return
     invalidateTest()
+    setQrIdentity(null)
+    setEntryMethod('manual')
     setDraft(editServerProfileDraft(profile))
   }
   const closeEditor = () => {
     if (busy) return
+    if (scanning) { setScanning(false); return }
     invalidateTest()
+    setQrIdentity(null)
     setDraft(null)
     dismissAppKeyboard()
   }
 
-  const testConnection = async () => {
-    if (!draft?.serverUrl.trim()) return
+  const testConnection = async (candidate = draft, expectedIdentity = qrIdentity) => {
+    if (!candidate?.serverUrl.trim()) return
     const request = ++testLease.current
-    const testedDraft = { ...draft }
+    testController.current?.abort()
+    const controller = new AbortController()
+    testController.current = controller
+    const testedDraft = { ...candidate }
     const accessToken = draftAccessToken(testedDraft)
     const input: ServerProfileTestInput = {
       ...(testedDraft.profileId ? { profileId: testedDraft.profileId } : {}),
@@ -235,15 +260,33 @@ export function ServerProfilesManager({
     setTested(null)
     setFeedback(null)
     try {
-      const result = await onTestConnection(input)
+      const selected = testedDraft.serverUrls && expectedIdentity
+        ? await selectServerAddress(testedDraft.serverUrls, expectedIdentity,
+          (serverUrl, signal) => Promise.resolve(onTestConnection({ ...input, serverUrl, signal, timeoutMs: 5000 })),
+          { signal: controller.signal })
+        : { serverURL: testedDraft.serverUrl, health: await onTestConnection({ ...input, signal: controller.signal }) }
+      const result = selected.health
       if (result.ok !== true) throw new Error(result.message || 'Server health check reported unavailable.')
       if (!result.server_identity?.trim()) throw new Error('This AgentsServer did not report a stable server identity.')
-      if (request === testLease.current) setTested(result)
+      if (expectedIdentity && result.server_identity !== expectedIdentity) throw new Error('This server does not match the scanned QR. Generate a fresh QR on the intended server.')
+      if (request === testLease.current) {
+        setDraft(current => current ? { ...current, serverUrl: selected.serverURL } : current)
+        setTested(result)
+      }
     } catch (error) {
       if (request === testLease.current) setFeedback({ tone: 'error', message: errorMessage(error) })
     } finally {
       if (request === testLease.current) setBusy(null)
     }
+  }
+
+  const acceptQr = (details: ServerConnectionDetails) => {
+    const candidate = { ...emptyServerProfileDraft(), name: details.name, serverUrl: details.serverUrl, serverUrls: details.serverUrls, accessToken: details.accessToken }
+    setScanning(false)
+    setEntryMethod('qr')
+    setQrIdentity(details.serverIdentity)
+    setDraft(candidate)
+    void testConnection(candidate, details.serverIdentity)
   }
 
   const switchProfile = async (profileId: string) => {
@@ -287,6 +330,10 @@ export function ServerProfilesManager({
     setFeedback(null)
     try {
       if (!draft.profileId && duplicateProfile) {
+        if (draft.serverUrls) {
+          // Reuse the saved credential; the store validates it before updating addresses.
+          await onUpdateProfile(duplicateProfile.id, { serverUrl: draft.serverUrl, serverUrls: draft.serverUrls, serverIdentity: tested!.server_identity! })
+        }
         const switched = await onSwitchProfile(duplicateProfile.id)
         if (switched === false) throw new Error(`Could not activate the existing “${duplicateProfile.name}” profile.`)
       } else if (draft.profileId && editedProfile) {
@@ -312,7 +359,7 @@ export function ServerProfilesManager({
   }
 
   const removeProfile = async (profile: ServerProfileListItem) => {
-    if (profile.id === activeProfileId || busy) return
+    if (busy) return
     setBusy(`remove:${profile.id}`)
     setFeedback(null)
     try {
@@ -326,13 +373,13 @@ export function ServerProfilesManager({
   }
 
   const confirmRemove = (profile: ServerProfileListItem) => {
-    if (profile.id === activeProfileId || busy) return
+    if (busy) return
     Alert.alert(
-      `Remove “${profile.name}”?`,
-      'The saved connection will be removed. Its cached chats remain on this device.',
+      t('Remove “{name}”?', { name: profile.name }),
+      t('Only this saved connection will be removed. This will not stop tasks or delete chats on the server. Cached chats remain on this device.'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove server', style: 'destructive', onPress: () => { void removeProfile(profile) } },
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t('Remove server'), style: 'destructive', onPress: () => { void removeProfile(profile) } },
       ],
     )
   }
@@ -343,20 +390,20 @@ export function ServerProfilesManager({
       return
     }
     Alert.alert(
-      'Trust a new server identity?',
-      'Only continue if you intentionally replaced or moved this AgentsServer. The previous cached workspace will be preserved.',
+      t('Trust a new server identity?'),
+      t('Only continue if you intentionally replaced or moved this AgentsServer. The previous cached workspace will be preserved.'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Allow identity reset', style: 'destructive', onPress: () => updateDraft({ resetServerIdentity: true }) },
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t('Allow identity reset'), style: 'destructive', onPress: () => updateDraft({ resetServerIdentity: true }) },
       ],
     )
   }
 
   return <>
     <View style={[styles.sheetHeader, { borderColor: colors.border }]}>
-      {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label="Back to servers" testID="server-editor-back" /> : null}
+      {draft ? <IconButton icon={ArrowLeft} disabled={Boolean(busy)} onPress={closeEditor} label={scanning ? 'Back to add server' : 'Back to servers'} testID="server-editor-back" /> : null}
       <View style={styles.sheetHeadingCopy}>
-        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers'}</Text>
+        <Text testID="server-management-title" accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{t(scanning ? 'Scan QR code' : draft ? draft.profileId ? 'Edit server' : 'Add server' : 'Servers')}</Text>
       </View>
       {onClose ? <SheetCloseButton onPress={onClose} label="Close server management" testID="server-management-close" /> : null}
     </View>
@@ -384,7 +431,7 @@ export function ServerProfilesManager({
         />
       }) : <View style={styles.noProfiles}>
         <Server size={24} color={colors.muted} />
-        <Text style={[styles.noProfilesTitle, { color: colors.text }]}>No saved servers</Text>
+        <Text style={[styles.noProfilesTitle, { color: colors.text }]} localize>No saved servers</Text>
       </View>}
       <Pressable
         testID="server-profile-add"
@@ -393,7 +440,7 @@ export function ServerProfilesManager({
         disabled={Boolean(busy) || Boolean(switchingProfileId)}
         onPress={openAdd}
         style={({ pressed }) => [styles.addServer, { opacity: busy || switchingProfileId ? 0.35 : pressed ? 0.65 : 1 }]}
-      ><Plus size={20} color={colors.text} /><Text style={[styles.profileName, { color: colors.text }]}>Add server</Text></Pressable>
+      ><Plus size={20} color={colors.text} /><Text style={[styles.profileName, { color: colors.text }]} localize>Add server</Text></Pressable>
     </View> : null}
 
     {feedback ? <View
@@ -402,10 +449,27 @@ export function ServerProfilesManager({
         backgroundColor: feedback.tone === 'error' ? `${colors.red}18` : feedback.tone === 'success' ? `${colors.green}18` : colors.raised,
         borderColor: feedback.tone === 'error' ? `${colors.red}66` : feedback.tone === 'success' ? `${colors.green}66` : colors.border,
       }]}
-    ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{feedback.message}</Text></View> : null}
+    ><Text style={[typography.caption, { color: feedback.tone === 'error' ? colors.red : feedback.tone === 'success' ? colors.green : colors.text }]}>{t(feedback.message)}</Text></View> : null}
 
-    {draft ? <View testID="server-profile-editor" style={styles.editor}>
-      <View style={styles.editorFields}>
+    {scanning ? <ServerQrScanner onScanned={acceptQr} /> : draft ? <View testID="server-profile-editor" style={styles.editor}>
+      {!draft.profileId ? <SecondaryButton icon={ScanLine} label="Scan QR code" disabled={Boolean(busy)} onPress={() => {
+        dismissAppKeyboard()
+        invalidateTest()
+        setScanning(true)
+      }} /> : null}
+      {!draft.profileId && entryMethod === 'manual' ? <Text style={[typography.caption, styles.manualCaption, { color: colors.muted }]} localize>or add manually</Text> : null}
+      {!draft.profileId && entryMethod === 'qr' ? <>
+        <View testID="server-scanned-summary" style={styles.scannedSummary}>
+          {draft.name ? <Text style={[typography.label, { color: colors.text }]}>{draft.name}</Text> : null}
+          <Text selectable style={[typography.body, { color: colors.muted }]}>{draft.serverUrl}</Text>
+        </View>
+        <Pressable testID="server-manual-entry" accessibilityRole="button" accessibilityLabel="Edit details"
+          disabled={Boolean(busy)} onPress={() => setEntryMethod('manual')}
+          style={({ pressed }) => [styles.manualEntry, { opacity: busy ? 0.35 : pressed ? 0.65 : 1 }]}>
+          <Text style={[typography.body, { color: colors.blue }]} localize>Edit details</Text>
+        </Pressable>
+      </> : null}
+      {entryMethod === 'manual' ? <View style={styles.editorFields}>
         <View style={styles.editorField}>
           <FieldLabel step={1} text="Name (optional)" />
           <TextInput
@@ -454,11 +518,11 @@ export function ServerProfilesManager({
             style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, opacity: draft.clearAccessToken ? 0.4 : 1 }]}
           />
         </View>
-      </View>
+      </View> : null}
       {editedProfile?.hasAccessToken ? <View style={styles.switchRow}>
         <View style={styles.switchCopy}>
-          <Text style={[styles.switchTitle, { color: colors.text }]}>Remove saved access token</Text>
-          <Text style={[styles.help, { color: colors.muted }]}>Blank above preserves it; this switch explicitly deletes it.</Text>
+          <Text style={[styles.switchTitle, { color: colors.text }]} localize>Remove saved access token</Text>
+          <Text style={[styles.help, { color: colors.muted }]} localize>Blank above preserves it; this switch explicitly deletes it.</Text>
         </View>
         <Switch
           testID="server-profile-clear-token"
@@ -472,8 +536,8 @@ export function ServerProfilesManager({
       {identityResetRequired ? <View style={[styles.identityWarning, { backgroundColor: `${colors.orange}14`, borderColor: `${colors.orange}55` }]}>
         <View style={styles.switchRow}>
           <View style={styles.switchCopy}>
-            <Text style={[styles.switchTitle, { color: colors.orange }]}>Allow a new server identity</Text>
-            <Text style={[styles.help, { color: colors.muted }]}>The endpoint no longer matches the saved identity. Confirm only after intentionally replacing or moving the server.</Text>
+            <Text style={[styles.switchTitle, { color: colors.orange }]} localize>Allow a new server identity</Text>
+            <Text style={[styles.help, { color: colors.muted }]} localize>The endpoint no longer matches the saved identity. Confirm only after intentionally replacing or moving the server.</Text>
           </View>
           <Switch
             testID="server-profile-reset-identity"
@@ -489,15 +553,15 @@ export function ServerProfilesManager({
         <Check size={16} color={duplicateProfile || testedIdentityChanged ? colors.orange : colors.green} />
         <Text style={[typography.caption, { flex: 1, color: duplicateProfile || testedIdentityChanged ? colors.orange : colors.green }]}>
           {duplicateProfile
-            ? `Already saved as “${duplicateProfile.name}”.`
+            ? t('Already saved as “{name}”.', { name: duplicateProfile.name })
             : testedIdentityChanged
-              ? `Connected, but this endpoint now reports ${tested.server_identity} instead of ${editedProfile?.serverIdentity}. Confirm the identity reset below before saving.`
-            : `Connected${tested.server_identity ? ` · ${tested.server_identity}` : ''}${tested.version ? ` · ${tested.version}` : ''}`}
+              ? t('Connected, but this endpoint now reports {actual} instead of {saved}. Confirm the identity reset below before saving.', { actual: tested.server_identity ?? '', saved: editedProfile?.serverIdentity ?? '' })
+            : `${t('Connected')}${tested.server_identity ? ` · ${tested.server_identity}` : ''}${tested.version ? ` · ${tested.version}` : ''}`}
         </Text>
       </View> : null}
 
-      {!draft.profileId && !tested ? <Text style={[styles.help, { color: colors.muted }]}>A successful connection test is required before this server can be added.</Text> : null}
-      {draft.profileId && updateTestMissing ? <Text style={[styles.help, { color: colors.orange }]}>Test this exact connection before saving address, access-token, or identity changes.</Text> : null}
+      {!draft.profileId && !tested ? <Text style={[styles.help, { color: colors.muted }]} localize>A successful connection test is required before this server can be added.</Text> : null}
+      {draft.profileId && updateTestMissing ? <Text style={[styles.help, { color: colors.orange }]} localize>Test this exact connection before saving address, access-token, or identity changes.</Text> : null}
 
       <View style={styles.editorActions}>
         <SecondaryButton
@@ -509,7 +573,7 @@ export function ServerProfilesManager({
         />
         <View style={styles.actionSpacer} />
         <PrimaryButton
-          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? `Use ${duplicateProfile.name}` : 'Add'}
+          label={busy === 'save' ? 'Saving…' : draft.profileId ? 'Save' : duplicateProfile ? t('Use {name}', { name: duplicateProfile.name }) : 'Add'}
           disabled={Boolean(busy) || !draft.serverUrl.trim() || (!draft.profileId && !tested?.ok) || Boolean(draft.profileId && duplicateProfile) || updateTestMissing || identityResetUnconfirmed}
           busy={busy === 'save'}
           onPress={() => { void save() }}
@@ -532,12 +596,12 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
   const colors = usePalette()
   const status = profileConnectionLabel(profile)
   const actions: MenuAction[] = [
-    { id: 'edit', title: 'Edit', image: 'pencil', attributes: { disabled } },
+    { id: 'edit', title: t('Edit'), image: 'pencil', attributes: { disabled } },
     {
       id: 'remove',
-      title: 'Remove',
+      title: t('Remove'),
       image: 'trash',
-      attributes: { disabled: disabled || active, destructive: !active },
+      attributes: { disabled, destructive: true },
     },
   ]
   return <View style={[styles.profileRow, { borderColor: colors.border }]}>
@@ -545,13 +609,13 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       testID={`server-profile-switch-${profile.id}`}
       accessibilityRole="button"
       accessibilityLabel={`Use ${profile.name}`}
-      accessibilityHint={status}
+      accessibilityHint={t(status)}
       accessibilityState={{ selected: active, disabled, busy: switching }}
       disabled={disabled}
       onPress={onSwitch}
       style={({ pressed }) => [styles.profileSwitch, { backgroundColor: pressed ? colors.raised : 'transparent', opacity: disabled && !switching ? 0.5 : 1 }]}
     >
-    <ServerConnectionDot state={switching ? 'connecting' : profile.connectionState} label={switching ? `Connecting to ${profile.name}` : status} />
+    <ServerConnectionDot state={profile.connectionState} label={switching ? t('Connecting to {name}', { name: profile.name }) : t(status)} />
     <View style={styles.profileCopy}>
       <View style={styles.profileTitleRow}>
         <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>{profile.name}</Text>
@@ -560,7 +624,7 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
       <Text style={[styles.profileUrl, { color: colors.muted }]} numberOfLines={1}>{profile.serverUrl}</Text>
       {profile.lastConnectionError ? <Text style={[styles.profileDetail, { color: profile.connectionState === 'degraded' ? colors.orange : colors.red }]} numberOfLines={2}>{profile.lastConnectionError}</Text> : null}
     </View>
-    <View style={styles.profileSelection}>{switching ? <ActivityIndicator size="small" color={colors.muted} /> : active ? <Check size={20} color={colors.text} /> : null}</View>
+    <View style={styles.profileSelection}>{switching ? <ActivityIndicator size="small" color={colors.muted} /> : active ? <Check size={20} color={colors.green} /> : null}</View>
     </Pressable>
     {disabled ? <View style={styles.rowMenu}><View
       accessible
@@ -590,8 +654,8 @@ function ServerManagementRow({ profile, active, switching, disabled, onSwitch, o
 
 export function ServerConnectionDot({ state, label = connectionStateLabel(state) }: { state: ServerProfileConnectionState; label?: string }) {
   const colors = usePalette()
-  const color = state === 'online' ? colors.green : state === 'degraded' || state === 'retrying' ? colors.orange : state === 'connecting' ? colors.blue : state === 'offline' ? colors.red : colors.muted
-  return <View accessible accessibilityRole="image" accessibilityLabel={label} style={[styles.connectionDot, { backgroundColor: color }]} />
+  const color = state === 'online' || state === 'degraded' ? colors.green : colors.muted
+  return <View accessible accessibilityRole="image" accessibilityLabel={t(label)} style={[styles.connectionDot, { backgroundColor: color }]} />
 }
 
 export function ServerUnreadBadge({ count }: { count: number }) {
@@ -603,11 +667,13 @@ export function ServerUnreadBadge({ count }: { count: number }) {
 
 function FieldLabel({ step, text }: { step: 1 | 2 | 3; text: string }) {
   const colors = usePalette()
-  return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${text}`} style={styles.fieldHeading}>
-    <View style={[styles.fieldStep, { borderColor: colors.blue, backgroundColor: `${colors.blue}10` }]}>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.fieldStepNumber, { color: colors.blue }]}>{step}</Text>
-    </View>
-    <Text style={[styles.fieldLabel, { color: colors.muted }]}>{text}</Text>
+  return <View testID={`server-profile-step-${step}`} accessible accessibilityRole="text" accessibilityLabel={`${step}. ${t(text)}`} style={styles.fieldHeading}>
+    {/* Draw the badge in one fixed viewport, independent of native rounded-view layers. */}
+    <Svg width={24} height={24} viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" style={styles.fieldStep} accessible={false}>
+      <Circle cx={12} cy={12} r={11.5} stroke={colors.blue} strokeWidth={1} fill={colors.blue} fillOpacity={0.06} />
+      <SvgText x={12} y={16} textAnchor="middle" fontSize={typography.caption.fontSize} fontWeight={fontWeight.semibold} fill={colors.blue}>{step}</SvgText>
+    </Svg>
+    <Text style={[styles.fieldLabel, { color: colors.muted }]}>{t(text)}</Text>
   </View>
 }
 
@@ -615,12 +681,12 @@ function PrimaryButton({ label, disabled, busy, onPress }: { label: string; disa
   const colors = usePalette()
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={label}
+    accessibilityLabel={t(label)}
     accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy) }}
     disabled={disabled}
     onPress={onPress}
     style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}
-  >{busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}<Text style={[styles.primaryButtonText, { color: colors.onAccent }]}>{label}</Text></Pressable>
+  >{busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : null}<Text style={[styles.primaryButtonText, { color: colors.onAccent }]}>{t(label)}</Text></Pressable>
 }
 
 function SecondaryButton({ icon: Icon, label, accessibilityLabel, disabled, busy, compact, onPress }: {
@@ -635,12 +701,12 @@ function SecondaryButton({ icon: Icon, label, accessibilityLabel, disabled, busy
   const colors = usePalette()
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityLabel={t(accessibilityLabel ?? label)}
     accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy) }}
     disabled={disabled}
     onPress={onPress}
     style={({ pressed }) => [styles.secondaryButton, compact && styles.compactButton, { backgroundColor: colors.raised, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}
-  >{busy ? <ActivityIndicator size="small" color={colors.blue} /> : Icon ? <Icon size={15} color={colors.muted} /> : null}{compact && busy ? null : <Text style={[styles.secondaryButtonText, { color: colors.text }]} numberOfLines={1}>{label}</Text>}</Pressable>
+  >{busy ? <ActivityIndicator size="small" color={colors.blue} /> : Icon ? <Icon size={15} color={colors.muted} /> : null}{compact && busy ? null : <Text style={[styles.secondaryButtonText, { color: colors.text }]} numberOfLines={1}>{t(label)}</Text>}</Pressable>
 }
 
 function errorMessage(error: unknown): string {
@@ -683,12 +749,13 @@ const styles = StyleSheet.create({
   noProfilesTitle: { ...typography.body, fontWeight: fontWeight.semibold },
   feedback: { minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: spacing.md, justifyContent: 'center' },
   editor: { gap: spacing.sm },
+  manualCaption: { textAlign: 'center', paddingVertical: spacing.sm },
+  manualEntry: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  scannedSummary: { gap: spacing.xs, paddingTop: spacing.lg },
   editorFields: { gap: spacing.xl },
   editorField: { gap: spacing.sm },
   fieldHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  // Keep the translucent fill inside the badge during native sheet resizing.
-  fieldStep: { width: 24, height: 24, borderRadius: radius.round, borderWidth: 1, overflow: 'hidden', flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  fieldStepNumber: { ...typography.caption, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  fieldStep: { width: 24, height: 24, flexGrow: 0, flexShrink: 0 },
   fieldLabel: { ...typography.label, flex: 1, fontWeight: fontWeight.semibold },
   input: { ...typography.body, minHeight: 44, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   switchRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10 },

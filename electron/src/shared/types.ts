@@ -2347,6 +2347,7 @@ export interface BootstrapPayload {
   selectedSessionId?: string | null
   folderOrder: string[]
   collapsedFolders: string[]
+  pinnedCollapsed?: boolean
   archivedCollapsed: boolean
   inspectorVisible: boolean
   /** Present for profile-aware bootstraps; omitted by the legacy single-server path. */

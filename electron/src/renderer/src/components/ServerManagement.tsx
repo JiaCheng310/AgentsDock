@@ -2,7 +2,7 @@
 import { t, getLocale } from '@shared/i18n'
 import { useLocale } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronRight, LoaderCircle, Pencil, Plus, /* QrCode, */ Server, Trash2, Wifi } from 'lucide-react'
+import { Check, ChevronRight, LoaderCircle, Pencil, Plus, QrCode, Server, Trash2, Wifi } from 'lucide-react'
 import type { Health, PublicServerProfile } from '@shared/types'
 import { normalizeServerURL } from '@shared/server-url'
 import { trackEvent } from '../lib/analytics'
@@ -53,6 +53,7 @@ export function ServerManagement({ addRequest = 0, manageRequest = 0, activeServ
   const revealEditor = useRef(false)
 
   const openEditor = (next: ServerDraft) => {
+    setQrProfileId(null)
     revealEditor.current = true
     const profileId = next.profileId
     if (profileId) setExpanded(current => new Set([...current, profileId]))
@@ -82,6 +83,7 @@ export function ServerManagement({ addRequest = 0, manageRequest = 0, activeServ
   useEffect(() => {
     if (manageRequest > 0) {
       setExpanded(new Set())
+      setQrProfileId(null)
       testLease.current += 1
       setBusy(null)
       setDraft(null)
@@ -155,6 +157,7 @@ export function ServerManagement({ addRequest = 0, manageRequest = 0, activeServ
     }
     testLease.current += 1
     setBusy('save')
+    setQrProfileId(null)
     setTestError(null)
     try {
       if (draft.profileId) {
@@ -365,17 +368,17 @@ export function ServerManagement({ addRequest = 0, manageRequest = 0, activeServ
                 {rowActivationError || profile.lastConnectionError}
               </small>}
             </div>
-            {/* Temporarily hidden: restore this block and the QrCode import to re-enable QR sharing.
             <div className="server-management-sharing">
               <span className="server-management-section-label">{t('serverProfile.shareConnection')}</span>
               <div className="server-management-share-actions">
               <button type="button" className="quiet-button" aria-label={t('serverConnection.qrFor', { server: profile.name })}
+                aria-expanded={qrProfileId === profile.id}
                 title={t('serverConnection.showQr')} disabled={!profile.hasAccessToken || Boolean(busy)} onClick={() => setQrProfileId(profile.id)}>
                 <QrCode size={15} /> {t('serverProfile.showQr')}
               </button>
               </div>
             </div>
-            */}
+            {qrProfile?.id === profile.id && <ServerConnectionQr key={`${qrProfile.id}:${qrProfile.serverUrl}`} profile={qrProfile} onClose={() => setQrProfileId(null)} />}
             <div className="server-management-actions">
               <div className="server-management-primary-actions">
               {!current && <button type="button" className="quiet-button" aria-label={working ? t("ui.ServerManagement.switching_to_e7437c0", { "server": String(profile.name) }) : t("ui.ServerManagement.use_367b9be", { "server": String(profile.name) })} disabled={Boolean(busy) || Boolean(switchingProfileId)} onClick={() => void activate(profile.id)}>{working && <LoaderCircle className="spin" size={12} />} {working ? t("ui.ServerManagement.switching_b7b9fbf") : t('serverProfile.use')}</button>}
@@ -390,7 +393,6 @@ export function ServerManagement({ addRequest = 0, manageRequest = 0, activeServ
                 onClick={() => void remove(profile)}
               >{working ? <LoaderCircle className="spin" size={12} /> : confirmRemoveId === profile.id ? t('serverProfile.confirmRemove') : <><Trash2 size={13} /> {t('serverProfile.remove')}</>}</button>
             </div>
-            {qrProfile?.id === profile.id && <ServerConnectionQr key={`${qrProfile.id}:${qrProfile.serverUrl}`} profile={qrProfile} onClose={() => setQrProfileId(null)} />}
             {draft?.profileId === profile.id && editor}
             {current && activeServerControls}
           </div>}

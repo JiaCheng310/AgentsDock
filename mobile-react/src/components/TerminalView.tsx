@@ -34,12 +34,12 @@ export function TerminalView({ session, onClose }: { session: Session; onClose: 
   if (!connectionReady) {
     return <View collapsable={false} style={[styles.root, { backgroundColor: colors.background, borderColor: colors.border }]}>
       <View style={[styles.tabs, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <Text style={[styles.unavailableTitle, { color: colors.muted }]} numberOfLines={1}>Terminal unavailable</Text>
+        <Text style={[styles.unavailableTitle, { color: colors.muted }]} numberOfLines={1} localize>Terminal unavailable</Text>
         <View style={{ flex: 1 }} />
         <IconButton icon={X} size={17} touchSize={44} label="Close terminal" testID="terminal-close" onPress={onClose} />
       </View>
       <View style={styles.unavailable}>
-        <Text style={[styles.unavailableText, { color: colors.muted }]}>{connecting || switchingProfileId ? 'Verifying server identity…' : 'Reconnect this server to open its terminal.'}</Text>
+        <Text style={[styles.unavailableText, { color: colors.muted }]} localize>{connecting || switchingProfileId ? 'Verifying server identity…' : 'Reconnect this server to open its terminal.'}</Text>
       </View>
     </View>
   }

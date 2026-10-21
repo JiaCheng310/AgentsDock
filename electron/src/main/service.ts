@@ -3,7 +3,7 @@ import { customModelBackend, customModelInput, type CustomModelBackend, type Cus
 import { cliAccountBackend, type CLIAccountBackend, connectionRequest, type ConnectionBackend, type ConnectionAction, type ProviderConnectionRequest, type ProviderConnectionReply } from '../shared/provider-connections'
 import { app, BrowserWindow, clipboard, dialog, nativeImage, Notification, shell } from 'electron'
 import QRCode from 'qrcode'
-import { localOnlyServerUrl, serverConnectionLink, type ServerConnectionQr } from '../shared/server-connection-link'
+import { localOnlyServerUrl, normalizeConnectionURLs, serverConnectionLink, type ServerConnectionQr } from '../shared/server-connection-link'
 import { discoverLocalServers, type DiscoveredLocalServer } from './local-server-discovery'
 import { applyOpenCodeSessionEvent } from '../shared/opencode'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -1884,10 +1884,29 @@ export class AppService {
 
   async serverConnectionQr(profileId: string): Promise<ServerConnectionQr> {
     const { token, profile, revision, assertCurrent } = await this.serverCredentialForSharing(profileId)
-    const dataUrl = await QRCode.toDataURL(serverConnectionLink({ serverUrl: profile.serverUrl, accessToken: token,
-      name: profile.name, serverIdentity: profile.serverIdentity ?? null }), { width: 512, margin: 4, errorCorrectionLevel: 'M' })
+    let serverUrls: string[] | undefined
+    let identity = profile.serverIdentity ?? null
+    const probe = this.clientFactory(profile.serverUrl, token)
+    try {
+      let advertised: Awaited<ReturnType<AgentServerClient['connectionAddresses']>> | null = null
+      try { advertised = await probe.connectionAddresses() } catch { /* Offline/older servers retain their saved single address. */ }
+      assertCurrent()
+      if (advertised) {
+        if (advertised.version !== 1 || typeof advertised.server_identity !== 'string' || !advertised.server_identity.trim() || !Array.isArray(advertised.urls)) throw new Error('Invalid server connection addresses.')
+        if (identity && advertised.server_identity !== identity) throw new Error('Server identity mismatch. Check this saved connection before sharing.')
+        identity = advertised.server_identity
+        const urls = advertised.urls.length ? normalizeConnectionURLs(advertised.urls) : []
+        // The remote server supplies its addresses; never use this desktop's interfaces.
+        const primary = localOnlyServerUrl(profile.serverUrl) && urls.length ? [] : [profile.serverUrl]
+        serverUrls = normalizeConnectionURLs([...new Set([...primary, ...urls])].slice(0, 6))
+        if (serverUrls.length < 2 && serverUrls[0] === profile.serverUrl) serverUrls = undefined
+      }
+    } finally { probe.dispose() }
+    const serverUrl = serverUrls?.[0] ?? profile.serverUrl
+    const dataUrl = await QRCode.toDataURL(serverConnectionLink({ serverUrl, ...(serverUrls ? { serverUrls } : {}), accessToken: token,
+      name: profile.name, serverIdentity: identity }), { width: 512, margin: 4, errorCorrectionLevel: 'M' })
     assertCurrent()
-    return { dataUrl, serverUrl: profile.serverUrl, revision, localOnly: localOnlyServerUrl(profile.serverUrl) }
+    return { dataUrl, serverUrl, revision, localOnly: localOnlyServerUrl(serverUrl) }
   }
 
   async saveServerConnectionQr(profileId: string, revision: number): Promise<boolean> {
@@ -6465,6 +6484,7 @@ export class AppService {
       selectedSessionId: this.focusedSessionId,
       folderOrder: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'folderOrder', [] as string[]), []),
       collapsedFolders: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'collapsedFolders', [] as string[]), []),
+      pinnedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'pinnedCollapsed', false), false),
       archivedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'archivedCollapsed', false), false),
       inspectorVisible: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'inspectorVisible', false), false),
       activeProfileId: scope.profileId,

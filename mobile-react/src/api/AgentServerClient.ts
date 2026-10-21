@@ -110,6 +110,20 @@ export class ServerError extends Error {
   constructor(public status: number, message: string, public detail?: unknown) { super(message) }
 }
 
+export class AgentServerRequestTimeoutError extends Error {
+  constructor() {
+    super('The server request timed out. Please try again.')
+    this.name = 'AgentServerRequestTimeoutError'
+  }
+}
+
+export class AgentServerRequestInterruptedError extends Error {
+  constructor() {
+    super('The connection was interrupted. Please try again.')
+    this.name = 'AgentServerRequestInterruptedError'
+  }
+}
+
 export class AgentServerClientDisposedError extends Error {
   constructor() {
     super('Agent server client has been disposed')
@@ -202,6 +216,7 @@ export class AgentServerClient {
   }
 
   get isDisposed(): boolean { return this.disposed }
+  get lifetimeSignal(): AbortSignal { return this.scopeController.signal }
   get isValidated(): boolean { return !this.disposed && this.validated }
   /** Monotonic epoch used to reject health results older than an invalidation. */
   get validationRevision(): number { return this.validationRevisionValue }
@@ -244,7 +259,7 @@ export class AgentServerClient {
     return authHeaders(this.configuration.token)
   }
 
-  health(): Promise<Health> { return this.request('/api/health', {}, 30_000, true) }
+  health(timeoutMs = 30_000, signal?: AbortSignal): Promise<Health> { return this.request('/api/health', { redirect: 'error', signal }, timeoutMs, true) }
   codexServerGoals(): Promise<CodexGoalsConfiguration> {
     return this.request('/api/admin/codex/goals', {}, 30_000, false, 'native-control')
   }
@@ -272,7 +287,7 @@ export class AgentServerClient {
       'team-network',
     )
   }
-  async sessions(): Promise<Session[]> { return (await this.get<{ sessions: Session[] }>('/api/sessions')).sessions }
+  async sessions(): Promise<Session[]> { return (await this.get<{ sessions: Session[] }>('/api/sessions?summary=true')).sessions }
   async jobs(): Promise<Job[]> { return (await this.get<{ jobs: Job[] }>('/api/jobs')).jobs }
 
   workspaceInfo(sessionId: string): Promise<WorkspaceInfo> {
@@ -939,17 +954,19 @@ export class AgentServerClient {
     const headers = new Headers(authHeaders(scope.configuration.token))
     headers.set('Accept', 'text/plain')
     headers.set('Range', `bytes=0-${Math.max(0, maxBytes - 1)}`)
-    const response = await this.fetchWithTimeout(
+    return this.fetchWithTimeout(
       buildURL(scope.configuration.baseURL, path),
       { headers },
       30_000,
       scope.signal,
+      async (response, signal) => this.readBoundedText(response, scope, maxBytes, signal),
     )
+  }
+  private async readBoundedText(response: Response, scope: ClientScope, maxBytes: number, signal: AbortSignal): Promise<CodeDiffResponse> {
     if (!response.ok) {
       const error = await this.serverError(response)
       this.assertScopeActive(scope)
-      this.reportServerError(error)
-      this.revokeForAuthorizationFailure(error)
+      throwIfAborted(signal)
       throw error
     }
     const contentLengthHeader = response.headers.get('content-length')
@@ -1001,23 +1018,23 @@ export class AgentServerClient {
       : authHeaders(scope.configuration.token)
     for (const [key, value] of Object.entries(credentials)) headers.set(key, value)
     if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
-    const response = await this.fetchWithTimeout(buildURL(scope.configuration.baseURL, path), { ...init, headers }, timeoutMs, scope.signal)
-    if (!response.ok) {
-      const error = await this.serverError(response)
+    return this.fetchWithTimeout(buildURL(scope.configuration.baseURL, path), { ...init, headers }, timeoutMs, scope.signal, async (response, signal) => {
+      if (!response.ok) {
+        const error = await this.serverError(response)
+        this.assertScopeActive(scope)
+        throwIfAborted(signal)
+        throw error
+      }
+      if (response.status === 204) {
+        this.assertScopeActive(scope)
+        return undefined as T
+      }
+      const value = await response.json() as T
       this.assertScopeActive(scope)
-      this.reportServerError(error)
-      this.revokeForAuthorizationFailure(error)
-      throw error
-    }
-    if (response.status === 204) {
-      this.assertScopeActive(scope)
-      return undefined as T
-    }
-    const value = await response.json() as T
-    this.assertScopeActive(scope)
-    return value
+      return value
+    })
   }
-  private async fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal): Promise<Response> {
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response, signal: AbortSignal) => Promise<T>): Promise<T> {
     const controller = new AbortController()
     const externalSignals = [scopeSignal, init.signal].filter((signal): signal is AbortSignal => Boolean(signal))
     const abortListeners: Array<{ signal: AbortSignal; listener: () => void }> = []
@@ -1029,16 +1046,58 @@ export class AgentServerClient {
         abortListeners.push({ signal, listener })
       }
     }
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    let timedOut = false
+    const timer = setTimeout(() => {
+      if (controller.signal.aborted) return
+      timedOut = true
+      controller.abort()
+    }, timeoutMs)
+    let rejectAborted: () => void = () => {}
+    let receivedResponse: Response | undefined
+    const aborted = new Promise<never>((_, reject) => {
+      rejectAborted = () => reject(controller.signal.reason ?? new DOMException('Request canceled', 'AbortError'))
+      controller.signal.addEventListener('abort', rejectAborted, { once: true })
+    })
     try {
-      const response = await fetch(url, { ...init, signal: controller.signal })
       if (scopeSignal.aborted) this.throwScopeAbort(scopeSignal)
-      return response
+      throwIfAborted(controller.signal)
+      // Expo's native text/json body reader can remain pending after cancel.
+      // Bound the entire read independently, while also aborting the transport.
+      const value = await Promise.race([aborted, (async () => {
+        const response = await fetch(url, { ...init, signal: controller.signal })
+        throwIfAborted(controller.signal)
+        receivedResponse = response
+        return consume(response, controller.signal)
+      })()])
+      if (scopeSignal.aborted) this.throwScopeAbort(scopeSignal)
+      if (init.signal) throwIfAborted(init.signal)
+      if (timedOut) throw new AgentServerRequestTimeoutError()
+      return value
     } catch (error) {
       if (scopeSignal.aborted) this.throwScopeAbort(scopeSignal)
+      if (init.signal) throwIfAborted(init.signal)
+      if (timedOut) {
+        // A stalled error body must not turn an already confirmed 401/403 into
+        // a retryable network failure or leave authenticated access validated.
+        if (receivedResponse && !receivedResponse.ok) {
+          error = new ServerError(receivedResponse.status, `${receivedResponse.status} ${receivedResponse.statusText || ''}`.trim())
+        } else throw new AgentServerRequestTimeoutError()
+      }
+      if (error instanceof ServerError) {
+        // Revoke only after the request race settles, preserving the actual
+        // HTTP error for this call while canceling other requests in its scope.
+        this.reportServerError(error)
+        this.revokeForAuthorizationFailure(error)
+        throw error
+      }
+      if (error instanceof Error && (error.name === 'AbortError'
+        || /^fetch failed:\s*(?:FetchRequestCanceledException:\s*)?Fetch request has been cancel(?:l)?ed\b/i.test(error.message))) {
+        throw new AgentServerRequestInterruptedError()
+      }
       throw error
     } finally {
       clearTimeout(timer)
+      controller.signal.removeEventListener('abort', rejectAborted)
       for (const { signal, listener } of abortListeners) signal.removeEventListener('abort', listener)
     }
   }
@@ -1133,6 +1192,10 @@ function teamNetworkAuthHeaders(token: string): Record<string, string> {
 function abortController(controller: AbortController, source: AbortSignal): void {
   if (controller.signal.aborted) return
   try { controller.abort(source.reason) } catch { controller.abort() }
+}
+
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw signal.reason ?? new DOMException('Request canceled', 'AbortError')
 }
 
 function isProviderRuntimeChanged(value: unknown): value is ProviderRuntimeChanged {

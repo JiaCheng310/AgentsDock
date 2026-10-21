@@ -12,18 +12,21 @@ import { formatChatDate, isUnread, runtimeSummary } from '../lib/format'
 import { compareSessions, sessionSection } from '../lib/session-order'
 import { sidebarSessionSections, sidebarSessionStatus, type SidebarStatus } from '../lib/sidebar-sections'
 import { sessionNeedsProviderInteraction, sessionPendingInteractionCount } from '../lib/claude-controls'
+import { sessionAttentionLevel, type NotificationLevel } from '../lib/notification-levels'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { isServerSetupRequired } from '../lib/first-launch'
 import { serverSearchQuery } from '../lib/server-search'
 import { sidebarContentResult } from '../lib/sidebar-search'
 import { isWelcomeSession } from '../lib/welcome-session'
+import { t } from '../i18n'
+import { useLanguageStore } from '../store/useLanguageStore'
 import { Text, TextInput } from './AppText'
 import { BackendMark } from './BackendMark'
 import { useTextPrompt, type TextPromptOptions } from './TextPromptDialog'
 import { IconButton } from './ui'
 import { ServerProfileSelector, type ServerProfileListItem } from './ServerProfiles'
 
-type Row = { kind: 'header'; key: string; title: string; folder: string; count: number; status?: SidebarStatus } | { kind: 'session'; key: string; session: Session; status?: SidebarStatus; searchResult?: TimelineSearchResult }
+type Row = { kind: 'header'; key: string; title: string; folder: string; count: number; status?: SidebarStatus; attentionLevel?: NotificationLevel } | { kind: 'session'; key: string; session: Session; status?: SidebarStatus; searchResult?: TimelineSearchResult }
 
 const HOME_ACTION_SIZE = 52
 
@@ -188,7 +191,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
       const values = section.sessions
       const isCollapsed = section.status ? collapsedStatuses.has(section.status) : collapsed.has(folder)
       return [
-        { kind: 'header', key: section.status ? `header:status:${section.status}` : `header:folder:${folder}`, title: section.title, folder, status: section.status, count: values.length },
+        { kind: 'header', key: section.status ? `header:status:${section.status}` : `header:folder:${folder}`, title: section.title, folder, status: section.status, attentionLevel: section.attentionLevel, count: values.length },
         ...((isCollapsed && !clean ? [] : values.map(session => ({
           kind: 'session' as const,
           key: session.id,
@@ -378,7 +381,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
             testID="sidebar-search-open"
             onTouchEnd={event => event.stopPropagation()}
             accessibilityRole="button"
-            accessibilityLabel="Search chat"
+            accessibilityLabel={t('Search chat')}
             accessibilityState={{ expanded: searchVisible, disabled: workspaceAdopting || Boolean(switchingProfileId) }}
             disabled={workspaceAdopting || Boolean(switchingProfileId)}
             onPress={() => {
@@ -394,14 +397,14 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
       </View>
       {!compact ? searchField : null}
       {!needsServerSetup && searchError && serverSearchQuery(query) ? <View accessibilityRole="alert" style={styles.searchError}>
-        <Text style={[styles.searchErrorText, { color: colors.red }]}>History search failed.</Text>
+        <Text style={[styles.searchErrorText, { color: colors.red }]} localize>History search failed.</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Retry history search"
+          accessibilityLabel={t('Retry history search')}
           testID="sidebar-search-retry"
           onPress={retrySearch}
           style={({ pressed }) => [styles.searchRetry, { borderColor: colors.red, opacity: pressed ? 0.6 : 1 }]}
-        ><Text style={[styles.searchRetryText, { color: colors.red }]}>Retry</Text></Pressable>
+        ><Text style={[styles.searchRetryText, { color: colors.red }]} localize>Retry</Text></Pressable>
       </View> : null}
       {/* Extend the viewport behind the fade; padding lets the final row scroll clear of it. */}
       <FlatList
@@ -420,12 +423,12 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
         contentContainerStyle={[styles.list, needsServerSetup && styles.welcomeList, { paddingBottom: compact && searchVisible ? spacing.xl : HOME_ACTION_SIZE + spacing.lg + spacing.sm + spacing.xl + insets.bottom }]}
         ListEmptyComponent={needsServerSetup ? <View testID="sidebar-welcome" style={styles.welcome}>
           <Image source={require('../../assets/icon.png')} style={styles.welcomeIcon} />
-          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to AgentsDock</Text>
-          <Pressable testID="sidebar-setup-server" accessibilityRole="button" accessibilityLabel="Set up your server" onPress={() => { if (profileScopeCanNavigate(profileScope)) onAddServer() }} style={({ pressed }) => [styles.setupBanner, { backgroundColor: colors.blue, opacity: pressed ? 0.85 : 1 }]}>
+          <Text style={[styles.welcomeTitle, { color: colors.text }]} localize>Welcome to AgentsDock</Text>
+          <Pressable testID="sidebar-setup-server" accessibilityRole="button" accessibilityLabel={t('Set up your server')} onPress={() => { if (profileScopeCanNavigate(profileScope)) onAddServer() }} style={({ pressed }) => [styles.setupBanner, { backgroundColor: colors.blue, opacity: pressed ? 0.85 : 1 }]}>
             <Server size={16} color={colors.onAccent} />
-            <Text style={[styles.setupBannerText, { color: colors.onAccent }]}>Set up your server</Text>
+            <Text style={[styles.setupBannerText, { color: colors.onAccent }]} localize>Set up your server</Text>
           </Pressable>
-        </View> : query.trim() ? <Text style={[styles.emptySearch, { color: colors.muted }]}>{searchBusy ? 'Searching history…' : 'No matching chats'}</Text> : null}
+        </View> : query.trim() ? <Text style={[styles.emptySearch, { color: colors.muted }]}>{t(searchBusy ? 'Searching history…' : 'No matching chats')}</Text> : null}
         renderItem={({ item }) => item.kind === 'header' ? <FolderHeader
           item={item}
           profileScope={profileScope}
@@ -493,7 +496,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
         <Pressable
           testID="sidebar-settings"
           accessibilityRole="button"
-          accessibilityLabel="Settings"
+          accessibilityLabel={t('Settings')}
           accessibilityState={{ disabled: workspaceAdopting || Boolean(switchingProfileId) }}
           disabled={workspaceAdopting || Boolean(switchingProfileId)}
           onPress={() => { if (profileScopeIsCurrent(profileScope)) onSettings() }}
@@ -502,7 +505,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
         <Pressable
           testID="sidebar-new-chat"
           accessibilityRole="button"
-          accessibilityLabel="New chat"
+          accessibilityLabel={t('New chat')}
           accessibilityState={{ disabled: workspaceAdopting || needsServerSetup || Boolean(switchingProfileId) }}
           disabled={workspaceAdopting || needsServerSetup || Boolean(switchingProfileId)}
           onPress={() => { if (profileScopeIsCurrent(profileScope)) onNewChat() }}
@@ -526,6 +529,7 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
 }) {
   const colors = usePalette()
   const movable = !item.status && !['Pinned', 'General', 'Archived'].includes(item.folder)
+  const displayTitle = item.status || !movable ? t(item.title) : item.title
   const openMoveSheet = () => {
     if (!profileScopeIsCurrent(profileScope)) return
     onDismissKeyboard()
@@ -536,7 +540,7 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
     const cancelButtonIndex = available.length
     ActionSheetIOS.showActionSheetWithOptions({
       title: item.title,
-      options: [...available.map(action => action.title), 'Cancel'],
+      options: [...available.map(action => t(action.title)), t('Cancel')],
       cancelButtonIndex,
     }, index => {
       const action = available[index]
@@ -546,7 +550,7 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
   const header = <Pressable
     testID={item.status ? `sidebar-status-${item.status}` : `sidebar-folder-${item.folder}`}
     accessibilityRole="button"
-    accessibilityLabel={`${collapsed ? 'Expand' : 'Collapse'} ${item.title}`}
+    accessibilityLabel={`${t(collapsed ? 'Expand' : 'Collapse')} ${displayTitle}`}
     accessibilityState={{ expanded: !collapsed }}
     accessibilityHint={movable && Platform.OS === 'ios' ? 'Long press to reorder this folder.' : undefined}
     onPress={() => { onDismissKeyboard(); onToggle() }}
@@ -554,8 +558,8 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
     delayLongPress={350}
     style={[styles.header, movable && Platform.OS !== 'ios' && styles.headerInShell]}
   >
-    {item.status ? <View style={[styles.statusGroupDot, { backgroundColor: item.status === 'unread' ? colors.blue : colors.green }]} /> : null}
-    <Text style={[styles.headerText, { color: colors.muted }]}>{item.title}</Text>
+    {item.status ? <View style={[styles.statusGroupDot, { backgroundColor: item.status === 'running' ? colors.green : item.attentionLevel === 'emergency' ? colors.red : item.attentionLevel === 'important' ? colors.pink : colors.blue }]} /> : null}
+    <Text style={[styles.headerText, { color: colors.muted }]}>{displayTitle}</Text>
     <View style={styles.headerTrailing}>
       <Text style={[styles.count, { color: colors.muted }]}>{item.count}</Text>
       {collapsed ? <ChevronRight size={13} color={colors.muted} /> : <ChevronDown size={13} color={colors.muted} />}
@@ -563,8 +567,8 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
   </Pressable>
   if (!movable || Platform.OS === 'ios') return header
   return <View style={styles.folderHeaderShell}>{header}<AndroidMoreMenu testID={`folder-actions-${item.folder}`} label={`${item.title} folder actions`} title={item.title} color={colors.muted} actions={[
-    { id: 'move-up', title: 'Move Folder Up', image: 'arrow.up', attributes: { disabled: !canMoveUp } },
-    { id: 'move-down', title: 'Move Folder Down', image: 'arrow.down', attributes: { disabled: !canMoveDown } },
+    { id: 'move-up', title: t('Move Folder Up'), image: 'arrow.up', attributes: { disabled: !canMoveUp } },
+    { id: 'move-down', title: t('Move Folder Down'), image: 'arrow.down', attributes: { disabled: !canMoveDown } },
   ]} onAction={action => {
     if (!profileScopeIsCurrent(profileScope)) return
     if (action === 'move-up') onMove('up')
@@ -588,12 +592,15 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
   promptText: (options: TextPromptOptions) => Promise<string | null>
 }) {
   const colors = usePalette()
+  const locale = useLanguageStore(state => state.locale)
   const welcome = isWelcomeSession(session.id)
   const unread = isUnread(session)
+  const attentionLevel = sessionAttentionLevel(session)
+  const attentionColor = attentionLevel === 'emergency' ? colors.red : attentionLevel === 'important' ? colors.pink : colors.blue
   const waiting = sessionNeedsProviderInteraction(session)
   const pendingInteractionCount = sessionPendingInteractionCount(session)
   const waitingProviderName = session.backend === 'claude' ? 'Claude' : 'Codex'
-  const activityDate = formatChatDate(session.latest_event_at ?? session.updated_at ?? session.created_at)
+  const activityDate = formatChatDate(session.latest_event_at ?? session.updated_at ?? session.created_at, new Date(), locale)
   const markRead = useAppStore(state => state.markRead)
   const markUnread = useAppStore(state => state.markUnread)
   const update = useAppStore(state => state.updateSession)
@@ -623,9 +630,9 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
   const confirmDelete = () => {
     const scope = profileScope
     if (!sessionScopeIsCurrent(scope, session.id)) return
-    Alert.alert('Delete chat?', `“${session.title}” and its AgentsDock history will be removed. Provider history is not deleted.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete chat', style: 'destructive', onPress: () => {
+    Alert.alert(t('Delete chat?'), t('“{title}” and its AgentsDock history will be removed. Provider history is not deleted.', { title: session.title }), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Delete chat'), style: 'destructive', onPress: () => {
         if (!sessionScopeIsCurrent(scope, session.id)) return
         void remove(session.id, scope.profileGeneration)
       } },
@@ -649,19 +656,19 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
     state: !session.pinned && (session.folder?.trim() || 'General') === folder ? 'on' : 'off',
   }))
   const actions: MenuAction[] = [
-    { id: 'read-state', title: unread ? 'Mark as Read' : 'Mark as Unread', image: unread ? 'envelope.open' : 'envelope.badge' },
-    { id: 'rename', title: 'Rename Chat', image: 'pencil' },
+    { id: 'read-state', title: t(unread ? 'Mark as Read' : 'Mark as Unread'), image: unread ? 'envelope.open' : 'envelope.badge' },
+    { id: 'rename', title: t('Rename Chat'), image: 'pencil' },
     { id: 'primary-actions', title: '', displayInline: true, subactions: [
-      { id: 'fork', title: 'Fork Chat', image: 'arrow.triangle.branch' },
-      { id: 'move-up', title: 'Move Up', image: 'arrow.up', attributes: { disabled: !canMoveUp } },
-      { id: 'move-down', title: 'Move Down', image: 'arrow.down', attributes: { disabled: !canMoveDown } },
+      { id: 'fork', title: t('Fork Chat'), image: 'arrow.triangle.branch' },
+      { id: 'move-up', title: t('Move Up'), image: 'arrow.up', attributes: { disabled: !canMoveUp } },
+      { id: 'move-down', title: t('Move Down'), image: 'arrow.down', attributes: { disabled: !canMoveDown } },
     ] },
     ...(session.archived ? [] : [
-      { id: 'pin', title: session.pinned ? 'Unpin Chat' : 'Pin Chat', image: session.pinned ? 'pin.slash' : 'pin' } satisfies MenuAction,
-      { id: 'move-folder', title: 'Move to Folder', image: 'folder', subactions: folderActions } satisfies MenuAction,
+      { id: 'pin', title: t(session.pinned ? 'Unpin Chat' : 'Pin Chat'), image: session.pinned ? 'pin.slash' : 'pin' } satisfies MenuAction,
+      { id: 'move-folder', title: t('Move to Folder'), image: 'folder', subactions: folderActions } satisfies MenuAction,
     ]),
-    { id: 'archive', title: session.archived ? 'Unarchive Chat' : 'Archive Chat', image: 'archivebox' },
-    { id: 'delete', title: 'Delete Chat', image: 'trash', attributes: { destructive: true } },
+    { id: 'archive', title: t(session.archived ? 'Unarchive Chat' : 'Archive Chat'), image: 'archivebox' },
+    { id: 'delete', title: t('Delete Chat'), image: 'trash', attributes: { destructive: true } },
   ]
   const openFolderSheet = () => {
     const scope = profileScope
@@ -670,9 +677,9 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
     const cancelButtonIndex = folders.length
     const currentFolder = session.folder?.trim() || 'General'
     ActionSheetIOS.showActionSheetWithOptions({
-      title: 'Move to Folder',
+      title: t('Move to Folder'),
       message: session.title,
-      options: [...folders.map(folder => folder === currentFolder && !session.pinned ? `✓ ${folder}` : folder), 'Cancel'],
+      options: [...folders.map(folder => folder === currentFolder && !session.pinned ? `✓ ${folder}` : folder), t('Cancel')],
       cancelButtonIndex,
     }, index => {
       if (!sessionScopeIsCurrent(scope, session.id)) return
@@ -701,7 +708,7 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
     const destructiveButtonIndex = sheetActions.findIndex(action => action.destructive)
     ActionSheetIOS.showActionSheetWithOptions({
       title: session.title,
-      options: [...sheetActions.map(action => action.title), 'Cancel'],
+      options: [...sheetActions.map(action => t(action.title)), t('Cancel')],
       cancelButtonIndex,
       destructiveButtonIndex: destructiveButtonIndex >= 0 ? destructiveButtonIndex : undefined,
     }, index => {
@@ -742,18 +749,23 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
       <View style={styles.sessionText}>
         <Text style={[styles.sessionTitle, { color: colors.text }]} numberOfLines={1}>{session.title}</Text>
         <View style={styles.sessionMetaRow}>
-          <Text style={[styles.sessionMeta, { color: unread ? colors.blue : colors.muted }]} numberOfLines={1}>
-            {welcome ? 'Local setup guide' : (searchSnippet || (waiting ? `${runtimeSummary(session)} · waiting for you` : running ? `${runtimeSummary(session)} · running` : unread ? `${runtimeSummary(session)} · new` : runtimeSummary(session)))}
+          <Text style={[styles.sessionMeta, { color: attentionLevel ? attentionColor : colors.muted }]} numberOfLines={1}>
+            {welcome ? t('Local setup guide') : (searchSnippet || (waiting ? `${runtimeSummary(session, t)} · ${t('waiting for you')}` : running ? `${runtimeSummary(session, t)} · ${t('running')}` : unread ? `${runtimeSummary(session, t)} · ${t('new')}` : runtimeSummary(session, t)))}
           </Text>
-          {activityDate ? <Text style={[styles.sessionDate, { color: colors.subtle }]} numberOfLines={1}>{activityDate}</Text> : null}
+          {(attentionLevel === 'important' || attentionLevel === 'emergency') ? <Text style={[styles.sessionLevel, { color: attentionColor }]} numberOfLines={1}>
+            {t(attentionLevel === 'emergency' ? 'Emergency' : 'Important')}
+          </Text> : activityDate ? <Text style={[styles.sessionDate, { color: colors.subtle }]} numberOfLines={1}>{activityDate}</Text> : null}
         </View>
       </View>
-      {waiting ? <View
+      {attentionLevel === 'emergency' ? <View
+        accessibilityLabel="Emergency alert needs acknowledgment"
+        style={[styles.trailingStatusDot, { backgroundColor: colors.red }]}
+      /> : waiting ? <View
         accessibilityLabel={`${pendingInteractionCount} ${waitingProviderName} ${pendingInteractionCount === 1 ? 'request' : 'requests'} waiting for you`}
-        style={[styles.waitingBadge, { backgroundColor: colors.orange }]}
-      ><Text style={[styles.waitingBadgeText, { color: colors.onAccent }]}>{pendingInteractionCount > 9 ? '9+' : pendingInteractionCount}</Text></View> : (running || unread) ? <View
-        accessibilityLabel={running ? 'Agent running' : 'Unread messages'}
-        style={[styles.trailingStatusDot, { backgroundColor: running ? colors.green : colors.blue }]}
+        style={[styles.waitingBadge, { backgroundColor: colors.pink }]}
+      ><Text style={[styles.waitingBadgeText, { color: colors.background }]}>{pendingInteractionCount > 9 ? '9+' : pendingInteractionCount}</Text></View> : (running || attentionLevel) ? <View
+        accessibilityLabel={running && attentionLevel !== 'important' ? 'Agent running' : attentionLevel === 'important' ? 'Important unread message' : 'Unread messages'}
+        style={[styles.trailingStatusDot, { backgroundColor: attentionLevel === 'important' ? colors.pink : running ? colors.green : colors.blue }]}
       /> : null}
     </Pressable>
   )
@@ -813,6 +825,7 @@ const styles = StyleSheet.create({
   sessionMetaRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sessionMeta: { ...typography.caption, flex: 1, minWidth: 0 },
   sessionDate: { ...typography.caption, fontWeight: fontWeight.regular, flexShrink: 1, maxWidth: '48%' },
+  sessionLevel: { ...typography.caption, fontWeight: fontWeight.semibold, flexShrink: 0 },
   backendStatus: { width: 22, height: 22 },
   trailingStatusDot: { width: 8, height: 8, flexShrink: 0, marginHorizontal: 4, borderRadius: radius.round },
   waitingBadge: { minWidth: 24, minHeight: 24, flexShrink: 0, paddingHorizontal: spacing.xs, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },

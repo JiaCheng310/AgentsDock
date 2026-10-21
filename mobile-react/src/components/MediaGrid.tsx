@@ -82,7 +82,7 @@ export function MediaGrid({ files, sessionId, compact = false, ownerKey = 'stand
   if (!files.length) return null
   if (!connectionReady) {
     return <View style={[styles.unavailable, { backgroundColor: colors.raised, borderColor: colors.border }]}>
-      <Text style={[styles.unavailableText, { color: colors.muted }]}>{connecting || switchingProfileId ? 'Verifying media access…' : 'Media is available after this server reconnects.'}</Text>
+      <Text style={[styles.unavailableText, { color: colors.muted }]} localize>{connecting || switchingProfileId ? 'Verifying media access…' : 'Media is available after this server reconnects.'}</Text>
     </View>
   }
   return <ScopedMediaGrid
@@ -309,7 +309,7 @@ function VideoThumbnailPreview({ file, connection, enabled }: { file: AgentFile;
   const rejectThumbnail = useCallback(() => setFailed(true), [])
 
   if (thumbnail) return <Image source={thumbnail} contentFit="contain" style={StyleSheet.absoluteFill} transition={100} />
-  if (Platform.OS === 'ios' || !enabled || failed) return <View style={[styles.center, { backgroundColor: '#090a0b' }]}><File size={22} color={colors.muted} /></View>
+  if (!enabled || failed) return <View style={[styles.center, { backgroundColor: '#090a0b' }]}><File size={22} color={colors.muted} /></View>
   return <QueuedVideoThumbnailLoader file={file} connection={connection} onThumbnail={acceptThumbnail} onFailure={rejectThumbnail} />
 }
 

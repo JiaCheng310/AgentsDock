@@ -21,10 +21,10 @@ export interface ArtifactPlatformVideoPlayerProps {
 /** Desktop/web fallback. Metro substitutes the Android implementation. */
 export function ArtifactPlatformVideoPlayer({ onDownload, onClose }: ArtifactPlatformVideoPlayerProps) {
   return <View accessibilityRole="alert" style={styles.root}>
-    <Text style={styles.title}>Video playback is unavailable here</Text>
+    <Text style={styles.title} localize>Video playback is unavailable here</Text>
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" onPress={onDownload} style={styles.button}><Download size={16} color="white" /><Text style={styles.label}>Download</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={onClose} style={styles.button}><X size={16} color="white" /><Text style={styles.label}>Close</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={onDownload} style={styles.button}><Download size={16} color="white" /><Text style={styles.label} localize>Download</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={onClose} style={styles.button}><X size={16} color="white" /><Text style={styles.label} localize>Close</Text></Pressable>
     </View>
   </View>
 }

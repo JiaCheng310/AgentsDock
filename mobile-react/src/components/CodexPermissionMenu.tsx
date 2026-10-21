@@ -252,19 +252,19 @@ export function CodexPermissionMenu({ sessionId, compact }: { sessionId: string;
         },
       ]}
     >
-      {compact ? <View style={[styles.triggerCompactFace, { backgroundColor: colors.raised }]}><Shield size={16} color={colors.muted} />{riskyPermissions ? <View style={[styles.triggerWarningDot, { backgroundColor: colors.orange }]} /> : null}</View> : <><Shield size={17} color={colors.muted} /><Text style={[styles.triggerText, { color: colors.text }]} numberOfLines={1}>{accessLabel} · {compactApprovalLabel(draft.policy)}</Text><ChevronDown size={13} color={colors.muted} /></>}
+      {compact ? <View style={[styles.triggerCompactFace, { backgroundColor: colors.raised }]}><Shield size={16} color={colors.muted} />{riskyPermissions ? <View style={[styles.triggerWarningDot, { backgroundColor: colors.orange }]} /> : null}</View> : <><Shield size={17} color={colors.muted} /><Text style={[styles.triggerText, { color: colors.text }]} numberOfLines={1} localize>{accessLabel} · {compactApprovalLabel(draft.policy)}</Text><ChevronDown size={13} color={colors.muted} /></>}
     </Pressable>
     {open ? <Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={close}>
       <SafeAreaView accessibilityViewIsModal onAccessibilityEscape={close} style={[styles.sheet, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={[styles.headerMark, { backgroundColor: colors.raised }]}><Shield size={19} color={colors.blue} /></View>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, { color: colors.text }]}>Codex permissions</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Applies to future turns in this chat.</Text>
+            <Text style={[styles.title, { color: colors.text }]} localize>Codex permissions</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]} localize>Applies to future turns in this chat.</Text>
           </View>
           <View accessibilityLiveRegion="polite" style={styles.saveStatus}>
             {saveState === 'saving' ? <ActivityIndicator size="small" color={colors.blue} /> : null}
-            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]}>
+            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]} localize>
               {saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Not saved' : ''}
             </Text>
           </View>
@@ -317,10 +317,10 @@ export function CodexPermissionMenu({ sessionId, compact }: { sessionId: string;
             ]}
             onChange={value => apply({ reviewer: value as CodexApprovalsReviewer })}
           />
-          {draft.profile ? <Text style={[styles.hint, { color: colors.muted }]}>The selected profile replaces the custom filesystem sandbox. Clearing it restores the preserved sandbox.</Text> : null}
-          {profilesError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red }]}>Profiles unavailable: {profilesError}</Text> : null}
+          {draft.profile ? <Text style={[styles.hint, { color: colors.muted }]} localize>The selected profile replaces the custom filesystem sandbox. Clearing it restores the preserved sandbox.</Text> : null}
+          {profilesError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red }]} localize>Profiles unavailable: {profilesError}</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red }]}>{saveError}</Text> : null}
-          {riskyPermissions ? <Text style={[styles.warning, { color: colors.orange, borderColor: colors.orange }]}>Full access with no command prompts is enabled for this chat.</Text> : null}
+          {riskyPermissions ? <Text style={[styles.warning, { color: colors.orange, borderColor: colors.orange }]} localize>Full access with no command prompts is enabled for this chat.</Text> : null}
         </ScrollView>
       </SafeAreaView>
     </Modal> : null}

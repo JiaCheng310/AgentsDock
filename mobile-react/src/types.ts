@@ -304,6 +304,8 @@ export interface StoredServerProfile {
   id: string
   name: string
   serverURL: string
+  /** Explicitly shared QR addresses, bound to serverIdentity. */
+  serverURLs?: string[]
   serverIdentity: string | null
   serverConfigured: boolean
   /** Selects the only credential record that is authoritative for this profile. */
@@ -324,7 +326,7 @@ export interface PublicServerProfile extends StoredServerProfile {
 
 export interface StoredProfileSettings {
   schemaVersion: 2
-  activeProfileId: string
+  activeProfileId: string | null
   profiles: StoredServerProfile[]
   fontScale: number
 }
@@ -352,6 +354,7 @@ export interface WorkspacePreferences {
 export interface AddServerProfileInput {
   name?: string
   serverURL: string
+  serverURLs?: string[]
   accessToken?: string | null
   serverIdentity?: string | null
   serverConfigured?: boolean
@@ -361,6 +364,7 @@ export interface AddServerProfileInput {
 export interface UpdateServerProfileInput {
   name?: string
   serverURL?: string
+  serverURLs?: string[]
   /** Undefined preserves the stored credential; null or an empty string removes it. */
   accessToken?: string | null
   serverIdentity?: string | null
@@ -392,6 +396,8 @@ export interface Session {
   codex_approvals_reviewer?: CodexApprovalsReviewer | null
   codex_thread_status?: CodexThreadStatus | null
   codex_goal?: CodexGoal | null
+  codex_goal_status?: CodexGoalStatus | null
+  codex_goal_updated_at?: number | null
   codex_goal_time_budget_seconds?: number | null
   codex_pending_interaction_count?: number | null
   codex_needs_user_action?: boolean | null
@@ -957,6 +963,7 @@ export interface Event {
   stopped?: boolean | null
   codex_thread_status?: CodexThreadStatus | null
   codex_goal?: CodexGoal | null
+  goal?: CodexGoal | null
   /** Durable normalized/native Codex usage; every field is additive. */
   token_usage?: CodexTokenUsage | null
   token_usage_before?: CodexTokenUsage | null

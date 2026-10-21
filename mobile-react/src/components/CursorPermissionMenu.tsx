@@ -165,12 +165,12 @@ export function CursorPermissionMenu({ sessionId, compact }: { sessionId: string
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={[styles.headerMark, { backgroundColor: colors.raised }]}><Shield size={19} color={colors.blue} /></View>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, { color: colors.text }]}>Cursor permissions</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Applies to future turns in this chat.</Text>
+            <Text style={[styles.title, { color: colors.text }]} localize>Cursor permissions</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]} localize>Applies to future turns in this chat.</Text>
           </View>
           <View accessibilityLiveRegion="polite" style={styles.saveStatus}>
             {saveState === 'saving' ? <ActivityIndicator size="small" color={colors.blue} /> : null}
-            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]}>
+            <Text style={[styles.saveStatusText, { color: saveState === 'error' ? colors.red : colors.muted }]} localize>
               {saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Not saved' : ''}
             </Text>
           </View>
@@ -184,7 +184,7 @@ export function CursorPermissionMenu({ sessionId, compact }: { sessionId: string
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
         >
-          <Text style={[styles.label, { color: colors.muted }]}>Permission mode</Text>
+          <Text style={[styles.label, { color: colors.muted }]} localize>Permission mode</Text>
           <View style={[styles.options, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {modes.map(value => <Pressable
               key={value}
@@ -207,7 +207,7 @@ export function CursorPermissionMenu({ sessionId, compact }: { sessionId: string
               {value === mode ? <Check size={17} color={colors.blue} /> : null}
             </Pressable>)}
           </View>
-          {running ? <Text style={[styles.hint, { color: colors.muted }]}>Stop or wait for this Cursor turn before changing access.</Text> : null}
+          {running ? <Text style={[styles.hint, { color: colors.muted }]} localize>Stop or wait for this Cursor turn before changing access.</Text> : null}
           {saveError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.red }]}>{saveError}</Text> : null}
         </ScrollView>
       </SafeAreaView>

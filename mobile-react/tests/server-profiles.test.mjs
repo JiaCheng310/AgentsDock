@@ -26,9 +26,9 @@ test('server selector is a compact outlined button that opens the sheet directly
   const trigger = source.slice(source.indexOf('export function ServerProfileSelector'), source.indexOf('export function ServerProfilesSheet'))
   assert.match(trigger, /testID="server-profile-selector"/)
   assert.match(trigger, /styles\.selectorName, \{ color: colors\.text \}/)
-  assert.match(trigger, /<ServerConnectionDot state=\{switchingProfileId \? 'connecting' : active\?\.connectionState \?\? 'cached'\}/)
+  assert.match(trigger, /<ServerConnectionDot state=\{switching\?\.connectionState \?\? active\?\.connectionState \?\? 'cached'\}/)
   assert.match(trigger, /numberOfLines=\{1\} ellipsizeMode="tail"/)
-  assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| 'Choose server'/)
+  assert.match(trigger, /switching\?\.name \|\| active\?\.name \|\| t\('Choose server'\)/)
   assert.doesNotMatch(trigger, /ServerUnreadBadge|MenuView|selectorHost/)
   assert.match(trigger, /return <Pressable/)
   assert.match(trigger, /onPress=\{onPress\}/)
@@ -38,6 +38,17 @@ test('server selector is a compact outlined button that opens the sheet directly
   assert.match(source, /selector: \{[^\n]*borderRadius: radius\.round[^\n]*borderWidth: 1/)
 })
 
+test('server drawer checks inactive profiles independently of selection', () => {
+  assert.match(appShell, /state\.profiles\.filter\(profile => profile\.id !== state\.activeProfileId && profile\.serverConfigured\)/)
+  assert.match(appShell, /selectServerAddress\([\s\S]*?profile\.serverIdentity,[\s\S]*?testServerProfile\(\{ profileId: profile\.id, serverURL, signal, timeoutMs: 4_000 \}\)/)
+  assert.match(appShell, /Array\.from\(\{ length: Math\.min\(3, candidates\.length\) \}, checkNext\)/)
+  assert.match(appShell, /return \(\) => controller\.abort\(\)/)
+  assert.match(appShell, /displayedServerConnectionState\(profile\.connectionState, serverReachability\[profile\.id\]/)
+  assert.doesNotMatch(appShell, /const candidates[\s\S]*?setServerReachability\(\{\}\)[\s\S]*?let nextIndex/)
+  assert.match(source, /<Check size=\{20\} color=\{colors\.green\} \/>/)
+  assert.match(source, /state === 'online' \|\| state === 'degraded' \? colors\.green : colors\.muted/)
+})
+
 test('server name reserves a stable refresh indicator slot without disabling server switching', () => {
   assert.match(source, /refreshing\?: boolean/)
   assert.match(source, /refreshing = false/)
@@ -45,7 +56,7 @@ test('server name reserves a stable refresh indicator slot without disabling ser
   assert.match(source, /selectorRefresh: \{ width: 20, height: 20, flexShrink: 0/)
   assert.match(source, /busy: Boolean\(switchingProfileId\) \|\| refreshing/)
   assert.match(source, /const unavailable = disabled \|\| Boolean\(switchingProfileId\)/)
-  assert.match(source, /refreshing \? ' Refreshing chats\.'/)
+  assert.match(source, /refreshing \? ` \$\{t\('Refreshing chats\.'\)\}`/)
 })
 
 test('server title respects its container width without shrinking the hit height', () => {
@@ -94,10 +105,12 @@ test('connection edits carry only the freshly tested identity', () => {
   assert.match(source, /identityResetUnconfirmed/)
 })
 
-test('server removal and identity reset require native confirmation', () => {
+test('server removal permits the active profile and still requires native confirmation', () => {
   assert.match(source, /Alert\.alert\([\s\S]*?Remove server/)
   assert.match(source, /Alert\.alert\([\s\S]*?Allow identity reset/)
-  assert.match(source, /attributes: \{ disabled: disabled \|\| active, destructive: !active \}/)
+  assert.match(source, /id: 'remove',[\s\S]*?attributes: \{ disabled, destructive: true \}/)
+  assert.doesNotMatch(source, /disabled: disabled \|\| active|destructive: !active/)
+  assert.match(source, /text: t\('Remove server'\), style: 'destructive', onPress: \(\) => \{ void removeProfile\(profile\) \}/)
 })
 
 test('server management controls retain touch-safe minimum dimensions', () => {

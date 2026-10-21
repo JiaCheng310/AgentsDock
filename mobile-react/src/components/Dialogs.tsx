@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { DateTimePicker } from '@expo/ui/community/datetime-picker'
 import * as Clipboard from 'expo-clipboard'
-import { ArrowLeft, Calendar, Check, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, KeyRound, MessageSquare, Minus, Monitor, Moon, Network, Plus, Search, Server, ShieldCheck, SquareTerminal, Sun, SunMoon, type LucideIcon } from 'lucide-react-native'
+import { ArrowLeft, Calendar, Check, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, KeyRound, Languages, MessageSquare, Minus, Monitor, Moon, Network, Plus, Search, Server, ShieldCheck, SquareTerminal, Sun, SunMoon, type LucideIcon } from 'lucide-react-native'
 import type { AgentServerClient } from '../api/AgentServerClient'
 import { defaultScheduleWallTime, effectiveScheduleKind, formatScheduleWallTime, JOB_INTERVAL_PRESETS_SECONDS, jobLoopsForever, jobNextRunUpdatePatch, jobScheduleFields, jobScheduleUpdatePatch, mergeScheduleWallTimePickerValue, parseScheduleWallTime, scheduleWallTimeAndroidDatePickerDate, scheduleWallTimePickerDate, type JobStartMode, validateJobNextRun, validateJobSchedule } from '../lib/job-schedule'
 import { AGENTS_SERVER_REPOSITORY_URL } from '../lib/server-setup'
@@ -20,6 +20,9 @@ import { chatMentionTrigger, insertChatReference, parseStoredChatReferences, rec
 import { MAX_SCHEDULED_CHAT_REFERENCES, normalizeScheduledJobChatReferences, scheduledJobChatReferencesForWrite, scheduledJobRouteHintsAvailable } from '../lib/scheduled-job-chat-references'
 import { client, useAppStore } from '../store/useAppStore'
 import { useAppearanceStore, type ThemePreference } from '../store/useAppearanceStore'
+import { useLanguageStore } from '../store/useLanguageStore'
+import { t } from '../i18n'
+import type { LanguagePreference } from '../i18n/locale'
 import { radius, spacing, typography, usePalette } from '../theme'
 import type { Backend, ChatReference, CreateJobInput, JobContextMode, JobScheduleKind, RuntimeOption, Session, TimelineSearchResult, UpdateJobInput } from '../types'
 import { Text, TextInput } from './AppText'
@@ -49,8 +52,8 @@ export function ServerSetupDialog({
     <View style={styles.setupIntro}>
       <View style={[styles.setupIcon, { backgroundColor: colors.raised }]}><Server size={24} color={colors.blue} /></View>
       <View style={styles.setupCopy}>
-        <Text style={[styles.setupTitle, { color: colors.text }]}>Set up your agent server</Text>
-        <Text style={[styles.setupBody, { color: colors.muted }]}>AgentsDock needs a running AgentsServer before it can load chats and launch agents.</Text>
+        <Text style={[styles.setupTitle, { color: colors.text }]} localize>Set up your agent server</Text>
+        <Text style={[styles.setupBody, { color: colors.muted }]} localize>AgentsDock needs a running AgentsServer before it can load chats and launch agents.</Text>
       </View>
     </View>
     <View style={styles.setupSteps}>
@@ -65,10 +68,10 @@ export function ServerSetupDialog({
       style={({ pressed }) => [styles.setupGuide, { backgroundColor: colors.raised, borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}
     >
       <ExternalLink size={16} color={colors.blue} />
-      <Text style={[styles.setupGuideText, { color: colors.text }]}>Open AgentsServer setup guide</Text>
+      <Text style={[styles.setupGuideText, { color: colors.text }]} localize>Open AgentsServer setup guide</Text>
     </Pressable>
     <PrimaryButton testID="server-setup-configure" label="Configure connection" onPress={onConfigure} />
-    <Text style={[styles.help, { color: colors.muted, textAlign: 'center' }]}>You can reopen connection settings from the sidebar at any time.</Text>
+    <Text style={[styles.help, { color: colors.muted, textAlign: 'center' }]} localize>You can reopen connection settings from the sidebar at any time.</Text>
   </Sheet>
 }
 
@@ -95,6 +98,9 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
   const themePreference = useAppearanceStore(state => state.preference)
   const setThemePreference = useAppearanceStore(state => state.setPreference)
   const themeError = useAppearanceStore(state => state.error)
+  const languagePreference = useLanguageStore(state => state.preference)
+  const languageError = useLanguageStore(state => state.error)
+  const setLanguagePreference = useLanguageStore(state => state.setPreference)
   const [page, setPage] = useState<SettingsPage>('home')
   const [defaultFolder, setDefaultFolder] = useState(chatDefaults.folder)
   const [defaultCwd, setDefaultCwd] = useState(chatDefaults.cwd)
@@ -120,7 +126,8 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
     {page === 'home' ? <View testID="settings-categories" style={styles.settingsCategories}>
       <View>
         <SettingsHeading title="App" />
-        <SettingsRow testID="settings-open-appearance" icon={SunMoon} title="Appearance" value={themeLabels[themePreference]} onPress={() => setPage('appearance')} />
+        <SettingsRow testID="settings-open-appearance" icon={SunMoon} title="Appearance" value={t(themeLabels[themePreference])} onPress={() => setPage('appearance')} />
+        <SettingsRow testID="settings-open-language" icon={Languages} title="Language" value={languagePreference === 'system' ? t('System') : languagePreference === 'en' ? 'English' : '简体中文'} onPress={() => setPage('language')} />
         <SettingsRow testID="settings-open-chats" icon={MessageSquare} title="New chat defaults" onPress={() => setPage('chats')} />
       </View>
       <View>
@@ -130,7 +137,7 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
         {tailscaleHost ? <View testID="settings-tailscale-server" style={[styles.settingsRow, { borderColor: colors.border }]}>
           <Network size={20} color={colors.muted} />
           <View style={styles.settingsNetworkCopy}>
-            <Text style={[typography.body, { color: colors.text }]}>Tailscale server</Text>
+            <Text style={[typography.body, { color: colors.text }]} localize>Tailscale server</Text>
             <Text selectable style={[typography.caption, { color: colors.muted }]}>{tailscaleHost}</Text>
           </View>
         </View> : null}
@@ -141,14 +148,14 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
         {Platform.OS === 'android' ? <SettingsRow testID="settings-open-analytics" icon={ShieldCheck} title="Usage analytics" onPress={() => setPage('analytics')} /> : null}
         {Platform.OS === 'android' ? <SettingsRow testID="settings-open-updates" icon={Download} title="App updates" onPress={() => setPage('updates')} /> : null}
       </View>
-      <Text testID="settings-build" style={[styles.build, { color: colors.muted }]}>AgentsDock {appConfig.expo.version} · build {Platform.OS === 'android' ? appConfig.expo.android.versionCode : appConfig.expo.ios.buildNumber}</Text>
+      <Text testID="settings-build" style={[styles.build, { color: colors.muted }]} localize>AgentsDock {appConfig.expo.version} · build {Platform.OS === 'android' ? appConfig.expo.android.versionCode : appConfig.expo.ios.buildNumber}</Text>
     </View> : null}
     {page === 'appearance' ? <>
     <Label text="Theme" />
     <View accessibilityRole="tablist" style={[styles.themeOptions, { backgroundColor: colors.raised }]}>
-      {themeOptions.map(({ value, icon: Icon }) => <Pressable key={value} testID={`settings-theme-${value}`} accessibilityRole="tab" accessibilityLabel={themeLabels[value]} accessibilityState={{ selected: themePreference === value }} onPress={() => void setThemePreference(value)} style={({ pressed }) => [styles.themeOption, { backgroundColor: themePreference === value ? colors.surface : 'transparent', opacity: pressed ? 0.65 : 1 }]}>
+      {themeOptions.map(({ value, icon: Icon }) => <Pressable key={value} testID={`settings-theme-${value}`} accessibilityRole="tab" accessibilityLabel={t(themeLabels[value])} accessibilityState={{ selected: themePreference === value }} onPress={() => void setThemePreference(value)} style={({ pressed }) => [styles.themeOption, { backgroundColor: themePreference === value ? colors.surface : 'transparent', opacity: pressed ? 0.65 : 1 }]}>
         <Icon size={20} color={themePreference === value ? colors.blue : colors.muted} />
-        <Text style={[typography.label, styles.themeOptionText, { color: themePreference === value ? colors.text : colors.muted }]}>{themeLabels[value]}</Text>
+        <Text style={[typography.label, styles.themeOptionText, { color: themePreference === value ? colors.text : colors.muted }]}>{t(themeLabels[value])}</Text>
       </Pressable>)}
     </View>
     {themeError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.red }]}>{themeError}</Text> : null}
@@ -156,13 +163,20 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
     <View style={[styles.fontScale, { backgroundColor: colors.raised, borderColor: colors.border }]}>
       <IconButton icon={Minus} disabled={fontScale <= APP_FONT_SCALE_MIN} label="Decrease app text size" onPress={() => setFontScale(fontScale - APP_FONT_SCALE_STEP)} />
       <View style={styles.fontScalePreview}>
-        <Text style={[styles.fontScaleValue, { color: colors.muted }]}>{Math.round(fontScale * 100)}%</Text>
-        <Text style={[typography.body, { color: colors.text }]}>Navigation and chats resize immediately.</Text>
+        <Text style={[styles.fontScaleValue, { color: colors.muted }]} localize>{Math.round(fontScale * 100)}%</Text>
+        <Text style={[typography.body, { color: colors.text }]} localize>Navigation and chats resize immediately.</Text>
       </View>
       <IconButton icon={Plus} disabled={fontScale >= APP_FONT_SCALE_MAX} label="Increase app text size" onPress={() => setFontScale(fontScale + APP_FONT_SCALE_STEP)} />
     </View>
-    <Text style={[styles.help, { color: colors.muted }]}>Applies to chats, navigation, settings, server management, and terminal text.</Text>
+    <Text style={[styles.help, { color: colors.muted }]} localize>Applies to chats, navigation, settings, server management, and terminal text.</Text>
     </> : null}
+    {page === 'language' ? <View accessibilityRole="radiogroup" style={styles.settingsCategories}>
+      {languageOptions.map(({ value, label }) => <Pressable key={value} testID={`settings-language-${value}`} accessibilityRole="radio" accessibilityLabel={t(label)} accessibilityState={{ checked: languagePreference === value }} onPress={() => void setLanguagePreference(value)} style={({ pressed }) => [styles.settingsRow, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>
+        <Text style={[styles.settingsRowTitle, { color: colors.text }]}>{t(label)}</Text>
+        {languagePreference === value ? <Check size={18} color={colors.green} /> : null}
+      </Pressable>)}
+      {languageError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.red }]}>{t(languageError)}</Text> : null}
+    </View> : null}
     {page === 'chats' ? <>
     <Label text="New chat defaults" />
     <AgentPicker testID="settings-default-agent" label={chatBackendLabel(defaultChoice)} value={defaultChoice} choices={chatDefaultBackendOptions} onChange={value => { if (chatDefaultBackendOptions.includes(value)) setChatDefaults({ ...chatBackendSelection(value), model: '', effort: '' }) }} style={[styles.select, { gap: spacing.sm, backgroundColor: colors.raised, borderColor: colors.border }]}>
@@ -170,9 +184,9 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
       <Text style={[typography.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>{chatBackendLabel(defaultChoice)}</Text>
       <ChevronDown size={15} color={colors.muted} />
     </AgentPicker>
-    {!chatDefaultBackendOptions.includes(defaultChoice) ? <Text style={[styles.help, { color: colors.muted }]}>This agent is unavailable. Check My agents.</Text> : null}
+    {!chatDefaultBackendOptions.includes(defaultChoice) ? <Text style={[styles.help, { color: colors.muted }]} localize>This agent is unavailable. Check My agents.</Text> : null}
     <Label text="Model" /><Select testID="settings-default-model" title="Choose model" value={chatDefaults.model} options={chatDefaultModelOptions} onChange={next => setChatDefaults({ model: next, effort: runtimeEffortAfterModelChange(defaultCatalog, chatDefaults.backend, next, chatDefaults.effort) ?? '' })} />
-    {isCustomProvider(chatDefaults) ? <><Label text="Model ID (optional)" /><TextInput testID="settings-default-api-model" value={chatDefaults.model} onChangeText={model => setChatDefaults({ model, effort: '' })} autoCapitalize="none" autoCorrect={false} placeholder="Server default" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} /></> : null}
+    {isCustomProvider(chatDefaults) ? <><Label text="Model ID (optional)" /><TextInput testID="settings-default-api-model" value={chatDefaults.model} onChangeText={model => setChatDefaults({ model, effort: '' })} autoCapitalize="none" autoCorrect={false} placeholder="default" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} /></> : null}
     <Label text="Folder" /><TextInput testID="settings-default-folder" accessibilityLabel="Default folder" value={defaultFolder} onChangeText={setDefaultFolder} onBlur={() => setChatDefaults({ folder: defaultFolder.trim() || 'General' })} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]} />
     <Label text="Working directory" /><TextInput
       testID="settings-default-cwd"
@@ -186,7 +200,7 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
       placeholderTextColor={colors.muted}
       style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.raised }]}
     />
-    <Text style={[styles.help, { color: colors.muted }]}>The + button uses this backend and model with the last-opened chat’s folder and working directory. These location defaults apply when no chat is open.</Text>
+    <Text style={[styles.help, { color: colors.muted }]} localize>The + button uses this backend and model with the last-opened chat’s folder and working directory. These location defaults apply when no chat is open.</Text>
     </> : null}
     {page === 'agents' ? <MyAgentsSettings /> : null}
     {page === 'updates' && Platform.OS === 'android' ? <AndroidUpdateSettings /> : null}
@@ -194,22 +208,23 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
   </Sheet>
 }
 
-type SettingsPage = 'home' | 'appearance' | 'chats' | 'agents' | 'analytics' | 'updates'
-const settingsTitles: Record<SettingsPage, string> = { home: 'Settings', appearance: 'Appearance', chats: 'New chat defaults', agents: 'My agents', analytics: 'Usage analytics', updates: 'App updates' }
+type SettingsPage = 'home' | 'appearance' | 'language' | 'chats' | 'agents' | 'analytics' | 'updates'
+const settingsTitles: Record<SettingsPage, string> = { home: 'Settings', appearance: 'Appearance', language: 'Language', chats: 'New chat defaults', agents: 'My agents', analytics: 'Usage analytics', updates: 'App updates' }
 const themeLabels: Record<ThemePreference, string> = { system: 'System', light: 'Light', dark: 'Dark' }
 const themeOptions: { value: ThemePreference; icon: LucideIcon }[] = [{ value: 'system', icon: Monitor }, { value: 'light', icon: Sun }, { value: 'dark', icon: Moon }]
+const languageOptions: { value: LanguagePreference; label: string }[] = [{ value: 'system', label: 'System' }, { value: 'en', label: 'English' }, { value: 'zh-CN', label: '简体中文' }]
 
 function SettingsHeading({ title }: { title: string }) {
   const colors = usePalette()
-  return <Text accessibilityRole="header" style={[styles.settingsHeading, { color: colors.muted }]}>{title}</Text>
+  return <Text accessibilityRole="header" style={[styles.settingsHeading, { color: colors.muted }]}>{t(title)}</Text>
 }
 
 function SettingsRow({ icon: Icon, title, value, onPress, testID, external = false }: { icon: LucideIcon; title: string; value?: string; onPress: () => void; testID: string; external?: boolean }) {
   const colors = usePalette()
   const TrailingIcon = external ? ExternalLink : ChevronRight
-  return <Pressable testID={testID} accessibilityRole={external ? 'link' : 'button'} accessibilityLabel={title} accessibilityValue={value ? { text: value } : undefined} onPress={onPress} style={({ pressed }) => [styles.settingsRow, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>
+  return <Pressable testID={testID} accessibilityRole={external ? 'link' : 'button'} accessibilityLabel={t(title)} accessibilityValue={value ? { text: value } : undefined} onPress={onPress} style={({ pressed }) => [styles.settingsRow, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>
     <Icon size={20} color={colors.text} />
-    <Text style={[styles.settingsRowTitle, { color: colors.text }]}>{title}</Text>
+    <Text style={[styles.settingsRowTitle, { color: colors.text }]}>{t(title)}</Text>
     {value ? <Text numberOfLines={1} style={[styles.settingsRowValue, { color: colors.muted }]}>{value}</Text> : null}
     <TrailingIcon size={16} color={colors.muted} />
   </Pressable>
@@ -343,19 +358,19 @@ function ScopedSearchDialog({ visible, sessionId, onClose, connection, connectio
     {connectionReady ? <>
       <View style={[styles.searchBox, { backgroundColor: colors.raised, borderColor: colors.border }]}><Search size={16} color={colors.muted} /><TextInput ref={searchInput} value={query} onChangeText={value => { setResults([]); setBusy(false); setSearchError(null); setQuery(value) }} accessibilityLabel="Search names and complete chat history" placeholder="Search names and complete chat history" placeholderTextColor={colors.muted} returnKeyType="search" submitBehavior="blurAndSubmit" onSubmitEditing={dismissAppKeyboard} clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'} style={{ flex: 1, color: colors.text, fontSize: 14 }} />{busy || openingResultId ? <ActivityIndicator size="small" color={colors.blue} /> : null}</View>
       {searchError ? <View accessibilityRole="alert" style={styles.searchFailure}>
-        <Text style={[styles.searchFailureText, { color: colors.red }]} numberOfLines={2}>History search failed. {searchError}</Text>
+        <Text style={[styles.searchFailureText, { color: colors.red }]} numberOfLines={2} localize>History search failed. {searchError}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry history search"
           testID="search-dialog-retry"
           onPress={() => setSearchRevision(value => value + 1)}
           style={({ pressed }) => [styles.searchFailureRetry, { borderColor: colors.red, opacity: pressed ? 0.6 : 1 }]}
-        ><Text style={{ color: colors.red, fontSize: 12, fontWeight: '800' }}>Retry</Text></Pressable>
+        ><Text style={{ color: colors.red, fontSize: 12, fontWeight: '800' }} localize>Retry</Text></Pressable>
       </View> : null}
       <ScrollView style={{ maxHeight: 500 }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" alwaysBounceVertical={Platform.OS === 'ios'} onScrollBeginDrag={dismissAppKeyboard}>
         {nameMatches.map(session => <SearchResult key={`${connectionKey}:name:${session.id}`} title={session.title} subtitle="Chat name" disabled={Boolean(openingResultId)} onPress={() => openSession(session.id)} />)}
         {resultRows.map(result => <SearchResult key={`${connectionKey}:${result.session_id}:${result.event_id}`} title={sessions.find(value => value.id === result.session_id)?.title ?? 'Chat'} subtitle={result.snippet} disabled={Boolean(openingResultId)} onPress={() => void openTimelineResult(result)} />)}
-        {query.trim() && !busy && !searchError && !nameMatches.length && !resultRows.length ? <Text style={[styles.empty, { color: colors.muted }]}>No matches</Text> : null}
+        {query.trim() && !busy && !searchError && !nameMatches.length && !resultRows.length ? <Text style={[styles.empty, { color: colors.muted }]} localize>No matches</Text> : null}
       </ScrollView>
     </> : <ConnectionUnavailable />}
   </Sheet>
@@ -457,7 +472,7 @@ function ScopedDigestDialog({ visible, source, onClose, connection, connectionKe
   }
   return <Sheet key={connectionKey} visible={visible} title="Create digest" onClose={onClose} wide>
     {connectionReady ? <>
-      <View style={[styles.digestSource, { backgroundColor: colors.raised, borderColor: colors.border }]}><BackendMark backend={source.backend} size={20} /><View style={{ flex: 1 }}><Text style={{ color: colors.muted, fontSize: 10, fontWeight: '800' }}>SOURCE CHAT</Text><Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{source.title}</Text></View></View>
+      <View style={[styles.digestSource, { backgroundColor: colors.raised, borderColor: colors.border }]}><BackendMark backend={source.backend} size={20} /><View style={{ flex: 1 }}><Text style={{ color: colors.muted, fontSize: 10, fontWeight: '800' }} localize>SOURCE CHAT</Text><Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{source.title}</Text></View></View>
       <Label text="Target chat" /><Select title="Choose target chat" testID="digest-target" value={target} options={sections.flatMap(section => section.sessions.map(value => ({ value: value.id, label: `${section.title} · ${value.title}` })))} onChange={setTarget} />
       <Label text="Detail" /><Select title="Choose digest detail" testID="digest-detail" value={detail} options={[{ value: 'short', label: 'Short' }, { value: 'normal', label: 'Normal' }, { value: 'deep', label: 'Deep' }]} onChange={value => { setDetail(value); setPreview(''); setStatus('') }} />
       <Label text="Prompt for target agent" /><TextInput testID="digest-prompt" accessibilityLabel="Prompt for target agent" value={prompt} onChangeText={value => { setPrompt(value); if (preview) setStatus('Prompt changed · refresh the preview before sending') }} multiline placeholder="What should the target agent focus on?" placeholderTextColor={colors.muted} style={[styles.textarea, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} />
@@ -723,7 +738,7 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
     <Label text="Title" /><TextInput testID="job-title" accessibilityLabel="Job title" value={title} onChangeText={setTitle} style={[styles.input, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} />
     <Label text="Backend" /><View style={styles.segment}>{backendOptions.map(value => { const unavailable = value === 'cursor' && Boolean(runtimeSelectionError(health, runtime, value, value === session.backend ? session.model : null)); return <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${backendLabel(value)}${unavailable ? ', unavailable' : ''}`} accessibilityState={{ selected: selectedBackend === value, disabled: unavailable }} disabled={unavailable} onPress={() => setBackend(value)} style={[styles.segmentButton, { backgroundColor: selectedBackend === value ? colors.blue : colors.raised, opacity: unavailable ? 0.4 : 1 }]}><BackendMark backend={value} size={20} /><Text style={{ color: selectedBackend === value ? 'white' : colors.text, fontWeight: '700' }}>{backendLabel(value)}</Text></Pressable> })}</View>
     <Label text="Run context" /><View style={styles.modeRow}><ModeButton label="This chat" selected={contextMode === 'chat'} onPress={() => { setContextMode('chat'); setBackend(session.backend) }} />{supportsIndependentRuns ? <ModeButton label="Independent" selected={contextMode === 'standalone'} onPress={() => setContextMode('standalone')} /> : null}</View>
-    {runtimeError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.orange }]}>{runtimeError}{enabled ? ' Pause this job or choose an available runtime before saving.' : ''}</Text> : null}
+    {runtimeError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.orange }]} localize>{runtimeError}{enabled ? ' Pause this job or choose an available runtime before saving.' : ''}</Text> : null}
     <Label text="Schedule" /><View style={styles.modeRow}>{(['interval', 'cron', 'rrule'] as JobScheduleKind[]).map(value => <ModeButton key={value} testID={`job-schedule-kind-${value}`} label={value === 'rrule' ? 'RRULE' : value[0].toUpperCase() + value.slice(1)} selected={scheduleKind === value} onPress={() => setScheduleKind(value)} />)}</View>
     {scheduleKind === 'interval' ? <>
       <Label text="Interval" />
@@ -742,10 +757,10 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
       <Label text="Custom seconds" /><TextInput testID="job-interval" accessibilityLabel="Job interval seconds" value={interval} onChangeText={setIntervalValue} keyboardType="number-pad" style={[styles.input, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} />
     </> : scheduleKind === 'cron' ? <>
       <Label text="Cron expression" /><TextInput testID="job-cron-expression" accessibilityLabel="Cron expression" value={cronExpression} onChangeText={setCronExpression} autoCapitalize="none" autoCorrect={false} placeholder="0 9 * * 1-5" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} />
-      <Text style={[styles.help, { color: colors.muted }]}>Unix cron: 5 fields; 6–7 fields add seconds first and optional year last. @hourly and @daily aliases work.</Text>
+      <Text style={[styles.help, { color: colors.muted }]} localize>Unix cron: 5 fields; 6–7 fields add seconds first and optional year last. @hourly and @daily aliases work.</Text>
     </> : <>
       <Label text="RRULE" /><TextInput testID="job-rrule" accessibilityLabel="RRULE" value={rrule} onChangeText={setRRule} multiline autoCapitalize="characters" autoCorrect={false} placeholder="FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=9;BYMINUTE=0;BYSECOND=0" placeholderTextColor={colors.muted} style={[styles.textarea, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} />
-      <Text style={[styles.help, { color: colors.muted }]}>RFC 5545 recurrence rule. The RRULE: prefix is optional.</Text>
+      <Text style={[styles.help, { color: colors.muted }]} localize>RFC 5545 recurrence rule. The RRULE: prefix is optional.</Text>
     </>}
     {scheduleKind !== 'interval' ? <><Label text="Timezone" /><TextInput testID="job-timezone" accessibilityLabel="Schedule timezone" value={timezone} onChangeText={setTimezone} autoCapitalize="none" autoCorrect={false} placeholder="America/Los_Angeles" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} /></> : null}
     <Text style={[styles.help, { color: scheduleError ? colors.red : colors.muted }]}>{scheduleError ?? (scheduleKind === 'interval' ? 'Runs relative to the previous scheduled time.' : 'The server validates the full expression when you save.')}</Text>
@@ -755,19 +770,19 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
       <View testID="job-start-picker" onTouchStart={dismissAppKeyboard} style={[styles.jobStartPicker, { backgroundColor: colors.raised, borderColor: colors.border }]}>
         {Platform.OS === 'ios' ? compactIOSPicker ? <>
           <View style={[styles.jobStartPickerControl, styles.jobStartPickerControlPhone]}>
-            <View style={styles.jobStartPickerHeading}><Calendar size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Date</Text></View>
+            <View style={styles.jobStartPickerHeading}><Calendar size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Date</Text></View>
             <DateTimePicker style={styles.jobStartPickerNativePhone} testID="job-start-date-picker" value={pickerDate} mode="date" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('date', value)} />
           </View>
           <View style={[styles.jobStartPickerControl, styles.jobStartPickerControlPhone]}>
-            <View style={styles.jobStartPickerHeading}><Clock size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Time</Text></View>
+            <View style={styles.jobStartPickerHeading}><Clock size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Time</Text></View>
             <DateTimePicker style={styles.jobStartPickerNativePhone} testID="job-start-time-picker" value={pickerDate} mode="time" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('time', value)} />
           </View>
         </> : <>
-          <View style={styles.jobStartPickerControl}><Calendar size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Date</Text><DateTimePicker testID="job-start-date-picker" value={pickerDate} mode="date" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('date', value)} /></View>
-          <View style={styles.jobStartPickerControl}><Clock size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Time</Text><DateTimePicker testID="job-start-time-picker" value={pickerDate} mode="time" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('time', value)} /></View>
+          <View style={styles.jobStartPickerControl}><Calendar size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Date</Text><DateTimePicker testID="job-start-date-picker" value={pickerDate} mode="date" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('date', value)} /></View>
+          <View style={styles.jobStartPickerControl}><Clock size={16} color={colors.muted} /><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Time</Text><DateTimePicker testID="job-start-time-picker" value={pickerDate} mode="time" display="compact" accentColor={colors.blue} onValueChange={(_event, value) => applyPickerValue('time', value)} /></View>
         </> : <>
-          <Pressable testID="job-start-date-button" accessibilityRole="button" accessibilityLabel="Choose job start date" onPress={() => { dismissAppKeyboard(); setAndroidStartPicker('date') }} style={({ pressed }) => [styles.jobStartPickerButton, { opacity: pressed ? 0.65 : 1 }]}><Calendar size={17} color={colors.blue} /><View style={{ flex: 1 }}><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Date</Text><Text style={[styles.jobStartPickerValue, { color: colors.text }]}>{pickerDate.toLocaleDateString([], { dateStyle: 'medium' })}</Text></View></Pressable>
-          <Pressable testID="job-start-time-button" accessibilityRole="button" accessibilityLabel="Choose job start time" onPress={() => { dismissAppKeyboard(); setAndroidStartPicker('time') }} style={({ pressed }) => [styles.jobStartPickerButton, { opacity: pressed ? 0.65 : 1 }]}><Clock size={17} color={colors.blue} /><View style={{ flex: 1 }}><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]}>Time</Text><Text style={[styles.jobStartPickerValue, { color: colors.text }]}>{pickerDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text></View></Pressable>
+          <Pressable testID="job-start-date-button" accessibilityRole="button" accessibilityLabel="Choose job start date" onPress={() => { dismissAppKeyboard(); setAndroidStartPicker('date') }} style={({ pressed }) => [styles.jobStartPickerButton, { opacity: pressed ? 0.65 : 1 }]}><Calendar size={17} color={colors.blue} /><View style={{ flex: 1 }}><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Date</Text><Text style={[styles.jobStartPickerValue, { color: colors.text }]}>{pickerDate.toLocaleDateString([], { dateStyle: 'medium' })}</Text></View></Pressable>
+          <Pressable testID="job-start-time-button" accessibilityRole="button" accessibilityLabel="Choose job start time" onPress={() => { dismissAppKeyboard(); setAndroidStartPicker('time') }} style={({ pressed }) => [styles.jobStartPickerButton, { opacity: pressed ? 0.65 : 1 }]}><Clock size={17} color={colors.blue} /><View style={{ flex: 1 }}><Text style={[styles.jobStartPickerLabel, { color: colors.muted }]} localize>Time</Text><Text style={[styles.jobStartPickerValue, { color: colors.text }]}>{pickerDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text></View></Pressable>
         </>}
       </View>
       <Text testID="job-start-value" style={[styles.help, { color: startError ? colors.red : colors.muted }]}>{startError ?? `${start}${scheduleKind === 'interval' ? '' : ` · ${timezone.trim() || 'selected timezone'}`}`}</Text>
@@ -792,7 +807,7 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
     </> : <Text style={[styles.help, { color: colors.muted }]}>{startMode === 'keep' ? `Keeps ${job?.next_run_at_iso ? new Date(job.next_run_at_iso).toLocaleString() : 'the current schedule'}.` : startMode === 'immediate' ? 'Runs once as soon as the scheduler can launch it, then follows the schedule.' : scheduleKind === 'interval' ? `${job ? 'Resets the next run and cadence anchor to' : 'First run is'} one interval from now.` : job ? 'Discards any one-time override and uses the next matching recurrence.' : 'The first run uses the next matching recurrence.'}</Text>}
     <Label text="Mode" /><View style={styles.modeRow}><ModeButton label={scheduleKind === 'interval' ? 'Run fixed times' : 'Limit total runs'} selected={!loop} onPress={() => setLoop(false)} /><ModeButton label={scheduleKind === 'interval' ? 'Loop forever' : 'No extra run limit'} selected={loop} onPress={() => setLoop(true)} /></View>
     {!loop ? <><Label text="Number of runs" /><TextInput testID="job-run-count" accessibilityLabel="Number of job runs" value={maxRuns} onChangeText={setMaxRuns} keyboardType="number-pad" style={[styles.input, { color: colors.text, backgroundColor: colors.raised, borderColor: colors.border }]} /></> : null}
-    <View style={styles.toggle}><Text style={{ color: colors.text, flex: 1 }}>Enabled</Text><Switch accessibilityLabel="Job enabled" value={enabled} onValueChange={setEnabled} /></View>
+    <View style={styles.toggle}><Text style={{ color: colors.text, flex: 1 }} localize>Enabled</Text><Switch accessibilityLabel="Job enabled" value={enabled} onValueChange={setEnabled} /></View>
     <Label text="Prompt" /><TextInput
       testID="job-prompt"
       accessibilityLabel="Job prompt"
@@ -813,7 +828,7 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
       disabled={!scheduledRouteHintsSupported}
       onPress={() => revokeJobTarget(reference)}
       style={[styles.jobReferenceChip, { backgroundColor: colors.raised, borderColor: colors.border, opacity: scheduledRouteHintsSupported ? 1 : 0.65 }]}
-    ><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }}>@{reference.display_title_snapshot}</Text><Minus size={12} color={colors.muted} /></Pressable>)}</View> : null}
+    ><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }} localize>@{reference.display_title_snapshot}</Text><Minus size={12} color={colors.muted} /></Pressable>)}</View> : null}
     {jobMention ? <View style={[styles.jobMentionPicker, { backgroundColor: colors.raised, borderColor: colors.border }]}>
       {targetCandidates.length ? targetCandidates.map(candidate => <Pressable
         key={candidate.id}
@@ -821,9 +836,9 @@ export function JobDialog({ visible, session, jobId, onClose }: { visible: boole
         accessibilityLabel={`Route scheduled job to ${candidate.title}`}
         onPress={() => chooseJobTarget(candidate)}
         style={({ pressed }) => [styles.jobMentionOption, { opacity: pressed ? 0.6 : 1 }]}
-      ><BackendMark backend={candidate.backend} size={16} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{candidate.title}</Text><Text numberOfLines={1} style={{ color: colors.muted, fontSize: 10 }}>{candidate.folder || 'General'}</Text></View></Pressable>) : <Text style={[styles.help, { color: colors.muted }]}>No matching active chats.</Text>}
+      ><BackendMark backend={candidate.backend} size={16} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{candidate.title}</Text><Text numberOfLines={1} style={{ color: colors.muted, fontSize: 10 }}>{candidate.folder || 'General'}</Text></View></Pressable>) : <Text style={[styles.help, { color: colors.muted }]} localize>No matching active chats.</Text>}
     </View> : null}
-    <Text style={[styles.help, { color: scheduledRouteHintsSupported || !chatReferences.length ? colors.muted : colors.orange }]}>{scheduledRouteHintsSupported
+    <Text style={[styles.help, { color: scheduledRouteHintsSupported || !chatReferences.length ? colors.muted : colors.orange }]} localize>{scheduledRouteHintsSupported
       ? 'Type @Chat to give each scheduled occurrence an exact route to another active chat.'
       : chatReferences.length
         ? 'Stored @Chat routes are view-only and preserved. Update AgentsServer before changing this prompt or its routes on mobile.'
@@ -839,7 +854,7 @@ export function ProcessDialog({ visible, sessionId, onClose }: { visible: boolea
   const snapshot = useAppStore(state => sessionId ? state.processes[sessionId] : undefined)
   useEffect(() => { if (visible && sessionId) void inspect(sessionId) }, [inspect, sessionId, visible])
   return <Sheet visible={visible} title="Live processes" onClose={onClose} wide>
-    <ScrollView style={{ maxHeight: 560 }} keyboardShouldPersistTaps="always">{snapshot?.processes.length ? snapshot.processes.map(process => <View key={process.pid} style={[styles.process, { backgroundColor: colors.raised }]}><View style={[styles.processDot, { backgroundColor: colors.green }]} /><View style={{ flex: 1 }}><Text selectable style={{ color: colors.text, fontSize: 12, fontFamily: 'Menlo' }}>{process.command || process.args}</Text><Text style={{ color: colors.muted, fontSize: 10 }}>{process.cwd} · pid {process.pid} · CPU {process.cpu_percent ?? 0}% · {Math.round((process.rss_kb ?? 0) / 1024)} MB</Text></View><IconButton icon={Copy} size={14} onPress={() => void Clipboard.setStringAsync([process.command || process.args, process.cwd].filter(Boolean).join('\n'))} label="Copy process" /></View>) : <Text style={[styles.empty, { color: colors.muted }]}>No live processes for this chat.</Text>}{snapshot?.stdout_tail?.text ? <View><View style={styles.outputHeader}><Text style={[styles.outputTitle, { color: colors.muted }]}>Live stdout</Text><IconButton icon={Copy} size={14} onPress={() => void Clipboard.setStringAsync(snapshot.stdout_tail?.text ?? '')} label="Copy stdout" /></View><Text selectable style={[styles.log, { color: colors.text, backgroundColor: '#090b0e' }]}>{snapshot.stdout_tail.text}</Text></View> : null}</ScrollView>
+    <ScrollView style={{ maxHeight: 560 }} keyboardShouldPersistTaps="always">{snapshot?.processes.length ? snapshot.processes.map(process => <View key={process.pid} style={[styles.process, { backgroundColor: colors.raised }]}><View style={[styles.processDot, { backgroundColor: colors.green }]} /><View style={{ flex: 1 }}><Text selectable style={{ color: colors.text, fontSize: 12, fontFamily: 'Menlo' }}>{process.command || process.args}</Text><Text style={{ color: colors.muted, fontSize: 10 }} localize>{process.cwd} · pid {process.pid} · CPU {process.cpu_percent ?? 0}% · {Math.round((process.rss_kb ?? 0) / 1024)} MB</Text></View><IconButton icon={Copy} size={14} onPress={() => void Clipboard.setStringAsync([process.command || process.args, process.cwd].filter(Boolean).join('\n'))} label="Copy process" /></View>) : <Text style={[styles.empty, { color: colors.muted }]} localize>No live processes for this chat.</Text>}{snapshot?.stdout_tail?.text ? <View><View style={styles.outputHeader}><Text style={[styles.outputTitle, { color: colors.muted }]} localize>Live stdout</Text><IconButton icon={Copy} size={14} onPress={() => void Clipboard.setStringAsync(snapshot.stdout_tail?.text ?? '')} label="Copy stdout" /></View><Text selectable style={[styles.log, { color: colors.text, backgroundColor: '#090b0e' }]}>{snapshot.stdout_tail.text}</Text></View> : null}</ScrollView>
     <View style={styles.buttonRow}><SecondaryButton label="Refresh" onPress={() => sessionId && void inspect(sessionId)} /></View>
   </Sheet>
 }
@@ -904,9 +919,9 @@ function ScopedTmuxDialog({ visible, sessionId, onClose, connection, connectionK
   }
   return <Sheet key={connectionKey} visible={visible} title="Tmux submitters" onClose={onClose} wide>
     {connectionReady ? <>
-      <View style={styles.toggle}><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontWeight: '700' }}>Machine-wide panes</Text><Text style={{ color: colors.muted, fontSize: 10 }}>Off shows panes linked to this chat.</Text></View><Switch value={includeAll} onValueChange={setIncludeAll} /></View>
+      <View style={styles.toggle}><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontWeight: '700' }} localize>Machine-wide panes</Text><Text style={{ color: colors.muted, fontSize: 10 }} localize>Off shows panes linked to this chat.</Text></View><Switch value={includeAll} onValueChange={setIncludeAll} /></View>
       <ScrollView style={{ maxHeight: selectedPane ? 280 : 520 }} keyboardShouldPersistTaps="always">
-        {panes.length ? panes.map(pane => <Pressable key={`${connectionKey}:${pane.pane_id}`} accessibilityRole="button" accessibilityLabel={`Capture ${pane.session_name ?? 'tmux'} ${pane.window_name ?? pane.pane_index ?? pane.pane_id}`} accessibilityState={{ selected: selectedPane === pane.pane_id }} onPress={() => void capture(pane.pane_id)} style={[styles.process, { backgroundColor: selectedPane === pane.pane_id ? colors.raised : colors.surface, borderColor: colors.border }]}><View style={[styles.processDot, { backgroundColor: pane.dead ? colors.muted : colors.green }]} /><SquareTerminal size={15} color={colors.muted} /><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{pane.session_name ?? 'tmux'}:{pane.window_name ?? pane.pane_index ?? pane.pane_id}</Text><Text selectable style={{ color: colors.muted, fontSize: 10, marginTop: 3 }} numberOfLines={2}>{pane.command || 'shell'} · {pane.current_path || pane.cwd || 'unknown directory'}</Text>{pane.tags?.length ? <Text style={{ color: colors.blue, fontSize: 10, marginTop: 3 }}>{pane.tags.join(' · ')}</Text> : null}</View></Pressable>) : <Text style={[styles.empty, { color: colors.muted }]}>No tmux panes linked to this chat.</Text>}
+        {panes.length ? panes.map(pane => <Pressable key={`${connectionKey}:${pane.pane_id}`} accessibilityRole="button" accessibilityLabel={`Capture ${pane.session_name ?? 'tmux'} ${pane.window_name ?? pane.pane_index ?? pane.pane_id}`} accessibilityState={{ selected: selectedPane === pane.pane_id }} onPress={() => void capture(pane.pane_id)} style={[styles.process, { backgroundColor: selectedPane === pane.pane_id ? colors.raised : colors.surface, borderColor: colors.border }]}><View style={[styles.processDot, { backgroundColor: pane.dead ? colors.muted : colors.green }]} /><SquareTerminal size={15} color={colors.muted} /><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }} localize>{pane.session_name ?? 'tmux'}:{pane.window_name ?? pane.pane_index ?? pane.pane_id}</Text><Text selectable style={{ color: colors.muted, fontSize: 10, marginTop: 3 }} numberOfLines={2} localize>{pane.command || 'shell'} · {pane.current_path || pane.cwd || 'unknown directory'}</Text>{pane.tags?.length ? <Text style={{ color: colors.blue, fontSize: 10, marginTop: 3 }}>{pane.tags.join(' · ')}</Text> : null}</View></Pressable>) : <Text style={[styles.empty, { color: colors.muted }]} localize>No tmux panes linked to this chat.</Text>}
       </ScrollView>
       {selectedPane ? <View><View style={styles.outputHeader}><Text style={[styles.outputTitle, { color: colors.muted }]}>{busy ? 'Capturing output…' : `Output · ${selectedPane}`}</Text><IconButton icon={Copy} size={14} onPress={() => void Clipboard.setStringAsync(output)} label="Copy tmux output" /></View><ScrollView style={{ maxHeight: 250 }}><Text selectable style={[styles.log, { color: colors.text, backgroundColor: '#090b0e' }]}>{output || (busy ? 'Loading…' : 'No output.')}</Text></ScrollView></View> : null}
       <View style={styles.buttonRow}><SecondaryButton label="Refresh" onPress={() => sessionId && void inspect(sessionId, includeAll)} /></View>
@@ -938,7 +953,7 @@ function Sheet({ visible, title, onClose, onBack, onShow, onDidDismiss, children
   >
     <SafeAreaView style={styles.sheetSafeArea} edges={['bottom']}>
       <View style={styles.sheetGrabber} />
-      <View style={styles.sheetHeader}>{onBack ? <IconButton icon={ArrowLeft} label="Back to Settings" testID="settings-back" onPress={onBack} /> : null}<Text style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text>{dismissable ? <SheetCloseButton onPress={close} label={`Close ${title}`} testID={`sheet-close-${titleKey}`} /> : null}</View>
+      <View style={styles.sheetHeader}>{onBack ? <IconButton icon={ArrowLeft} label="Back to Settings" testID="settings-back" onPress={onBack} /> : null}<Text style={[styles.sheetTitle, { color: colors.text }]}>{t(title)}</Text>{dismissable ? <SheetCloseButton onPress={close} label={t('Close {title}', { title: t(title) })} testID={`sheet-close-${titleKey}`} /> : null}</View>
       <ScrollView
         key={titleKey}
         contentContainerStyle={styles.sheetBody}
@@ -953,12 +968,12 @@ function Sheet({ visible, title, onClose, onBack, onShow, onDidDismiss, children
   }
   return <Modal visible={visible} transparent animationType="fade" onShow={onShow} onRequestClose={onBack ?? close} onDismiss={didDismiss}><View style={styles.backdrop}>{dismissable ? <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" style={StyleSheet.absoluteFill} onPress={close} /> : <View style={StyleSheet.absoluteFill} />}{panel}</View></Modal>
 }
-function Label({ text, children }: { text: string; children?: React.ReactNode }) { const colors = usePalette(); return <View style={styles.labelRow}><Text style={[styles.label, { color: colors.muted }]}>{text}</Text>{children}</View> }
-function PrimaryButton({ label, onPress, disabled, testID }: { label: string; onPress: () => void; disabled?: boolean; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.primary, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Text style={styles.primaryText}>{label}</Text></Pressable> }
-function SecondaryButton({ label, onPress, disabled, testID }: { label: string; onPress: () => void; disabled?: boolean; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.secondary, { backgroundColor: colors.raised, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text></Pressable> }
-function ModeButton({ label, selected, onPress, testID }: { label: string; selected: boolean; onPress: () => void; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.modeButton, { backgroundColor: selected ? colors.blue : colors.raised, opacity: pressed ? 0.65 : 1 }]}><Text style={{ color: selected ? 'white' : colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{label}</Text></Pressable> }
+function Label({ text, children }: { text: string; children?: React.ReactNode }) { const colors = usePalette(); return <View style={styles.labelRow}><Text style={[styles.label, { color: colors.muted }]}>{t(text)}</Text>{children}</View> }
+function PrimaryButton({ label, onPress, disabled, testID }: { label: string; onPress: () => void; disabled?: boolean; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={t(label)} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.primary, { backgroundColor: colors.blue, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Text style={styles.primaryText}>{t(label)}</Text></Pressable> }
+function SecondaryButton({ label, onPress, disabled, testID }: { label: string; onPress: () => void; disabled?: boolean; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={t(label)} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.secondary, { backgroundColor: colors.raised, opacity: disabled ? 0.35 : pressed ? 0.65 : 1 }]}><Text style={{ color: colors.text, fontWeight: '700' }}>{t(label)}</Text></Pressable> }
+function ModeButton({ label, selected, onPress, testID }: { label: string; selected: boolean; onPress: () => void; testID?: string }) { const colors = usePalette(); return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={t(label)} accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.modeButton, { backgroundColor: selected ? colors.blue : colors.raised, opacity: pressed ? 0.65 : 1 }]}><Text style={{ color: selected ? 'white' : colors.text, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>{t(label)}</Text></Pressable> }
 function SearchResult({ title, subtitle, disabled = false, onPress }: { title: string; subtitle: string; disabled?: boolean; onPress: () => void }) { const colors = usePalette(); return <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} disabled={disabled} onPress={onPress} style={[styles.result, { borderColor: colors.border, opacity: disabled ? 0.55 : 1 }]}><Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{title}</Text><Text style={{ color: colors.muted, fontSize: 11, marginTop: 4 }} numberOfLines={3}>{subtitle}</Text></Pressable> }
-function ConnectionUnavailable() { const colors = usePalette(); return <View style={styles.connectionUnavailable}><Text style={[styles.connectionUnavailableText, { color: colors.muted }]}>This server must finish connecting and verifying its identity first.</Text></View> }
+function ConnectionUnavailable() { const colors = usePalette(); return <View style={styles.connectionUnavailable}><Text style={[styles.connectionUnavailableText, { color: colors.muted }]} localize>This server must finish connecting and verifying its identity first.</Text></View> }
 
 function Select({ title = 'Choose option', value, valueLabel, options, onChange, testID }: { title?: string; value: string; valueLabel?: string; options: RuntimeOption[]; onChange: (value: string) => void; testID?: string }) {
   const colors = usePalette()
@@ -976,7 +991,7 @@ function Select({ title = 'Choose option', value, valueLabel, options, onChange,
           <Pressable accessibilityRole="button" accessibilityLabel="Dismiss choices" style={StyleSheet.absoluteFill} onPress={close} />
           <View accessibilityViewIsModal style={[styles.menu, compact && styles.menuCompact, { maxHeight: Math.min(440, height * 0.62), backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.menuHeader, { borderColor: colors.border }]}><Text style={[styles.menuTitle, { color: colors.text }]}>{title}</Text><SheetCloseButton onPress={close} label={`Close ${title.toLocaleLowerCase()}`} /></View>
-            <ScrollView keyboardShouldPersistTaps="always" contentContainerStyle={styles.menuOptions}>{deduped.map(option => <Pressable key={option.value || '__default'} accessibilityRole="button" accessibilityLabel={option.locked ? `${option.label}, upgrade required` : option.label} accessibilityHint={option.locked ? option.locked_reason ?? undefined : undefined} accessibilityState={{ disabled: option.locked, selected: value === option.value }} disabled={option.locked} onPress={() => { onChange(option.value); close() }} style={[styles.option, { backgroundColor: value === option.value ? colors.raised : 'transparent', opacity: option.locked ? 0.45 : 1 }]}>{value === option.value ? <Check size={15} color={colors.blue} /> : <View style={{ width: 15 }} />}<Text style={{ color: colors.text, flex: 1 }}>{option.label}{option.locked ? ' (upgrade required)' : ''}</Text></Pressable>)}</ScrollView>
+            <ScrollView keyboardShouldPersistTaps="always" contentContainerStyle={styles.menuOptions}>{deduped.map(option => <Pressable key={option.value || '__default'} accessibilityRole="button" accessibilityLabel={option.locked ? `${option.label}, upgrade required` : option.label} accessibilityHint={option.locked ? option.locked_reason ?? undefined : undefined} accessibilityState={{ disabled: option.locked, selected: value === option.value }} disabled={option.locked} onPress={() => { onChange(option.value); close() }} style={[styles.option, { backgroundColor: value === option.value ? colors.raised : 'transparent', opacity: option.locked ? 0.45 : 1 }]}>{value === option.value ? <Check size={15} color={colors.blue} /> : <View style={{ width: 15 }} />}<Text style={{ color: colors.text, flex: 1 }} localize>{option.label}{option.locked ? ' (upgrade required)' : ''}</Text></Pressable>)}</ScrollView>
           </View>
         </View>
       </SafeAreaView>

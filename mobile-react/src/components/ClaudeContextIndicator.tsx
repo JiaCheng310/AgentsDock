@@ -97,8 +97,8 @@ export function ClaudeContextIndicator() {
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={[styles.headerMark, { backgroundColor: colors.raised }]}><Bot size={19} color={colors.blue} /></View>
           <View style={styles.headerCopy}>
-            <Text style={[styles.title, { color: colors.text }]}>Claude context</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Agent SDK context consumption</Text>
+            <Text style={[styles.title, { color: colors.text }]} localize>Claude context</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]} localize>Agent SDK context consumption</Text>
           </View>
           <IconButton testID="claude-context-refresh" icon={RefreshCw} label="Refresh Claude context" disabled={refreshing || !canRefresh} onPress={() => void refreshContextUsage()} />
           <SheetCloseButton label="Close Claude context" testID="claude-context-close" onPress={close} />
@@ -124,9 +124,9 @@ export function ClaudeContextIndicator() {
             <Text style={[styles.percent, { color: colors.text }]}>{formattedPercent}</Text>
           </View>
           <Text style={[styles.detail, { color: colors.text }]}>{detail}</Text>
-          <Text style={[styles.state, { color: colors.muted }]}>State: {contextStateLabel(state)}</Text>
+          <Text style={[styles.state, { color: colors.muted }]} localize>State: {contextStateLabel(state)}</Text>
           <Text accessibilityLiveRegion="polite" selectable={Boolean(contextUsageError)} style={[styles.note, { color: contextUsageError ? colors.red : colors.muted }]}>{refreshStatus}</Text>
-          <Text style={[styles.note, { color: colors.muted }]}>Direct sampling is available only for an idle, already-loaded Agent SDK session. Legacy servers keep the last completed-turn snapshot.</Text>
+          <Text style={[styles.note, { color: colors.muted }]} localize>Direct sampling is available only for an idle, already-loaded Agent SDK session. Legacy servers keep the last completed-turn snapshot.</Text>
         </View>
       </SafeAreaView>
     </Modal> : null}

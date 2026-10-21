@@ -29,8 +29,8 @@ export function RuntimeHealthPanel() {
   const refresh = useAppStore(state => state.refreshRuntime)
   return <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.raised }]}>
     <View style={styles.header}>
-      <View style={{ flex: 1 }}><Text style={[styles.heading, { color: colors.text }]}>Agent runtimes</Text><Text style={[styles.caption, { color: colors.muted }]}>Provider readiness is separate from server connectivity.</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Refresh runtime status" disabled={!connected} onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, opacity: connected ? 1 : 0.45 }]}><RefreshCw size={14} color={colors.blue} /><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }}>Refresh</Text></Pressable>
+      <View style={{ flex: 1 }}><Text style={[styles.heading, { color: colors.text }]} localize>Agent runtimes</Text><Text style={[styles.caption, { color: colors.muted }]} localize>Provider readiness is separate from server connectivity.</Text></View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Refresh runtime status" disabled={!connected} onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, opacity: connected ? 1 : 0.45 }]}><RefreshCw size={14} color={colors.blue} /><Text style={{ color: colors.blue, fontSize: 11, fontWeight: '700' }} localize>Refresh</Text></Pressable>
     </View>
     <RuntimeRow backend="claude" diagnostic={runtimeDiagnosticFor(health, runtime, 'claude')} />
     <RuntimeRow backend="codex" diagnostic={runtimeDiagnosticFor(health, runtime, 'codex')} />
@@ -48,7 +48,7 @@ function RuntimeRow({ backend, diagnostic, compact = false, detailOverride, onRe
   return <View accessibilityRole={tone === 'error' ? 'alert' : 'text'} style={[styles.row, compact && styles.compact, { borderColor: tone === 'error' || tone === 'warning' ? color : colors.border, backgroundColor: colors.surface }]}>
     <Icon size={compact ? 15 : 17} color={color} />
     <View style={{ flex: 1, minWidth: 0 }}><Text style={[styles.title, { color: colors.text }]}>{provider} <Text style={{ color }}>{runtimeLabel(diagnostic)}</Text></Text><Text style={[styles.detail, { color: colors.muted }]} numberOfLines={compact ? 2 : undefined}>{detail}</Text>{!compact && diagnostic?.action ? <Text style={[styles.action, { color: colors.text }]}>{diagnostic.action}</Text> : null}</View>
-    {compact && onRecheck ? <Pressable accessibilityRole="button" accessibilityLabel={`Recheck ${provider} CLI status`} onPress={onRecheck} style={[styles.refresh, { backgroundColor: colors.raised }]}><RefreshCw size={12} color={colors.blue} /><Text style={{ color: colors.blue, fontSize: 10, fontWeight: '700' }}>Recheck</Text></Pressable> : null}
+    {compact && onRecheck ? <Pressable accessibilityRole="button" accessibilityLabel={`Recheck ${provider} CLI status`} onPress={onRecheck} style={[styles.refresh, { backgroundColor: colors.raised }]}><RefreshCw size={12} color={colors.blue} /><Text style={{ color: colors.blue, fontSize: 10, fontWeight: '700' }} localize>Recheck</Text></Pressable> : null}
     {!compact && diagnostic?.version ? <Text style={[styles.version, { color: colors.muted }]} numberOfLines={1}>{diagnostic.version}</Text> : null}
   </View>
 }

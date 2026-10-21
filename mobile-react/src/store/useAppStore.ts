@@ -39,13 +39,16 @@ import type {
   UploadRef,
   WorkspacePreferences,
 } from '../types'
-import { AgentServerClient, AgentServerClientDisposedError, AgentServerClientUnvalidatedError, ServerError, WebSocketConnectionError } from '../api/AgentServerClient'
+import { AgentServerClient, AgentServerClientDisposedError, AgentServerClientUnvalidatedError, AgentServerRequestTimeoutError, AgentServerRequestInterruptedError, ServerError, WebSocketConnectionError } from '../api/AgentServerClient'
 import { errorMessage, mergeEvents, mergeFiles, normalizeServerURL } from '../lib/format'
+import { selectServerAddress } from '../lib/server-address-selection'
 import { reconcileHealthActiveSessions } from '../lib/active-sessions'
 import { shouldAutoConnectServer } from '../lib/first-launch'
 import { SNAPSHOT_CACHE_VERSION, shouldReplaceCachedTimeline, snapshotLatestSeq } from '../lib/history'
 import { crossChatQueueRefreshSessionId, isUserQueuedTurn, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier, resolveNewQueuedTurn, updateQueuedTurns } from '../lib/queue'
 import { isAgentActivityEvent } from '../lib/codex-controls'
+import { notificationForEvent, notificationForSessionUpdate, type AgentNotification } from '../lib/notification-levels'
+import { t } from '../i18n'
 import {
   agentCrossChatRoutesAvailable,
   chatReferencesEqual,
@@ -111,6 +114,7 @@ import {
   DEFAULT_CHAT_DEFAULTS,
   findDuplicateProfileByIdentity,
   findDuplicateProfileByURL,
+  normalizeWorkspacePreferences,
   profileNamespace,
 } from '../lib/server-profiles'
 
@@ -141,7 +145,7 @@ let appStateSubscription: { remove(): void } | null = null
 let healthFailureCount = 0
 let syncInFlight: { sessionId: string; epoch: number; promise: Promise<void> } | null = null
 let syncRecovery: { key: string; attempt: number; timer: ReturnType<typeof setTimeout> | null } | null = null
-let refreshSessionsInFlight: { scope: ConnectionScope; promise: Promise<void> } | null = null
+let refreshSessionsInFlight: { scope: ConnectionScope; healthReady: Promise<boolean>; promise: Promise<void> } | null = null
 let refreshJobsInFlight: { scope: ConnectionScope; promise: Promise<void>; dirty: boolean } | null = null
 let quickCreateSessionInFlight: { scope: ConnectionScope; promise: Promise<boolean> } | null = null
 let readReceiptTimer: ReturnType<typeof setTimeout> | null = null
@@ -472,7 +476,7 @@ interface AppState {
 
   initialize(): Promise<void>
   applySettings(serverURL: string, token: string): Promise<void>
-  testServerProfile(input: { profileId?: string; serverURL: string; accessToken?: string | null }): Promise<Health>
+  testServerProfile(input: { profileId?: string; serverURL: string; accessToken?: string | null; signal?: AbortSignal; timeoutMs?: number }): Promise<Health>
   createServerProfile(input: AddServerProfileInput): Promise<string>
   updateServerProfile(profileId: string, patch: UpdateServerProfileInput): Promise<void>
   removeServerProfile(profileId: string): Promise<void>
@@ -610,6 +614,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         await prepareSnapshotCacheGeneration()
         const settings = await loadProfileSettings()
         const activeProfile = settings.profiles.find(profile => profile.id === settings.activeProfileId) ?? settings.profiles[0]
+        if (!activeProfile) {
+          set({ initialized: true, profiles: [], activeProfileId: null, fontScale: settings.fontScale })
+          return
+        }
         const namespace = profileNamespace(activeProfile)
         const [token, sessions, pins, workspace, profiles] = await Promise.all([
           loadProfileToken(activeProfile.id, activeProfile.credentialVersion),
@@ -682,7 +690,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const token = input.accessToken === undefined && existing
       ? await loadProfileToken(existing.id, existing.credentialVersion)
       : input.accessToken ?? ''
-    return probeServerHealth(input.serverURL, token)
+    return probeServerHealth(input.serverURL, token, input.timeoutMs, input.signal)
   },
 
   async createServerProfile(input) {
@@ -697,6 +705,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const patch: UpdateServerProfileInput = {
           name: input.name,
           serverURL: normalizedURL,
+          serverURLs: input.serverURLs,
           accessToken: input.accessToken,
           serverIdentity: input.serverIdentity,
           serverConfigured: true,
@@ -778,17 +787,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   async removeServerProfile(profileId) {
+    let activation: { intent: number; scope: ConnectionScope } | null = null
     await withProfileMutation(async () => {
-      if (profileId === get().activeProfileId) throw new Error('Switch to another server before removing this profile.')
       const removed = get().profiles.find(profile => profile.id === profileId)
       if (!removed) throw new Error('Server profile not found.')
-      const profiles = storedProfiles(get().profiles).filter(profile => profile.id !== profileId)
-      if (!profiles.length) throw new Error('At least one server profile is required.')
-      await saveProfileSettings({ schemaVersion: 2, activeProfileId: get().activeProfileId ?? profiles[0].id, profiles, fontScale: get().fontScale })
-      if (profileId === get().activeProfileId) throw new Error('The active server changed while removal was being saved.')
-      set(state => ({ profiles: state.profiles.filter(profile => profile.id !== profileId) }))
+      const profiles = get().profiles.filter(profile => profile.id !== profileId)
+      if (profileId === get().activeProfileId) {
+        // Removing a local connection never stops remote work, including an
+        // active turn. Block new sends while detaching, but do not wait for it.
+        activeConnectionMutationDepth += 1
+        try {
+          activation = await prepareServerProfileActivation(profiles[0]?.id ?? null, true, set, get, profiles)
+        } finally {
+          activeConnectionMutationDepth -= 1
+        }
+      } else {
+        await saveProfileSettings({ schemaVersion: 2, activeProfileId: get().activeProfileId, profiles: storedProfiles(profiles), fontScale: get().fontScale })
+        set({ profiles })
+        void updateBadge(get())
+      }
       await deleteProfileToken(profileId, removed.credentialVersion).catch(() => undefined)
     })
+    if (activation && get().activeProfileId) await completeServerProfileActivation(activation, set, get)
   },
 
   async reorderServerProfiles(profileIds) {
@@ -799,7 +819,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       const byId = new Map(current.map(profile => [profile.id, profile]))
       const profiles = profileIds.map(id => byId.get(id)!)
-      await saveProfileSettings({ schemaVersion: 2, activeProfileId: get().activeProfileId ?? profiles[0].id, profiles: storedProfiles(profiles), fontScale: get().fontScale })
+      await saveProfileSettings({ schemaVersion: 2, activeProfileId: get().activeProfileId ?? profiles[0]?.id ?? null, profiles: storedProfiles(profiles), fontScale: get().fontScale })
       set({ profiles })
     })
   },
@@ -817,7 +837,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (reconnectInFlight?.scope === requestedScope) return reconnectInFlight.promise
     const operation = (async () => {
       if (NativeAppState.currentState !== 'active' || get().connecting) return
-      const scope = requestedScope
+      let scope = requestedScope
       scope.client.revokeValidation()
       set(emptyAgentRouteState())
       if (!get().connected) stopSelectedStream()
@@ -834,10 +854,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       syncError: null,
     }))
     const activeRevisionAtRequest = activeSessionRevision
-    const healthValidationRevision = scope.client.validationRevision
+    let healthValidationRevision = scope.client.validationRevision
     let health: Health
     try {
-      health = await scope.client.health()
+      const resolved = await resolveReconnectAddress(scope, set, get)
+      if (scope !== resolved.scope) healthValidationRevision = resolved.scope.client.validationRevision
+      scope = resolved.scope
+      health = resolved.health ?? await scope.client.health()
       if (pauseReconnectForInactiveApp(scope, set)) return
       if (health.ok !== true) throw new Error('Server health check did not report ready.')
       const contract = health.api_contract_version ?? 0
@@ -876,6 +899,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     requestNotificationPermissionOnce()
     const sessionRead = sessionMutations.captureRead()
     const sessionsRequest = Promise.allSettled([scope.client.sessions()] as const)
+    // A known selection can recover as soon as identity is verified. Retire
+    // its old request/stream through the normal selection path, not the list.
+    const selectedAtValidation = get().selectedSessionId
+    const selectedSync = selectedAtValidation ? Promise.allSettled([get().selectSession(selectedAtValidation)]) : null
+    const selectedEpochAtValidation = selectionEpoch
     const optionalRequests = Promise.allSettled([scope.client.runtimeCatalog(true), scope.client.jobs()] as const)
     void optionalRequests.then(([runtimeResult, jobsResult]) => {
       if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope)) return
@@ -897,7 +925,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return
     }
     const incomingSessions = sessionsResult.status === 'fulfilled' ? sessionsResult.value : get().sessions
-    let selected = get().selectedSessionId
+    const selectedBeforeList = get().selectedSessionId
+    let selected = selectedBeforeList
     if (sessionsResult.status === 'fulfilled' && (!selected || !incomingSessions.some(value => value.id === selected))) {
       selected = incomingSessions.find(value => !value.archived)?.id ?? null
     }
@@ -929,7 +958,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     void Promise.all(saves).catch(error => { if (connectionIsCurrent(scope)) set({ error: errorMessage(error) }) })
       if (selected) {
         try {
-          await get().selectSession(selected)
+          if (selected !== selectedBeforeList) await get().selectSession(selected)
+          else if (selectionEpoch === selectedEpochAtValidation && selectedSync) {
+            const [result] = await selectedSync
+            if (result.status === 'rejected') throw result.reason
+          }
         } catch (error) {
           if (isStaleConnectionError(error, scope)) return
           const message = errorMessage(error)
@@ -1070,6 +1103,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const scope = captureConnection()
     if (expectedGeneration !== undefined && expectedGeneration !== scope.generation) return
     if (refreshSessionsInFlight?.scope === scope) return refreshSessionsInFlight.promise
+    let resolveHealthReady!: (validated: boolean) => void
+    const healthReady = new Promise<boolean>(resolve => { resolveHealthReady = resolve })
     const operation = (async () => {
       const activeRevisionAtRequest = activeSessionRevision
       const healthValidationRevision = scope.client.validationRevision
@@ -1079,6 +1114,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope)) return
         await acceptHealthIdentity(scope, health, healthValidationRevision, set, get)
         if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope)) return
+        set({ health })
+        resolveHealthReady(scope.client.isValidated)
       } catch (error) {
         if (NativeAppState.currentState !== 'active') return
         if (isStaleConnectionError(error, scope)) return
@@ -1107,6 +1144,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           }),
         }))
         return
+      } finally {
+        resolveHealthReady(false)
       }
 
       const acceptedValidationRevision = scope.client.validationRevision
@@ -1128,7 +1167,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set(state => ({
           connected: true,
           health,
-          error: message,
+          error: syncFailureIsTransient(error) ? state.error : message,
           profiles: updateProfileRuntime(state.profiles, scope.profileId, {
             connectionState: 'degraded',
             lastConnectionError: message,
@@ -1142,7 +1181,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (NativeAppState.currentState !== 'active' || !validatedRevisionIsCurrent(scope, acceptedValidationRevision)) return
       let mergedSessions = sessions
       let sessionsChanged = false
+      let previousSessions: Session[] = []
       set(state => {
+        previousSessions = state.sessions
         const merged = mergeSessionState(sessions, state.sessions, sessionRead)
         mergedSessions = merged
         sessionsChanged = merged !== state.sessions
@@ -1157,6 +1198,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (sessionsChanged) {
         void saveCachedSessions(scope.namespace, mergedSessions)
         void updateBadge(get())
+        notifySessionChanges(scope, previousSessions, mergedSessions, get().selectedSessionId)
       }
       const selectedId = get().selectedSessionId
       if (selectedId && NativeAppState.currentState === 'active') {
@@ -1171,7 +1213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         else if (!streamExists && (!get().liveConnected || ['reconnecting', 'error', 'offline', 'cached'].includes(get().syncStatus))) void get().syncSelectedSession('recovery')
       }
     })()
-    refreshSessionsInFlight = { scope, promise: operation }
+    refreshSessionsInFlight = { scope, healthReady, promise: operation }
     try {
       await operation
     } finally {
@@ -1257,6 +1299,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             // honored. Retry through the legacy endpoint shape so a proxy or
             // partially upgraded server cannot leave the tail mid-turn.
             fullTailSemanticPaging = false
+            // An explicit total matching the entire response proves that a
+            // small legacy chat is complete, even without semantic metadata.
+            if (!semanticPage.has_more
+              && semanticPage.total === semanticPage.events.length
+              && (semanticPage.events_omitted_after ?? 0) === 0) return semanticPage
           } else {
             fullTailSemanticPaging = false
           }
@@ -3371,6 +3418,7 @@ async function updateServerProfileLocked(
   let updated = applyStoredServerProfileUpdate(currentPublic, patch)
   assertUniqueServerProfile(stored, updated, profileId)
   const connectionChanged = normalizeServerURL(updated.serverURL) !== normalizeServerURL(currentPublic.serverURL)
+    || patch.serverURLs !== undefined
     || patch.accessToken !== undefined
     || patch.serverIdentity !== undefined
     || Boolean(patch.resetServerIdentity)
@@ -3488,21 +3536,24 @@ async function completeServerProfileActivation(
 }
 
 async function prepareServerProfileActivation(
-  profileId: string,
+  profileId: string | null,
   force: boolean,
   set: (value: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
   get: () => AppState,
+  remainingProfiles?: PublicServerProfile[],
 ): Promise<{ intent: number; scope: ConnectionScope } | null> {
   if (!force && profileId === get().activeProfileId && !get().switchingProfileId) return null
-  assertNoSendInFlightForServerMutation(set, get)
-  await Promise.all([
-    awaitAllCodexPermissionUpdates(),
-    awaitAllClaudePermissionUpdates(),
-    awaitAllCursorPermissionUpdates(),
-  ])
-  assertNoSendInFlightForServerMutation(set, get)
-  const profile = get().profiles.find(value => value.id === profileId)
-  if (!profile) throw new Error('Server profile not found.')
+  if (!remainingProfiles) {
+    assertNoSendInFlightForServerMutation(set, get)
+    await Promise.all([
+      awaitAllCodexPermissionUpdates(),
+      awaitAllClaudePermissionUpdates(),
+      awaitAllCursorPermissionUpdates(),
+    ])
+    assertNoSendInFlightForServerMutation(set, get)
+  }
+  const profile = (remainingProfiles ?? get().profiles).find(value => value.id === profileId)
+  if (profileId && !profile) throw new Error('Server profile not found.')
   const intent = ++profileSwitchIntent
   cancelSyncRecovery(set)
   set(state => ({
@@ -3511,18 +3562,18 @@ async function prepareServerProfileActivation(
     error: null,
     pendingServerUpdate: null,
     cancelingServerUpdate: false,
-    profiles: updateProfileRuntime(state.profiles, profileId, { connectionState: 'connecting', lastConnectionError: null }),
+    profiles: profileId ? updateProfileRuntime(state.profiles, profileId, { connectionState: 'connecting', lastConnectionError: null }) : state.profiles,
   }))
   try {
     const previousScope = captureConnection()
     if (get().initialized && get().activeProfileId === previousScope.profileId) await saveCurrentWorkspace(get)
-    const namespace = profileNamespace(profile)
-    const [token, sessions, pins, workspace] = await Promise.all([
-      loadProfileToken(profileId, profile.credentialVersion),
+    const namespace = profile ? profileNamespace(profile) : 'profile:unconfigured'
+    const [token, sessions, pins, workspace]: [string, Session[], PinnedItem[], WorkspacePreferences] = profile ? await Promise.all([
+      loadProfileToken(profile.id, profile.credentialVersion),
       loadCachedSessions(namespace),
       loadPins(namespace),
       loadWorkspacePreferences(namespace),
-    ])
+    ]) : ['', [], [], normalizeWorkspacePreferences({})]
     const selected = workspace.selectedSessionId && sessions.some(value => value.id === workspace.selectedSessionId)
       ? workspace.selectedSessionId
       : sessions.find(value => !value.archived)?.id ?? null
@@ -3530,7 +3581,7 @@ async function prepareServerProfileActivation(
     await saveProfileSettings({
       schemaVersion: 2,
       activeProfileId: profileId,
-      profiles: storedProfiles(get().profiles),
+      profiles: storedProfiles(remainingProfiles ?? get().profiles),
       fontScale: get().fontScale,
     })
 
@@ -3545,10 +3596,10 @@ async function prepareServerProfileActivation(
     readReceiptTimer = null
     healthFailureCount = 0
     activeSessionRevision += 1
-    const scope = installConnection(profileId, profile.serverURL, token, namespace, set)
+    const scope = installConnection(profileId ?? 'unconfigured', profile?.serverURL ?? DEFAULT_SERVER_URL, token, namespace, set)
     const previousUnread = unreadCount(get().sessions)
     set(state => ({
-      profiles: state.profiles.map(value => value.id === profileId
+      profiles: (remainingProfiles ?? state.profiles).map(value => value.id === profileId
         ? { ...value, connectionState: sessions.length ? 'cached' : 'connecting', cachedUnreadCount: unreadCount(sessions), lastConnectionError: null }
         : value.id === state.activeProfileId
           ? { ...value, connectionState: 'cached', cachedUnreadCount: previousUnread }
@@ -3557,8 +3608,8 @@ async function prepareServerProfileActivation(
       profileGeneration: scope.generation,
       switchingProfileId: profileId,
       workspaceAdopting: false,
-      serverURL: profile.serverURL,
-      serverConfigured: profile.serverConfigured,
+      serverURL: profile?.serverURL ?? DEFAULT_SERVER_URL,
+      serverConfigured: profile?.serverConfigured ?? false,
       token,
       connected: false,
       connecting: false,
@@ -3627,17 +3678,17 @@ async function prepareServerProfileActivation(
           syncError: state.selectedSessionId ? message : state.syncError,
         } : {}),
         error: message,
-        profiles: updateProfileRuntime(state.profiles, profileId, { connectionState: 'offline', lastConnectionError: message }),
+        profiles: profileId ? updateProfileRuntime(state.profiles, profileId, { connectionState: 'offline', lastConnectionError: message }) : state.profiles,
       }))
     }
     throw error
   }
 }
 
-async function probeServerHealth(serverURL: string, token: string): Promise<Health> {
+async function probeServerHealth(serverURL: string, token: string, timeoutMs?: number, signal?: AbortSignal): Promise<Health> {
   const probe = new AgentServerClient(normalizeServerURL(serverURL), token)
   try {
-    const health = await probe.health()
+    const health = await probe.health(timeoutMs, signal)
     if (health.ok !== true) throw new Error('Server health check did not report ready.')
     const contract = health.api_contract_version ?? 0
     if (contract < MIN_API_CONTRACT) throw new Error(`Server upgrade required: app needs API v${MIN_API_CONTRACT}, server reports v${contract}.`)
@@ -3646,6 +3697,45 @@ async function probeServerHealth(serverURL: string, token: string): Promise<Heal
   } finally {
     probe.dispose()
   }
+}
+
+async function resolveReconnectAddress(
+  scope: ConnectionScope,
+  set: (value: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  get: () => AppState,
+): Promise<{ scope: ConnectionScope; health?: Health }> {
+  const profile = get().profiles.find(value => value.id === scope.profileId)
+  if (!profile?.serverIdentity || !profile.serverURLs?.length) return { scope }
+  const validationRevision = scope.client.validationRevision
+  const token = get().token
+  const addresses = [profile.serverURL, ...profile.serverURLs.filter(url => url !== profile.serverURL)]
+  const selected = await selectServerAddress(addresses, profile.serverIdentity,
+    (url, signal) => probeServerHealth(url, token, 5000, signal), { signal: scope.client.lifetimeSignal })
+  if (!connectionIsCurrent(scope)) throw new AgentServerClientDisposedError()
+  assertHealthValidationCurrent(scope, validationRevision)
+  if (NativeAppState.currentState !== 'active' || selected.serverURL === profile.serverURL) return { scope, health: selected.health }
+  return withProfileMutation(async () => {
+    if (!connectionIsCurrent(scope)) throw new AgentServerClientDisposedError()
+    assertHealthValidationCurrent(scope, validationRevision)
+    if (NativeAppState.currentState !== 'active') return { scope, health: selected.health }
+    assertNoSendInFlightForServerMutation(set, get)
+    const current = get().profiles.find(value => value.id === scope.profileId)
+    if (!current || current.serverIdentity !== profile.serverIdentity || current.credentialVersion !== profile.credentialVersion) throw new AgentServerClientDisposedError()
+    const updated = { ...current, serverURL: selected.serverURL, updatedAt: new Date().toISOString() }
+    assertUniqueServerProfile(storedProfiles(get().profiles), updated, profile.id)
+    await saveProfileSettings({ schemaVersion: 2, activeProfileId: profile.id,
+      profiles: storedProfiles(get().profiles.map(value => value.id === profile.id ? updated : value)), fontScale: get().fontScale })
+    if (!connectionIsCurrent(scope)) throw new AgentServerClientDisposedError()
+    assertHealthValidationCurrent(scope, validationRevision)
+    stopSelectedStream()
+    selectionEpoch += 1
+    syncInFlight = null
+    olderPageInFlight.clear()
+    const next = installConnection(profile.id, selected.serverURL, token, scope.namespace, set)
+    set(state => ({ profiles: state.profiles.map(value => value.id === profile.id ? { ...value, serverURL: selected.serverURL, updatedAt: updated.updatedAt } : value),
+      serverURL: selected.serverURL, profileGeneration: next.generation, liveConnected: false, loadingSessionId: null, loadingOlder: {}, filePaging: {} }))
+    return { scope: next, health: selected.health }
+  })
 }
 
 async function acceptHealthIdentity(
@@ -3921,6 +4011,7 @@ function storedProfiles(profiles: readonly PublicServerProfile[]): StoredServerP
     id: profile.id,
     name: profile.name,
     serverURL: profile.serverURL,
+    ...(profile.serverURLs ? { serverURLs: profile.serverURLs } : {}),
     serverIdentity: profile.serverIdentity,
     serverConfigured: profile.serverConfigured,
     credentialVersion: profile.credentialVersion,
@@ -4018,7 +4109,6 @@ function currentWorkspacePreferences(state: AppState): WorkspacePreferences {
 function saveProfileSettingsFromState(get: () => AppState): Promise<void> {
   return withProfileMutation(async () => {
     const state = get()
-    if (!state.activeProfileId || !state.profiles.length) return
     await saveProfileSettings({
       schemaVersion: 2,
       activeProfileId: state.activeProfileId,
@@ -4040,6 +4130,7 @@ function serverProfileConnectionChanges(
 ): boolean {
   return (
     (patch.serverURL !== undefined && normalizeServerURL(patch.serverURL) !== normalizeServerURL(profile.serverURL))
+    || patch.serverURLs !== undefined
     || patch.accessToken !== undefined
     || patch.serverIdentity !== undefined
     || patch.resetServerIdentity === true
@@ -4162,6 +4253,7 @@ function scheduleSyncRecovery(
 }
 
 function syncFailureIsTransient(error: unknown): boolean {
+  if (error instanceof AgentServerRequestTimeoutError || error instanceof AgentServerRequestInterruptedError) return true
   if (error instanceof ServerError) return [408, 425, 429].includes(error.status) || error.status >= 500
   if (error instanceof WebSocketConnectionError) {
     if ([4401, 4404, 4409].includes(error.code) || error.fatal) return false
@@ -4205,10 +4297,15 @@ function installAppLifecycle(
     startForegroundRefreshTimer(get)
     if (!shouldAutoConnectServer(get())) return
     void (async () => {
+      const scope = captureConnection()
       await repairSelectedSnapshotFromCache(get, set)
-      if (NativeAppState.currentState !== 'active') return
-      if (get().connected) await get().refreshSessions()
-      else await get().reconnect()
+      if (NativeAppState.currentState !== 'active' || !connectionIsCurrent(scope)) return
+      if (get().connected) {
+        void get().refreshSessions()
+        // Wait for identity validation, not for the independent session list.
+        const refresh = refreshSessionsInFlight
+        if (refresh?.scope !== scope || !await refresh.healthReady || !connectionIsCurrent(scope) || !scope.client.isValidated) return
+      } else await get().reconnect()
       const selectedSessionId = get().selectedSessionId
       const selectedSyncInFlight = Boolean(
         selectedSessionId
@@ -4232,6 +4329,7 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
   if (!connectionIsCurrent(scope)) return
   event = sanitizeTimelineEvent(event)
   const sessionId = event.session_id
+  const knownEventSeq = get().sessions.find(session => session.id === sessionId)?.latest_event_seq ?? 0
   const timelineInternal = TIMELINE_INTERNAL_EVENT_TYPES.has(event.type)
   const nativeSteerSupersession = isNativeSteerSupersession(event)
   const terminalEvent = ['turn_finished', 'turn_stopped', 'error'].includes(event.type) && !nativeSteerSupersession
@@ -4329,10 +4427,8 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
     && get().selectedSessionId === sessionId
     && isAgentActivityEvent(event)
   ) scheduleReadReceipt(scope, sessionId, get)
-  if (NativeAppState.currentState !== 'active' && isAgentActivityEvent(event)) {
-    const session = get().sessions.find(value => value.id === sessionId)
-    if (session) void notifyOnce(scope, session, event.seq)
-  }
+  const notificationSession = get().sessions.find(value => value.id === sessionId)
+  if (notificationSession && event.seq > knownEventSeq) void notifyOnce(scope, notificationSession, event)
 }
 
 function scheduleReadReceipt(scope: ConnectionScope, sessionId: string, get: () => AppState): void {
@@ -4672,13 +4768,30 @@ function requestNotificationPermissionOnce(): void {
   void Notifications.requestPermissionsAsync().catch(() => { /* unavailable in unsigned simulator builds */ })
 }
 
-async function notifyOnce(scope: ConnectionScope, session: Session, seq: number): Promise<void> {
+async function notifyOnce(scope: ConnectionScope, session: Session, event: Event): Promise<void> {
   if (!connectionIsCurrent(scope)) return
-  const key = `${scope.profileId}:${scope.namespace}:${session.id}:${seq}`
+  const notification = notificationForEvent(event, session, t)
+  if (!notification) return
+  await scheduleAgentNotification(scope, session, notification)
+}
+
+function notifySessionChanges(scope: ConnectionScope, previous: Session[], current: Session[], selectedSessionId: string | null): void {
+  if (!previous.length || !connectionIsCurrent(scope)) return
+  const before = new Map(previous.map(session => [session.id, session]))
+  for (const session of current) {
+    if (session.id === selectedSessionId) continue
+    const notification = notificationForSessionUpdate(before.get(session.id), session, t)
+    if (notification) void scheduleAgentNotification(scope, session, notification)
+  }
+}
+
+async function scheduleAgentNotification(scope: ConnectionScope, session: Session, notification: AgentNotification): Promise<void> {
+  if (!connectionIsCurrent(scope)) return
+  const key = `${scope.profileId}:${scope.namespace}:${session.id}:${notification.key}`
   if (notifiedEvents.has(key)) return
   notifiedEvents.add(key)
   if (notifiedEvents.size > 200) notifiedEvents.delete(notifiedEvents.values().next().value ?? '')
   try {
-    await Notifications.scheduleNotificationAsync({ content: { title: session.title, body: 'New agent message', data: { profileId: scope.profileId, serverIdentity: scope.namespace, sessionId: session.id } }, trigger: null })
+    await Notifications.scheduleNotificationAsync({ content: { title: notification.title, body: notification.body, data: { profileId: scope.profileId, serverIdentity: scope.namespace, sessionId: session.id, level: notification.level } }, trigger: null })
   } catch { /* permissions can be denied */ }
 }

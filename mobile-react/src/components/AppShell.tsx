@@ -12,6 +12,8 @@ import { chatWorkspaceLayout } from '../lib/chat-layout'
 import { shouldPresentServerSetup } from '../lib/first-launch'
 import { fullscreenModalTopPadding } from '../lib/fullscreen-modal-layout'
 import { profileNamespace } from '../lib/server-profiles'
+import { displayedServerConnectionState } from '../lib/server-profile-ui'
+import { selectServerAddress } from '../lib/server-address-selection'
 import { useAppStore } from '../store/useAppStore'
 import { radius, usePalette } from '../theme'
 import { ChatScreen } from './ChatScreen'
@@ -87,6 +89,7 @@ function AppShellContent() {
   const [setupDismissed, setSetupDismissed] = useState(true)
   const setupNextMode = useRef<'edit-active' | null>(null)
   const [servers, setServers] = useState<'manage' | 'add' | 'edit-active' | null>(null)
+  const [serverReachability, setServerReachability] = useState<Record<string, 'online' | 'offline'>>({})
   const initialDeepLink = useRef<Promise<string | null> | null>(null)
   const initialDeepLinkHandled = useRef(false)
   const quickChatInFlight = useRef(false)
@@ -106,6 +109,47 @@ function AppShellContent() {
   const chatLayout = chatWorkspaceLayout(width, height)
   const compact = chatLayout.compact
   const showInspector = chatLayout.inlineInspectorAvailable && inspectorVisible
+  const profileConnectionSignature = JSON.stringify(profiles.map(profile => [profile.id, profile.serverURL, profile.serverURLs, profile.serverIdentity, profile.credentialVersion, profile.serverConfigured]))
+  const reachabilitySignature = useRef(profileConnectionSignature)
+  useEffect(() => {
+    if (servers === null || !initialized) return
+    if (reachabilitySignature.current !== profileConnectionSignature) {
+      reachabilitySignature.current = profileConnectionSignature
+      setServerReachability({})
+    }
+    const controller = new AbortController()
+    const state = useAppStore.getState()
+    const candidates = state.profiles.filter(profile => profile.id !== state.activeProfileId && profile.serverConfigured)
+    let nextIndex = 0
+    const checkNext = async () => {
+      while (!controller.signal.aborted) {
+        const profile = candidates[nextIndex++]
+        if (!profile) return
+        let reachable = false
+        try {
+          if (profile.serverIdentity) {
+            await selectServerAddress(
+              [profile.serverURL, ...(profile.serverURLs ?? [])],
+              profile.serverIdentity,
+              (serverURL, signal) => testServerProfile({ profileId: profile.id, serverURL, signal, timeoutMs: 4_000 }),
+              { signal: controller.signal, timeoutMs: 4_500 },
+            )
+          } else {
+            await testServerProfile({ profileId: profile.id, serverURL: profile.serverURL, signal: controller.signal, timeoutMs: 4_000 })
+          }
+          reachable = true
+        } catch {
+          // The list shows a neutral unavailable dot when this profile cannot be verified.
+        }
+        if (controller.signal.aborted) return
+        const current = useAppStore.getState()
+        const unchanged = current.activeProfileId !== profile.id && current.profiles.some(value => value.id === profile.id && value.serverURL === profile.serverURL && value.credentialVersion === profile.credentialVersion && value.serverIdentity === profile.serverIdentity)
+        if (unchanged) setServerReachability(previous => ({ ...previous, [profile.id]: reachable ? 'online' : 'offline' }))
+      }
+    }
+    void Promise.all(Array.from({ length: Math.min(3, candidates.length) }, checkNext))
+    return () => controller.abort()
+  }, [servers, initialized, activeProfileId, profileConnectionSignature, testServerProfile])
   const serverProfileItems = useMemo<ServerProfileListItem[]>(() => profiles.map(profile => ({
     id: profile.id,
     name: profile.name,
@@ -113,11 +157,11 @@ function AppShellContent() {
     serverIdentity: profile.serverIdentity,
     hasAccessToken: profile.hasAccessToken,
     serverSetupComplete: profile.serverConfigured,
-    connectionState: profile.connectionState,
+    connectionState: displayedServerConnectionState(profile.connectionState, serverReachability[profile.id], profile.id === activeProfileId, profile.id === switchingProfileId || (profile.id === activeProfileId && connecting)),
     cachedUnreadCount: profile.cachedUnreadCount,
-    lastConnectionError: profile.lastConnectionError,
+    lastConnectionError: profile.id === activeProfileId ? profile.lastConnectionError : null,
     serverVersion: profile.serverVersion,
-  })), [profiles])
+  })), [activeProfileId, connecting, profiles, serverReachability, switchingProfileId])
   const showServerSetup = shouldPresentServerSetup({ initialized, connected, serverConfigured, serverURL, setupDismissed })
   const canCancelPendingServerUpdate = pendingServerUpdate?.profileId === activeProfileId
     && pendingServerUpdate.profileGeneration === profileGeneration
@@ -137,6 +181,7 @@ function AppShellContent() {
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
   const openServers = useCallback((mode: 'manage' | 'add') => {
+    setServerReachability({})
     setServers(mode)
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
@@ -379,7 +424,7 @@ function AppShellContent() {
 
   return <View style={[styles.fill, { backgroundColor: colors.background }]}>
     <AndroidUpdateCoordinator />
-    {error && !showServerSetup ? <View testID="global-error-slot" style={styles.errorSlot}><View style={[styles.error, { backgroundColor: colors.surface, borderColor: colors.red }]}><AlertCircle size={17} color={colors.red} /><View style={styles.errorContent}><Text style={[styles.errorText, { color: colors.text }]} numberOfLines={canCancelPendingServerUpdate ? 4 : 3}>{error}</Text>{canCancelPendingServerUpdate ? <Pressable accessibilityRole="button" accessibilityLabel="Cancel scheduled server update" accessibilityHint="Cancels the pending update so messages can be sent again" accessibilityState={{ disabled: cancelingServerUpdate, busy: cancelingServerUpdate }} testID="error-cancel-server-update" disabled={cancelingServerUpdate} onPress={() => { void cancelCurrentServerUpdate() }} style={({ pressed }) => [styles.errorAction, { backgroundColor: colors.raised, borderColor: colors.border, opacity: cancelingServerUpdate ? 0.45 : pressed ? 0.68 : 1 }]}>{cancelingServerUpdate ? <ActivityIndicator size="small" color={colors.blue} /> : <Text style={[styles.errorActionText, { color: colors.blue }]}>Cancel update</Text>}</Pressable> : null}</View>{!canCancelPendingServerUpdate ? <IconButton icon={Settings} size={15} onPress={openSettings} label="Settings" testID="error-settings" /> : null}<IconButton icon={X} size={15} onPress={clearError} disabled={cancelingServerUpdate} label="Dismiss" testID="error-dismiss" /></View></View> : null}
+    {error && !showServerSetup ? <View testID="global-error-slot" style={styles.errorSlot}><View style={[styles.error, { backgroundColor: colors.surface, borderColor: colors.red }]}><AlertCircle size={17} color={colors.red} /><View style={styles.errorContent}><Text style={[styles.errorText, { color: colors.text }]} numberOfLines={canCancelPendingServerUpdate ? 4 : 3}>{error}</Text>{canCancelPendingServerUpdate ? <Pressable accessibilityRole="button" accessibilityLabel="Cancel scheduled server update" accessibilityHint="Cancels the pending update so messages can be sent again" accessibilityState={{ disabled: cancelingServerUpdate, busy: cancelingServerUpdate }} testID="error-cancel-server-update" disabled={cancelingServerUpdate} onPress={() => { void cancelCurrentServerUpdate() }} style={({ pressed }) => [styles.errorAction, { backgroundColor: colors.raised, borderColor: colors.border, opacity: cancelingServerUpdate ? 0.45 : pressed ? 0.68 : 1 }]}>{cancelingServerUpdate ? <ActivityIndicator size="small" color={colors.blue} /> : <Text style={[styles.errorActionText, { color: colors.blue }]} localize>Cancel update</Text>}</Pressable> : null}</View>{!canCancelPendingServerUpdate ? <IconButton icon={Settings} size={15} onPress={openSettings} label="Settings" testID="error-settings" /> : null}<IconButton icon={X} size={15} onPress={clearError} disabled={cancelingServerUpdate} label="Dismiss" testID="error-dismiss" /></View></View> : null}
     {compact ? <View style={styles.fill}>{sidebar}{modalScopeCurrent && mobileChatOpen && selected ? <MobileChatPane width={width} backgroundColor={colors.background} onClose={closeMobileChat}>{chat}</MobileChatPane> : null}</View> : <View style={styles.workspace}><View style={{ width: width >= 1180 ? 285 : 255 }}>{sidebar}</View><View style={styles.chat}>{chat}</View>{showInspector && selected && !isWelcomeSession(selected.id) ? <View style={{ width: Math.min(350, width * 0.29) }}><Inspector key={`inspector:${connectionKey}:${selected.id}`} sessionId={selected.id} onDigest={() => openInspectorAction('digest')} onJob={jobId => openInspectorAction('job', jobId)} onTerminal={() => openInspectorAction('terminal')} onProcesses={() => openInspectorAction('processes')} onTmux={() => openInspectorAction('tmux')} /></View> : null}</View>}
 
     <ServerSetupDialog
@@ -405,7 +450,7 @@ function AppShellContent() {
       onSwitchProfile={switchServer}
       onTestConnection={async input => {
         try {
-          const health = await testServerProfile({ profileId: input.profileId, serverURL: input.serverUrl, accessToken: input.accessToken })
+          const health = await testServerProfile({ profileId: input.profileId, serverURL: input.serverUrl, accessToken: input.accessToken, signal: input.signal, timeoutMs: input.timeoutMs })
           trackEvent('connection_tested', { success: health.ok === true })
           const version = health.server_version ?? health.version
           return { ok: health.ok, server_identity: health.server_identity ?? null, version: typeof version === 'string' ? version : null }
@@ -419,6 +464,7 @@ function AppShellContent() {
           const created = await createServerProfile({
             name: input.name,
             serverURL: input.serverUrl,
+            serverURLs: input.serverUrls,
             accessToken: input.accessToken,
             serverIdentity: input.serverIdentity,
             serverConfigured: input.serverSetupComplete,
@@ -434,6 +480,7 @@ function AppShellContent() {
       onUpdateProfile={(profileId, patch) => updateServerProfile(profileId, {
         name: patch.name,
         serverURL: patch.serverUrl,
+        serverURLs: patch.serverUrls,
         accessToken: patch.accessToken,
         serverIdentity: patch.serverIdentity,
         resetServerIdentity: patch.resetServerIdentity,
@@ -449,7 +496,7 @@ function AppShellContent() {
     <ProcessDialog key={`processes:${connectionKey}:${selected?.id ?? 'none'}`} visible={modalScopeCurrent && processes} sessionId={selected?.id ?? null} onClose={() => setProcesses(false)} />
     <TmuxDialog visible={modalScopeCurrent && tmux} sessionId={selected?.id ?? null} onClose={() => setTmux(false)} />
     <CodeReview sessionId={selected?.id ?? ''} runId={modalScopeCurrent ? reviewRun : null} onClose={closeReview} />
-    <Modal visible={modalScopeCurrent && options && Boolean(selected) && !isWelcomeSession(selected?.id)} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} allowSwipeDismissal onRequestClose={closeOptions} onDismiss={finishOptionsDismissal}>{selected && !isWelcomeSession(selected.id) ? <SafeAreaView style={[styles.fill, { backgroundColor: colors.background }]} edges={['bottom']}><View style={styles.modalGrabber} /><View style={styles.modalTop}><Text style={[styles.modalTitle, { color: colors.text }]}>Chat details</Text><SheetCloseButton onPress={closeOptions} label="Close chat details" testID="chat-details-close" /></View><Inspector key={`options-inspector:${connectionKey}:${selected.id}`} sessionId={selected.id} onDigest={() => queueInspectorAction('digest')} onJob={jobId => queueInspectorAction('job', jobId)} onTerminal={() => queueInspectorAction('terminal')} onProcesses={() => queueInspectorAction('processes')} onTmux={() => queueInspectorAction('tmux')} onFileViewerRequested={closeOptions} /></SafeAreaView> : null}</Modal>
+    <Modal visible={modalScopeCurrent && options && Boolean(selected) && !isWelcomeSession(selected?.id)} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'} allowSwipeDismissal onRequestClose={closeOptions} onDismiss={finishOptionsDismissal}>{selected && !isWelcomeSession(selected.id) ? <SafeAreaView style={[styles.fill, { backgroundColor: colors.background }]} edges={['bottom']}><View style={styles.modalGrabber} /><View style={styles.modalTop}><Text style={[styles.modalTitle, { color: colors.text }]} localize>Chat details</Text><SheetCloseButton onPress={closeOptions} label="Close chat details" testID="chat-details-close" /></View><Inspector key={`options-inspector:${connectionKey}:${selected.id}`} sessionId={selected.id} onDigest={() => queueInspectorAction('digest')} onJob={jobId => queueInspectorAction('job', jobId)} onTerminal={() => queueInspectorAction('terminal')} onProcesses={() => queueInspectorAction('processes')} onTmux={() => queueInspectorAction('tmux')} onFileViewerRequested={closeOptions} /></SafeAreaView> : null}</Modal>
     {modalScopeCurrent && terminal && selected && !isWelcomeSession(selected.id) ? <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={closeTerminal}><SafeAreaView
       testID="terminal-modal"
       style={[styles.fill, {
@@ -500,7 +547,7 @@ function MobileChatPane({ children, width, backgroundColor, onClose }: { childre
 
 function NoChat({ connecting, onSettings }: { connecting: boolean; onSettings: () => void }) {
   const colors = usePalette()
-  return <View style={styles.fill}>{connecting ? <Loading label="Connecting to agent server" /> : <><EmptyState title="No chat selected" body="Choose a chat from the sidebar or connect to a server." /><Pressable accessibilityRole="button" accessibilityLabel="Connection settings" onPress={onSettings} style={[styles.connectionSettings, { backgroundColor: colors.raised, borderColor: colors.border }]}><Settings size={15} color={colors.muted} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Connection settings</Text></Pressable></>}</View>
+  return <View style={styles.fill}>{connecting ? <Loading label="Connecting to agent server" /> : <><EmptyState title="No chat selected" body="Choose a chat from the sidebar or connect to a server." /><Pressable accessibilityRole="button" accessibilityLabel="Connection settings" onPress={onSettings} style={[styles.connectionSettings, { backgroundColor: colors.raised, borderColor: colors.border }]}><Settings size={15} color={colors.muted} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }} localize>Connection settings</Text></Pressable></>}</View>
 }
 
 const styles = StyleSheet.create({

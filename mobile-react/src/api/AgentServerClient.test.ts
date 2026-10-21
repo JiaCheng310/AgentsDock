@@ -68,7 +68,7 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url === 'https://validation.example/api/health') {
     return Promise.resolve(new Response(JSON.stringify({ ok: true, server_identity: 'validated-server', api_contract_version: 7 }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
   }
-  if (url === 'https://validation.example/api/sessions') {
+  if (url === 'https://validation.example/api/sessions?summary=true') {
     return Promise.resolve(new Response(JSON.stringify({ sessions: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
   }
   if (url === 'https://revoke.example/api/health') {
@@ -398,7 +398,7 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.startsWith('https://auth-reject.example/api/')) {
     return Promise.resolve(new Response(JSON.stringify({ detail: 'Access token rejected' }), { status: 401, headers: { 'Content-Type': 'application/json' } }))
   }
-  if (url === 'https://validation-detail.example/api/sessions') {
+  if (url === 'https://validation-detail.example/api/sessions?summary=true') {
     return Promise.resolve(new Response(JSON.stringify({
       detail: [{
         type: 'string_too_short',
@@ -993,7 +993,7 @@ try {
   const combined = new AgentServerClient('https://signals.example')
   const internals = combined as unknown as {
     captureScope(): { signal: AbortSignal }
-    fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal): Promise<Response>
+    fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response) => Promise<Response>): Promise<Response>
   }
   const callerController = new AbortController()
   const callerRequest = internals.fetchWithTimeout(
@@ -1001,6 +1001,7 @@ try {
     { signal: callerController.signal },
     30_000,
     internals.captureScope().signal,
+    async response => response,
   )
   callerController.abort(new Error('caller cancelled'))
   await assertRejects(
@@ -1009,8 +1010,8 @@ try {
     'Caller abort signals should be preserved by the combined request signal',
   )
   await assertRejects(
-    internals.fetchWithTimeout('https://signals.example/timeout', {}, 1, internals.captureScope().signal),
-    error => error instanceof Error && error.name === 'AbortError',
+    internals.fetchWithTimeout('https://signals.example/timeout', {}, 1, internals.captureScope().signal, async response => response),
+    error => error instanceof Error && error.name === 'AgentServerRequestTimeoutError',
     'Request timeout should remain active alongside client and caller signals',
   )
   assert(!combined.isDisposed, 'Caller cancellation and timeout should not dispose the client')
@@ -1118,6 +1119,7 @@ try {
   assert(validationClient.fileURL('chat', 'file') === 'https://validation.example/api/sessions/chat/files/file', 'Validated clients should expose scoped file URLs')
   assert(validationClient.authHeaders()['X-ZenithDock-Token'] === 'validation-token', 'Validated clients should expose their auth header')
   assert((await validationClient.sessions()).length === 0, 'Validated clients should allow non-health HTTP requests')
+  assert(new URL(fetchRecords.at(-1)!.url).searchParams.get('summary') === 'true', 'Mobile lists should request the same compact summaries as desktop')
   validationClient.configure('https://revoke.example', 'revoke-token')
   validationClient.markValidated()
   const pendingRevocationRequest = validationClient.sessions()
