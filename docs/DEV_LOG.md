@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-20 — Fix Claude running-chat fork timestamp precision
+
+- Fix #94: recognize millisecond native timestamps within a second-truncated
+  completion event when the completed reply has an exact provider message UUID.
+  Keep text matching, provider identity, tool-call exclusion and future-second
+  rejection intact. Legacy replies without UUIDs retain the strict cutoff;
+  imported-history checkpoint handling is unchanged.
+- The new regressions fail on the original implementation. All 72 focused
+  live-fork and session-fork tests pass with the correction, as do Python
+  source compilation and the dependency lock check.
+- Personally exercised the visible native Electron app through mouse/keyboard
+  input, production IPC/HTTP and real Claude against an authorized test server
+  running 1.0.11-beta.11 with the narrow source patch. A same-second native
+  completion successfully forked while its parent continued running. The
+  native child preserved earlier tool-result context, excluded the in-flight
+  parent request and completed a contextual follow-up; the parent completed
+  normally. An idle fork was also checked after the parent finished.
+- Availability: source branch and local test-server patch only. A server
+  update is required; no Electron UI change, public release or deployment to
+  other servers is included. This does not establish broader provider parity.
+
 ## 2026-10-20 — Verify history repair in the local desktop
 
 - Integrate the existing repair-budget fix without changing Electron UI code.
