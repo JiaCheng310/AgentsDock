@@ -47,6 +47,8 @@ import { shouldAutoConnectServer } from '../lib/first-launch'
 import { SNAPSHOT_CACHE_VERSION, shouldReplaceCachedTimeline, snapshotLatestSeq } from '../lib/history'
 import { crossChatQueueRefreshSessionId, isUserQueuedTurn, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier, resolveNewQueuedTurn, updateQueuedTurns } from '../lib/queue'
 import { isAgentActivityEvent } from '../lib/codex-controls'
+import { notificationForEvent, notificationForSessionUpdate, type AgentNotification } from '../lib/notification-levels'
+import { t } from '../i18n'
 import {
   agentCrossChatRoutesAvailable,
   chatReferencesEqual,
@@ -1179,7 +1181,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (NativeAppState.currentState !== 'active' || !validatedRevisionIsCurrent(scope, acceptedValidationRevision)) return
       let mergedSessions = sessions
       let sessionsChanged = false
+      let previousSessions: Session[] = []
       set(state => {
+        previousSessions = state.sessions
         const merged = mergeSessionState(sessions, state.sessions, sessionRead)
         mergedSessions = merged
         sessionsChanged = merged !== state.sessions
@@ -1194,6 +1198,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (sessionsChanged) {
         void saveCachedSessions(scope.namespace, mergedSessions)
         void updateBadge(get())
+        notifySessionChanges(scope, previousSessions, mergedSessions, get().selectedSessionId)
       }
       const selectedId = get().selectedSessionId
       if (selectedId && NativeAppState.currentState === 'active') {
@@ -4324,6 +4329,7 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
   if (!connectionIsCurrent(scope)) return
   event = sanitizeTimelineEvent(event)
   const sessionId = event.session_id
+  const knownEventSeq = get().sessions.find(session => session.id === sessionId)?.latest_event_seq ?? 0
   const timelineInternal = TIMELINE_INTERNAL_EVENT_TYPES.has(event.type)
   const nativeSteerSupersession = isNativeSteerSupersession(event)
   const terminalEvent = ['turn_finished', 'turn_stopped', 'error'].includes(event.type) && !nativeSteerSupersession
@@ -4421,10 +4427,8 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
     && get().selectedSessionId === sessionId
     && isAgentActivityEvent(event)
   ) scheduleReadReceipt(scope, sessionId, get)
-  if (NativeAppState.currentState !== 'active' && isAgentActivityEvent(event)) {
-    const session = get().sessions.find(value => value.id === sessionId)
-    if (session) void notifyOnce(scope, session, event.seq)
-  }
+  const notificationSession = get().sessions.find(value => value.id === sessionId)
+  if (notificationSession && event.seq > knownEventSeq) void notifyOnce(scope, notificationSession, event)
 }
 
 function scheduleReadReceipt(scope: ConnectionScope, sessionId: string, get: () => AppState): void {
@@ -4764,13 +4768,30 @@ function requestNotificationPermissionOnce(): void {
   void Notifications.requestPermissionsAsync().catch(() => { /* unavailable in unsigned simulator builds */ })
 }
 
-async function notifyOnce(scope: ConnectionScope, session: Session, seq: number): Promise<void> {
+async function notifyOnce(scope: ConnectionScope, session: Session, event: Event): Promise<void> {
   if (!connectionIsCurrent(scope)) return
-  const key = `${scope.profileId}:${scope.namespace}:${session.id}:${seq}`
+  const notification = notificationForEvent(event, session, t)
+  if (!notification) return
+  await scheduleAgentNotification(scope, session, notification)
+}
+
+function notifySessionChanges(scope: ConnectionScope, previous: Session[], current: Session[], selectedSessionId: string | null): void {
+  if (!previous.length || !connectionIsCurrent(scope)) return
+  const before = new Map(previous.map(session => [session.id, session]))
+  for (const session of current) {
+    if (session.id === selectedSessionId) continue
+    const notification = notificationForSessionUpdate(before.get(session.id), session, t)
+    if (notification) void scheduleAgentNotification(scope, session, notification)
+  }
+}
+
+async function scheduleAgentNotification(scope: ConnectionScope, session: Session, notification: AgentNotification): Promise<void> {
+  if (!connectionIsCurrent(scope)) return
+  const key = `${scope.profileId}:${scope.namespace}:${session.id}:${notification.key}`
   if (notifiedEvents.has(key)) return
   notifiedEvents.add(key)
   if (notifiedEvents.size > 200) notifiedEvents.delete(notifiedEvents.values().next().value ?? '')
   try {
-    await Notifications.scheduleNotificationAsync({ content: { title: session.title, body: 'New agent message', data: { profileId: scope.profileId, serverIdentity: scope.namespace, sessionId: session.id } }, trigger: null })
+    await Notifications.scheduleNotificationAsync({ content: { title: notification.title, body: notification.body, data: { profileId: scope.profileId, serverIdentity: scope.namespace, sessionId: session.id, level: notification.level } }, trigger: null })
   } catch { /* permissions can be denied */ }
 }
