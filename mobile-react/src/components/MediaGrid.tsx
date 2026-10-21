@@ -309,7 +309,7 @@ function VideoThumbnailPreview({ file, connection, enabled }: { file: AgentFile;
   const rejectThumbnail = useCallback(() => setFailed(true), [])
 
   if (thumbnail) return <Image source={thumbnail} contentFit="contain" style={StyleSheet.absoluteFill} transition={100} />
-  if (Platform.OS === 'ios' || !enabled || failed) return <View style={[styles.center, { backgroundColor: '#090a0b' }]}><File size={22} color={colors.muted} /></View>
+  if (!enabled || failed) return <View style={[styles.center, { backgroundColor: '#090a0b' }]}><File size={22} color={colors.muted} /></View>
   return <QueuedVideoThumbnailLoader file={file} connection={connection} onThumbnail={acceptThumbnail} onFailure={rejectThumbnail} />
 }
 

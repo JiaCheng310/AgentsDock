@@ -31,4 +31,6 @@ test('chat details choices avoid nested iOS modals inside the page sheet', () =>
   assert.match(inspector, /if \(Platform\.OS === 'ios'\) \{[\s\S]*?ActionSheetIOS\.showActionSheetWithOptions\(/)
   assert.match(inspector, /\{Platform\.OS !== 'ios' \? <Modal visible=\{open && !disabled\}/)
   assert.match(inspector, /disabledButtonIndices/)
+  assert.match(inspector, /if \(iosChoicesPresented\.current\) return/)
+  assert.match(inspector, /iosChoicesPresented\.current = false/)
 })

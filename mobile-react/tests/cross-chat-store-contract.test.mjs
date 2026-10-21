@@ -35,7 +35,7 @@ test('send admission validates exact authority and restores only inside its capt
   assert.match(send, /supportedCrossChatTargetBackends\(state\.health\)/)
   assert.match(send, /chatReferencesEqual\(state\.chatReferencesBySession\[sessionId\] \?\? \[\], rawReferences\)/)
   assert.match(send, /scope\.client\.sendTurn\([\s\S]*?clientCapabilities,[\s\S]*?chatReferences/)
-  assert.match(send, /if \(consumeComposer && consumedDraft && connectionIsCurrent\(scope\)\)/)
+  assert.match(send, /if \(!sendScopeCurrent\(\)\) return false[\s\S]*?if \(consumeComposer && consumedDraft\)/)
   assert.match(send, /restoreFailedChatComposer\(/)
 })
 
@@ -46,7 +46,10 @@ test('queued edits refresh capability authority, preserve valid spans, and fence
   assert.match(queued, /validChatReferences\(normalizedPrompt, requestedReferences, sessionId\)/)
   assert.match(queued, /interactiveClientCapabilities\(source, state\.health\)/)
   assert.match(queued, /scope\.client\.updateQueued\([\s\S]*?validReferences/)
-  assert.match(store, /await action\(\)[\s\S]*?if \(!connectionIsCurrent\(scope\)\) return false[\s\S]*?scope\.client\.queue\(sessionId\)/)
+  const action = section(store, 'async function queueAction(', '\nasync function refreshSnapshotQueue(')
+  assert.match(action, /await action\(\)[\s\S]*?if \(!current\(\) \|\| !await refreshSnapshotQueue\(scope, sessionId, set, get, current\)\) return false/)
+  const refresh = section(store, 'async function refreshSnapshotQueue(', '\nfunction setSnapshotQueue(')
+  assert.match(refresh, /const turns = await scope\.client\.queue\(sessionId\)[\s\S]*?if \(!current\(\)\) return null/)
 })
 
 test('limits and migration ownership fail closed instead of creating partial authority', () => {

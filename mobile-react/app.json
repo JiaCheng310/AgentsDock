@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zhengyiluo.ZenithDock",
-      "buildNumber": "190",
+      "buildNumber": "191",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyCollectedDataTypes": []

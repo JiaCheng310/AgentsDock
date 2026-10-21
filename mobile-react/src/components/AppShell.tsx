@@ -12,6 +12,8 @@ import { chatWorkspaceLayout } from '../lib/chat-layout'
 import { shouldPresentServerSetup } from '../lib/first-launch'
 import { fullscreenModalTopPadding } from '../lib/fullscreen-modal-layout'
 import { profileNamespace } from '../lib/server-profiles'
+import { displayedServerConnectionState } from '../lib/server-profile-ui'
+import { selectServerAddress } from '../lib/server-address-selection'
 import { useAppStore } from '../store/useAppStore'
 import { radius, usePalette } from '../theme'
 import { ChatScreen } from './ChatScreen'
@@ -87,6 +89,7 @@ function AppShellContent() {
   const [setupDismissed, setSetupDismissed] = useState(true)
   const setupNextMode = useRef<'edit-active' | null>(null)
   const [servers, setServers] = useState<'manage' | 'add' | 'edit-active' | null>(null)
+  const [serverReachability, setServerReachability] = useState<Record<string, 'online' | 'offline'>>({})
   const initialDeepLink = useRef<Promise<string | null> | null>(null)
   const initialDeepLinkHandled = useRef(false)
   const quickChatInFlight = useRef(false)
@@ -106,6 +109,47 @@ function AppShellContent() {
   const chatLayout = chatWorkspaceLayout(width, height)
   const compact = chatLayout.compact
   const showInspector = chatLayout.inlineInspectorAvailable && inspectorVisible
+  const profileConnectionSignature = JSON.stringify(profiles.map(profile => [profile.id, profile.serverURL, profile.serverURLs, profile.serverIdentity, profile.credentialVersion, profile.serverConfigured]))
+  const reachabilitySignature = useRef(profileConnectionSignature)
+  useEffect(() => {
+    if (servers === null || !initialized) return
+    if (reachabilitySignature.current !== profileConnectionSignature) {
+      reachabilitySignature.current = profileConnectionSignature
+      setServerReachability({})
+    }
+    const controller = new AbortController()
+    const state = useAppStore.getState()
+    const candidates = state.profiles.filter(profile => profile.id !== state.activeProfileId && profile.serverConfigured)
+    let nextIndex = 0
+    const checkNext = async () => {
+      while (!controller.signal.aborted) {
+        const profile = candidates[nextIndex++]
+        if (!profile) return
+        let reachable = false
+        try {
+          if (profile.serverIdentity) {
+            await selectServerAddress(
+              [profile.serverURL, ...(profile.serverURLs ?? [])],
+              profile.serverIdentity,
+              (serverURL, signal) => testServerProfile({ profileId: profile.id, serverURL, signal, timeoutMs: 4_000 }),
+              { signal: controller.signal, timeoutMs: 4_500 },
+            )
+          } else {
+            await testServerProfile({ profileId: profile.id, serverURL: profile.serverURL, signal: controller.signal, timeoutMs: 4_000 })
+          }
+          reachable = true
+        } catch {
+          // The list shows a neutral unavailable dot when this profile cannot be verified.
+        }
+        if (controller.signal.aborted) return
+        const current = useAppStore.getState()
+        const unchanged = current.activeProfileId !== profile.id && current.profiles.some(value => value.id === profile.id && value.serverURL === profile.serverURL && value.credentialVersion === profile.credentialVersion && value.serverIdentity === profile.serverIdentity)
+        if (unchanged) setServerReachability(previous => ({ ...previous, [profile.id]: reachable ? 'online' : 'offline' }))
+      }
+    }
+    void Promise.all(Array.from({ length: Math.min(3, candidates.length) }, checkNext))
+    return () => controller.abort()
+  }, [servers, initialized, activeProfileId, profileConnectionSignature, testServerProfile])
   const serverProfileItems = useMemo<ServerProfileListItem[]>(() => profiles.map(profile => ({
     id: profile.id,
     name: profile.name,
@@ -113,11 +157,11 @@ function AppShellContent() {
     serverIdentity: profile.serverIdentity,
     hasAccessToken: profile.hasAccessToken,
     serverSetupComplete: profile.serverConfigured,
-    connectionState: profile.connectionState,
+    connectionState: displayedServerConnectionState(profile.connectionState, serverReachability[profile.id], profile.id === activeProfileId, profile.id === switchingProfileId || (profile.id === activeProfileId && connecting)),
     cachedUnreadCount: profile.cachedUnreadCount,
-    lastConnectionError: profile.lastConnectionError,
+    lastConnectionError: profile.id === activeProfileId ? profile.lastConnectionError : null,
     serverVersion: profile.serverVersion,
-  })), [profiles])
+  })), [activeProfileId, connecting, profiles, serverReachability, switchingProfileId])
   const showServerSetup = shouldPresentServerSetup({ initialized, connected, serverConfigured, serverURL, setupDismissed })
   const canCancelPendingServerUpdate = pendingServerUpdate?.profileId === activeProfileId
     && pendingServerUpdate.profileGeneration === profileGeneration
@@ -137,6 +181,7 @@ function AppShellContent() {
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
   const openServers = useCallback((mode: 'manage' | 'add') => {
+    setServerReachability({})
     setServers(mode)
     requestAnimationFrame(dismissAppKeyboard)
   }, [])
