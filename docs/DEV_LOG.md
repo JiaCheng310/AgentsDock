@@ -1,5 +1,24 @@
 # Public development log
 
+## 2026-10-21 — Verify public bridge and npm server upgrades
+
+- On disposable GitHub-hosted Macs, exercise the published signed desktop app
+  against real managed servers: `1.0.3` → legacy bridge `1.0.10` → npm
+  `1.0.11-beta.2`, and npm-capable `1.0.9` → npm `1.0.10` → npm
+  `1.0.11-beta.2`.
+- Observe the real public TLS download hosts without replacing payloads or
+  disabling signature verification. The legacy first hop uses GitHub release
+  assets; npm-capable hops use `registry.npmjs.org`.
+- Verify automatic recovery after an offline start, a deliberately refused npm
+  connection that leaves the incumbent usable, and successful retry through
+  the published App's visible **Retry server update** control. Preserve server
+  identity, token, saved test session/event and settings. Compare all 120 stable
+  and 129 beta runtime files with their independently verified public packages.
+- Both scoped native jobs pass in [run 39557877984](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39557877984).
+  Live provider history, busy/queued user work, activation rollback, logout or
+  reboot, other desktop platforms and desktop binary replacement remain outside
+  this acceptance. No release or installed user service was changed.
+
 ## 2026-10-18 - Preview Simplified Chinese on mobile
 
 - Add a first-pass device-local System / English / Simplified Chinese choice in mobile
