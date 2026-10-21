@@ -18,6 +18,10 @@
   lock check. Two new regression tests fail on unmodified main. A wider controls
   sweep encounters an existing idle-thread-load mock failure, also reproduced
   on unmodified main; it is not fixed by this change.
+- The first CI run exposed three isolated lifecycle tests whose AST fixture
+  omitted the runner's compaction helpers. Load those real pure helpers in the
+  fixture; all 60 follow-up, child-continuation and provider-session checks pass
+  locally afterward. No production behavior changes in this follow-up.
 - Personally exercised the actual native Electron client through mouse/keyboard
   input and production IPC/HTTP against an authorized test server with Codex
   CLI 0.156.1. Disposable old-model fixtures and a local fault-injection endpoint
