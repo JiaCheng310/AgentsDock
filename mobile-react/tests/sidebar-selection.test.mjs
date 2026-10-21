@@ -19,9 +19,16 @@ test('temporary status sections have isolated collapse state and cannot be moved
   assert.match(source, /const movable = !item\.status &&/)
   assert.match(source, /if \(sidebarSessionStatus\(session, active\)\) continue/)
   assert.match(source, /if \(status\) \{[\s\S]*?setCollapsedStatuses\([\s\S]*?return\s*\}\s*const next = new Set\(collapsed\)/)
-  assert.match(source, /item\.status === 'unread' \? colors\.blue : colors\.green/)
+  assert.match(source, /item\.status === 'running' \? colors\.green : item\.attentionLevel === 'emergency' \? colors\.red : item\.attentionLevel === 'important' \? colors\.pink : colors\.blue/)
   const folderOptions = source.slice(source.indexOf('const folders = useMemo'), source.indexOf('const movableFolders'))
   assert.doesNotMatch(folderOptions, /SidebarStatus|collapsedStatuses|sidebarSessionSections/)
+})
+
+test('urgent chat labels replace the date and name their status', () => {
+  const row = source.slice(source.indexOf('function SessionRow'), source.indexOf('const styles = StyleSheet.create'))
+  assert.match(row, /\{\(attentionLevel === 'important' \|\| attentionLevel === 'emergency'\)[\s\S]*?<\/Text> : activityDate \? <Text[^>]+>\{activityDate\}<\/Text> : null\}/)
+  assert.match(row, /t\(attentionLevel === 'emergency' \? 'Emergency' : 'Important'\)/)
+  assert.match(source, /sessionLevel: \{ \.\.\.typography\.caption, fontWeight: fontWeight\.semibold/)
 })
 
 test('folder and status headers put the collapse indicator after the count on the right', () => {
@@ -74,7 +81,7 @@ test('provider requests waiting for the user are unmistakable without polling', 
   assert.match(source, /waiting \? `\$\{runtimeSummary\(session, t\)\} · \$\{t\('waiting for you'\)\}`/)
   assert.match(source, /const waitingProviderName = session\.backend === 'claude' \? 'Claude' : 'Codex'/)
   assert.match(source, /accessibilityLabel=\{`\$\{pendingInteractionCount\} \$\{waitingProviderName\} \$\{pendingInteractionCount === 1 \? 'request' : 'requests'\} waiting for you`\}/)
-  assert.match(source, /style=\{\[styles\.waitingBadge, \{ backgroundColor: colors\.orange \}\]\}/)
+  assert.match(source, /style=\{\[styles\.waitingBadge, \{ backgroundColor: colors\.pink \}\]\}/)
   assert.doesNotMatch(source, /setInterval|setTimeout\([^)]*codex|pollCodex/i)
 })
 

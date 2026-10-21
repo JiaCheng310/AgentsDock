@@ -24,6 +24,25 @@ test('a completed run moves to unread, then reading returns it to its original f
   assert.deepEqual(summarize([{ ...chat, last_read_agent_event_seq: 5 }]), [['folder', 'Work', ['chat']]])
 })
 
+test('important input and emergencies appear in Unread even while a turn is active', () => {
+  const waiting = session('waiting', { codex_needs_user_action: true })
+  const emergency = session('emergency', { emergency_alert: { id: 'alert', status: 'active', severity: 'critical', message: 'Test incident', raised_at: '2026-10-20T12:00:00Z' } })
+  const sections = sidebarSessionSections([waiting, emergency], new Set(['waiting', 'emergency']), [], true)
+  assert.equal(sections[0]?.status, 'unread')
+  assert.equal(sections[0]?.attentionLevel, 'emergency')
+  assert.deepEqual(sections[0]?.sessions.map(value => value.id), ['waiting', 'emergency'])
+  assert.equal(sections.some(value => value.status === 'running'), false)
+  assert.equal(sidebarSessionSections([waiting], new Set(['waiting']), [], true)[0]?.attentionLevel, 'important')
+})
+
+test('acknowledging an emergency removes its red unread status', () => {
+  const alert = { id: 'alert', status: 'active' as const, severity: 'critical' as const, message: 'Test incident', raised_at: '2026-10-20T12:00:00Z' }
+  const active = session('emergency', { emergency_alert: alert })
+  assert.equal(sidebarSessionSections([active], new Set(), [], true)[0]?.attentionLevel, 'emergency')
+  const acknowledged = session('emergency', { emergency_alert: { ...alert, status: 'acknowledged' } })
+  assert.equal(sidebarSessionSections([acknowledged], new Set(), [], true)[0]?.status, undefined)
+})
+
 test('empty smart groups vanish while explicit empty custom folders remain', () => {
   assert.deepEqual(summarize([], new Set(['unknown']), ['Empty folder']), [['folder', 'Empty folder', []]])
   assert.deepEqual(summarize([], new Set(), ['Empty folder'], false), [])

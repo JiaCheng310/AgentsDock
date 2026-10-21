@@ -12,6 +12,7 @@ import { formatChatDate, isUnread, runtimeSummary } from '../lib/format'
 import { compareSessions, sessionSection } from '../lib/session-order'
 import { sidebarSessionSections, sidebarSessionStatus, type SidebarStatus } from '../lib/sidebar-sections'
 import { sessionNeedsProviderInteraction, sessionPendingInteractionCount } from '../lib/claude-controls'
+import { sessionAttentionLevel, type NotificationLevel } from '../lib/notification-levels'
 import { dismissAppKeyboard } from '../lib/app-keyboard'
 import { isServerSetupRequired } from '../lib/first-launch'
 import { serverSearchQuery } from '../lib/server-search'
@@ -25,7 +26,7 @@ import { useTextPrompt, type TextPromptOptions } from './TextPromptDialog'
 import { IconButton } from './ui'
 import { ServerProfileSelector, type ServerProfileListItem } from './ServerProfiles'
 
-type Row = { kind: 'header'; key: string; title: string; folder: string; count: number; status?: SidebarStatus } | { kind: 'session'; key: string; session: Session; status?: SidebarStatus; searchResult?: TimelineSearchResult }
+type Row = { kind: 'header'; key: string; title: string; folder: string; count: number; status?: SidebarStatus; attentionLevel?: NotificationLevel } | { kind: 'session'; key: string; session: Session; status?: SidebarStatus; searchResult?: TimelineSearchResult }
 
 const HOME_ACTION_SIZE = 52
 
@@ -190,7 +191,7 @@ export function Sidebar({ compact, profiles, activeProfileId, switchingProfileId
       const values = section.sessions
       const isCollapsed = section.status ? collapsedStatuses.has(section.status) : collapsed.has(folder)
       return [
-        { kind: 'header', key: section.status ? `header:status:${section.status}` : `header:folder:${folder}`, title: section.title, folder, status: section.status, count: values.length },
+        { kind: 'header', key: section.status ? `header:status:${section.status}` : `header:folder:${folder}`, title: section.title, folder, status: section.status, attentionLevel: section.attentionLevel, count: values.length },
         ...((isCollapsed && !clean ? [] : values.map(session => ({
           kind: 'session' as const,
           key: session.id,
@@ -557,7 +558,7 @@ function FolderHeader({ item, profileScope, collapsed, canMoveUp, canMoveDown, o
     delayLongPress={350}
     style={[styles.header, movable && Platform.OS !== 'ios' && styles.headerInShell]}
   >
-    {item.status ? <View style={[styles.statusGroupDot, { backgroundColor: item.status === 'unread' ? colors.blue : colors.green }]} /> : null}
+    {item.status ? <View style={[styles.statusGroupDot, { backgroundColor: item.status === 'running' ? colors.green : item.attentionLevel === 'emergency' ? colors.red : item.attentionLevel === 'important' ? colors.pink : colors.blue }]} /> : null}
     <Text style={[styles.headerText, { color: colors.muted }]}>{displayTitle}</Text>
     <View style={styles.headerTrailing}>
       <Text style={[styles.count, { color: colors.muted }]}>{item.count}</Text>
@@ -594,6 +595,8 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
   const locale = useLanguageStore(state => state.locale)
   const welcome = isWelcomeSession(session.id)
   const unread = isUnread(session)
+  const attentionLevel = sessionAttentionLevel(session)
+  const attentionColor = attentionLevel === 'emergency' ? colors.red : attentionLevel === 'important' ? colors.pink : colors.blue
   const waiting = sessionNeedsProviderInteraction(session)
   const pendingInteractionCount = sessionPendingInteractionCount(session)
   const waitingProviderName = session.backend === 'claude' ? 'Claude' : 'Codex'
@@ -746,18 +749,23 @@ function SessionRow({ session, profileScope, running, searchSnippet, opening, fo
       <View style={styles.sessionText}>
         <Text style={[styles.sessionTitle, { color: colors.text }]} numberOfLines={1}>{session.title}</Text>
         <View style={styles.sessionMetaRow}>
-          <Text style={[styles.sessionMeta, { color: unread ? colors.blue : colors.muted }]} numberOfLines={1}>
+          <Text style={[styles.sessionMeta, { color: attentionLevel ? attentionColor : colors.muted }]} numberOfLines={1}>
             {welcome ? t('Local setup guide') : (searchSnippet || (waiting ? `${runtimeSummary(session, t)} · ${t('waiting for you')}` : running ? `${runtimeSummary(session, t)} · ${t('running')}` : unread ? `${runtimeSummary(session, t)} · ${t('new')}` : runtimeSummary(session, t)))}
           </Text>
-          {activityDate ? <Text style={[styles.sessionDate, { color: colors.subtle }]} numberOfLines={1}>{activityDate}</Text> : null}
+          {(attentionLevel === 'important' || attentionLevel === 'emergency') ? <Text style={[styles.sessionLevel, { color: attentionColor }]} numberOfLines={1}>
+            {t(attentionLevel === 'emergency' ? 'Emergency' : 'Important')}
+          </Text> : activityDate ? <Text style={[styles.sessionDate, { color: colors.subtle }]} numberOfLines={1}>{activityDate}</Text> : null}
         </View>
       </View>
-      {waiting ? <View
+      {attentionLevel === 'emergency' ? <View
+        accessibilityLabel="Emergency alert needs acknowledgment"
+        style={[styles.trailingStatusDot, { backgroundColor: colors.red }]}
+      /> : waiting ? <View
         accessibilityLabel={`${pendingInteractionCount} ${waitingProviderName} ${pendingInteractionCount === 1 ? 'request' : 'requests'} waiting for you`}
-        style={[styles.waitingBadge, { backgroundColor: colors.orange }]}
-      ><Text style={[styles.waitingBadgeText, { color: colors.onAccent }]}>{pendingInteractionCount > 9 ? '9+' : pendingInteractionCount}</Text></View> : (running || unread) ? <View
-        accessibilityLabel={running ? 'Agent running' : 'Unread messages'}
-        style={[styles.trailingStatusDot, { backgroundColor: running ? colors.green : colors.blue }]}
+        style={[styles.waitingBadge, { backgroundColor: colors.pink }]}
+      ><Text style={[styles.waitingBadgeText, { color: colors.background }]}>{pendingInteractionCount > 9 ? '9+' : pendingInteractionCount}</Text></View> : (running || attentionLevel) ? <View
+        accessibilityLabel={running && attentionLevel !== 'important' ? 'Agent running' : attentionLevel === 'important' ? 'Important unread message' : 'Unread messages'}
+        style={[styles.trailingStatusDot, { backgroundColor: attentionLevel === 'important' ? colors.pink : running ? colors.green : colors.blue }]}
       /> : null}
     </Pressable>
   )
@@ -817,6 +825,7 @@ const styles = StyleSheet.create({
   sessionMetaRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sessionMeta: { ...typography.caption, flex: 1, minWidth: 0 },
   sessionDate: { ...typography.caption, fontWeight: fontWeight.regular, flexShrink: 1, maxWidth: '48%' },
+  sessionLevel: { ...typography.caption, fontWeight: fontWeight.semibold, flexShrink: 0 },
   backendStatus: { width: 22, height: 22 },
   trailingStatusDot: { width: 8, height: 8, flexShrink: 0, marginHorizontal: 4, borderRadius: radius.round },
   waitingBadge: { minWidth: 24, minHeight: 24, flexShrink: 0, paddingHorizontal: spacing.xs, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
