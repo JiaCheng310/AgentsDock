@@ -62,6 +62,27 @@
   The replay used a private exact-package test feed and a disposable server;
   it did not exercise a real provider turn during the update, busy goals,
   multiple saved servers, or a production release.
+
+## 2026-10-21 — Replay a private busy-chat update
+
+- An explicit retry after server preparation failed could reattach to the old
+  failed schedule and fail again without attempting a new preparation. The main
+  Update action now clears that operation ownership on retry while retaining
+  the exact signed target. A regression failed before the fix; 135 focused
+  desktop tests, TypeScript checking and the production compile pass.
+- An unpublished, isolated macOS QA app and signed server package replayed a
+  beta.10-to-beta.11 update through the real Update button. The server
+  completed first; the app then replaced itself, relaunched and reopened the
+  same chat. A live Claude turn interrupted during the server restart received
+  one durable continuation, produced a final answer on the new server and
+  remained visible in the app. The continuation was marked system-generated
+  and not user-authored. A separate failed-preparation replay verified that
+  the same main button could retry successfully.
+- These QA app packages use a separate bundle identity, private app data and
+  loopback-only feeds; they were signed for local development, not notarized or
+  published. Busy Codex/Cursor turns, non-chat blockers, multiple clients and
+  rollback still need native acceptance before a product release.
+
 ## 2026-10-20 — Fix Claude running-chat fork timestamp precision
 
 - Fix #94: recognize millisecond native timestamps within a second-truncated
