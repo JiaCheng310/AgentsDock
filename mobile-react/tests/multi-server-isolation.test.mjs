@@ -202,9 +202,9 @@ test('canonical namespace adoption releases interaction before delete-only sourc
 })
 
 test('notifications resolve both profile ID and canonical identity before selecting a reused session ID', () => {
-  const notify = section(store, 'async function notifyOnce(', '\n}')
-  assert.match(notify, /const key = `\$\{scope\.profileId\}:\$\{scope\.namespace\}:\$\{session\.id\}:\$\{seq\}`/)
-  assert.match(notify, /data: \{ profileId: scope\.profileId, serverIdentity: scope\.namespace, sessionId: session\.id \}/)
+  const notify = section(store, 'async function scheduleAgentNotification(', '\n}')
+  assert.match(notify, /const key = `\$\{scope\.profileId\}:\$\{scope\.namespace\}:\$\{session\.id\}:\$\{notification\.key\}`/)
+  assert.match(notify, /data: \{ profileId: scope\.profileId, serverIdentity: scope\.namespace, sessionId: session\.id, level: notification\.level \}/)
 
   const responseHandler = section(appShell, '    const openNotification = async', '\n    const subscription = Notifications.addNotificationResponseReceivedListener')
   assert.match(responseHandler, /const profileId = typeof data\.profileId === 'string' \? data\.profileId : null/)
