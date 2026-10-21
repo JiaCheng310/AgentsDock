@@ -1,5 +1,43 @@
 # Public development log
 
+## 2026-10-21 — Prepare signed 1.0.11-beta.12 packages
+
+- Freeze product source `ab95ad3284f91997c2b249ac413b155f99c09ce6`, native
+  build 1267. [Desktop preparation](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39626184259)
+  passes macOS signing/notarization and all four native platform verifiers,
+  then creates the canonical and compatibility mirror drafts. The 16-file
+  asset-set seal is
+  `61200487717e08fe489970c64ca012c75ee75be9e8e0482ca61501c07ca688c2`.
+- [Server signing](https://github.com/ZhengyiLuo/AgentsServer/actions/runs/39625883663)
+  prepares matching npm and legacy bridge formats from the same source.
+  Verify the original Actions artifact digest, established signatures,
+  deterministic bytes and runtime parity. The npm descriptor hash is
+  `e67427cd1a7ee014e0a44e583a16f3a25011370c3b681ff67d496b5a3bb79938`.
+  Stage the matching CLI, runtime and bridge as private drafts.
+- [Native paired CLI acceptance](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39626281525)
+  passes on macOS and Linux: first global setup, independent default/named
+  lifecycle, repeat-install identity/token retention, preserved synthetic state
+  on removal, and independence from the original npm prefix/cache. Compare all
+  133 installed runtime files with the exact signed candidate.
+- Seven scoped [macOS rehearsal jobs](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39628314791)
+  pass. For both old installation-root modes, the real signed 1.0.6 app updates
+  and relaunches as beta.12, then automatically reconciles the saved 1.0.7-beta.21
+  server. Offline recovery, two clients sharing one operation, interrupted
+  transfer, failed preparation and explicit retry are observed.
+- Both scoped [Linux rollback jobs](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39628319384)
+  pass: fault only the candidate worker, restore authenticated incumbent health,
+  then retry the identical signed target while retaining identity, token and
+  synthetic state. Downloaded observation archives match their Actions digests
+  and exact source/candidate pins.
+- These are package preparation and scoped observations, not full release
+  acceptance. The legacy-history check remains blocked because the fixtures
+  contain no populated native provider history. Busy/queued provider work,
+  logout/reboot, native Windows updates and matching TF191 notification behavior
+  remain unverified. Windows is unsigned under the existing preview policy.
+  No public npm/desktop/bridge publication or installed-user-service update is
+  performed. The later main compaction-recovery fix in #108 is outside this
+  frozen source. See [candidate notes](RELEASE_1.0.11-beta.12.md).
+
 ## 2026-10-21 — Prepare 1.0.11-beta.12 source
 
 - Integrate main through `b21ef7ea20bd8bc1121708590fa3bc21785c0984` with the
