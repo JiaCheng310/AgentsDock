@@ -144,6 +144,14 @@ export class CoordinatedUpdateManager {
       // A second explicit click retries the same signed target after a prior
       // pre-install failure; background health observations must not do so.
       for (const record of this.plan!.records) {
+        if (record.paused || record.phase === 'blocked' || record.phase === 'failed') {
+          // The old operation has already stopped. Keeping its receipt here
+          // makes reconciliation observe the same failure forever instead of
+          // asking the server to retry the exact signed release.
+          Object.assign(record, { operationId: undefined, scheduleId: undefined,
+            operationTargetVersion: undefined, operationOwned: false,
+            forceRequestedScheduleId: undefined, forceRequestId: undefined })
+        }
         record.paused = false
         record.forceRetryAt = undefined
         if (record.phase === 'blocked' || record.phase === 'failed') record.phase = 'checking'

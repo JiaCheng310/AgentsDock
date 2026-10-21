@@ -172,6 +172,28 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     expect(f.clients.b.ensureServerUpdate).not.toHaveBeenCalled()
   })
 
+  it('retries failed preparation from the main Update button without reusing its failed receipt', async () => {
+    const f = fixture()
+    const envelope = signed()
+    f.store.write({ envelope, records: [{ profileId: 'a', name: 'Server a', serverIdentity: 'server-a',
+      targetVersion: '1.2.0-beta.2', phase: 'failed', paused: true,
+      scheduleId: 'failed-schedule', operationTargetVersion: '1.2.0-beta.2',
+      message: 'Server update preparation failed.' }] })
+    f.clients.a.serverUpdateStatus.mockResolvedValue({ phase: 'failed', current_version: '1.1.0-beta.1',
+      target_version: '1.2.0-beta.2', server_identity: 'server-a', server_instance_id: 'boot-a',
+      schedule_id: 'failed-schedule' })
+    f.clients.a.ensureServerUpdate.mockImplementation(async () => {
+      f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2' }))
+      return { phase: 'pending', current_version: '1.1.0-beta.1', target_version: '1.2.0-beta.2',
+        server_identity: 'server-a', server_instance_id: 'boot-a', schedule_id: 'retry-schedule' }
+    })
+
+    await f.manager.prepareForInstall(envelope, '1.2.0-beta.2')
+    expect(f.clients.a.serverUpdateStatus).not.toHaveBeenCalled()
+    expect(f.clients.a.ensureServerUpdate).toHaveBeenCalledOnce()
+    expect(f.manager.status()[0]).toMatchObject({ phase: 'current', paused: false })
+  }, 10_000)
+
   it('pauses an unrecoverable legacy 1.0.4 attempt and retries the paired bridge after host repair', async () => {
     const f = fixture()
     f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.0.3',
