@@ -1,8 +1,8 @@
-# AgentsDock 1.0.11-beta.12 candidate
+# AgentsDock 1.0.11-beta.12
 
-Prepared desktop build 1267, with the matching npm server, `agentsdock` CLI and
-signed legacy server bridge. These packages are private drafts, not a public
-release. Product source is `ab95ad3284f91997c2b249ac413b155f99c09ce6`.
+Desktop build 1267, with the matching npm server, `agentsdock` CLI and signed
+legacy server bridge on the beta channel. Product source is
+`ab95ad3284f91997c2b249ac413b155f99c09ce6`.
 
 ## Changes since 1.0.11-beta.2
 
@@ -19,9 +19,9 @@ release. Product source is `ab95ad3284f91997c2b249ac413b155f99c09ce6`.
 - Extend privacy-limited desktop and shared-chat usage reporting.
 
 Mobile Chinese-language, media and notification UI changes have their own mobile
-release process. This desktop/server preparation builds no mobile package.
+release process. This desktop/server release includes no mobile package.
 The later main fix in #108 for same-thread Codex model-switch compaction recovery
-is not included in this frozen candidate.
+is not included in this release.
 
 ## Validation and remaining scope
 
@@ -39,7 +39,6 @@ compatibility remain unverified. Interactive pairing and optional dependency
 prompts are outside the native CLI lifecycle check. Windows installers are
 unsigned and may display security warnings.
 
-Publication must retain the same accepted bytes and disclose the actual tested
-scope. Stable releases and npm `latest` remain unchanged. Reinstalling the CLI
+Stable releases and npm `latest` remain unchanged. Reinstalling the CLI
 alone does not update an existing server; installed servers use the signed
 managed-update path.
