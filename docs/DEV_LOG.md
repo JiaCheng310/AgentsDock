@@ -1,5 +1,36 @@
 # Public development log
 
+## 2026-10-21 — Publish 1.0.11-beta.12
+
+- [Paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39705915168)
+  publishes and verifies the exact signed runtime and matching short CLI through
+  their separate Trusted Publishers. Both `beta` tags resolve to
+  `1.0.11-beta.12`; both stable `latest` tags remain `1.0.10`. Registry visibility
+  catches up within the workflow's bounded read-only checks; no upload is repeated.
+- A fresh isolated registry installation, with setup scripts disabled, resolves
+  the exact CLI/runtime dependency and passes command help/version checks.
+  All 9 CLI package files and 138 runtime package files match the accepted
+  archives. This check operates no installed service; native lifecycle coverage
+  remains the separately recorded macOS/Linux candidate acceptance below.
+- [Desktop publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39707354687)
+  revalidates all four native platforms and publishes the
+  [canonical beta](https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.11-beta.12)
+  and [compatibility mirror](https://github.com/ZhengyiLuo/AgentsDock-Releases/releases/tag/v1.0.11-beta.12).
+  The signed [legacy server bridge](https://github.com/ZhengyiLuo/AgentsServer/releases/tag/v1.0.11-beta.12)
+  is public and verified against the same npm runtime. Preserve product source
+  `ab95ad3284f91997c2b249ac413b155f99c09ce6`, build 1267 and the 16-file seal
+  `61200487717e08fe489970c64ca012c75ee75be9e8e0482ca61501c07ca688c2`.
+- Independently verify both public asset sets, identical release notes, signed
+  server descriptors, four platform update feeds and beta discovery. Download
+  the public Mac updater ZIP and match its bytes to the signed candidate.
+  All three GitHub stable release pointers remain `v1.0.10`; no accepted archive
+  is rebuilt or replaced, and no installed user service or mobile build changes.
+- This beta retains the disclosed acceptance limits: populated native history
+  migration, busy/queued provider work, logout/reboot, native Windows updates
+  and TF191 notification compatibility remain unverified. Windows is unsigned.
+  The later Codex compaction-recovery fix in #108 is excluded. See the
+  [release notes](RELEASE_1.0.11-beta.12.md).
+
 ## 2026-10-21 — Prepare signed 1.0.11-beta.12 packages
 
 - Freeze product source `ab95ad3284f91997c2b249ac413b155f99c09ce6`, native

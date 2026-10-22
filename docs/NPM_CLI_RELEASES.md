@@ -6,6 +6,25 @@ committed source snapshot and one public version; the CLI dependency must be
 `"@agentsdock/server": "VERSION"`, never a range or floating tag. The desktop
 continues to pin the signed runtime descriptor, not a floating npm channel.
 
+## 1.0.11-beta.12 public completion
+
+[Paired publication 39705915168](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39705915168)
+publishes and verifies both accepted archives from product source
+`ab95ad3284f91997c2b249ac413b155f99c09ce6`. Both `beta` tags resolve to
+`1.0.11-beta.12`; both stable `latest` tags remain `1.0.10`. An isolated
+scripts-disabled registry installation verifies the exact CLI/runtime dependency,
+all packaged file bytes and command help/version without operating any service.
+
+The signed legacy bridge, canonical desktop and compatibility mirror are public.
+[Desktop publication 39707354687](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/39707354687)
+reverifies all four platforms and publishes the unchanged build 1267. Public
+beta discovery, platform feeds, signed descriptors and the downloaded Mac updater
+ZIP match the accepted packages. Scoped native acceptance and its remaining
+history, busy-work, reboot, Windows updater and notification limits are recorded
+in the [release notes](RELEASE_1.0.11-beta.12.md) and
+[development log](DEV_LOG.md#2026-10-21--publish-1011-beta12).
+Documentation commits after the frozen product SHA are not new artifact sources.
+
 ## 1.0.11-beta.2 public completion
 
 Product source `853dcd285ef442176370632149deba21ef732eda` is frozen. The reviewed
@@ -399,8 +418,8 @@ Use the protected `server-npm-publish.yml` workflow with `operation=publish`:
 | `accepted_manifest_sha256` | Accepted runtime descriptor hash |
 | `cli_candidate_tag` | `cli-candidate-vVERSION` |
 | `accepted_cli_receipt_sha256` | Accepted CLI receipt hash |
-| `expected_runtime_latest` | Observed stable baseline, currently `1.0.9` |
-| `expected_cli_latest` | Observed stable baseline, initially `absent` |
+| `expected_runtime_latest` | Recheck the observed stable baseline; `1.0.10` for beta.12 publication |
+| `expected_cli_latest` | Recheck the observed stable baseline; `1.0.10` for beta.12 publication; `absent` only before first publication |
 
 The publisher first validates both local candidates, then publishes and downloads
 the runtime for verification, then publishes/verifies the CLI. It checks npm
