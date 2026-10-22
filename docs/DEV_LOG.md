@@ -21,9 +21,17 @@
   focus, chat/file draft preservation, navigation, light/dark and narrow views.
   Typing and idle checks observed no workspace requests or long tasks.
   Test chats were synthetic; no provider was invoked. Native Linux/Windows
-  execution and release packaging remain untested.
-- Availability: source and local development build only. This desktop fix
-  requires no server update; nothing was installed, published or deployed.
+  execution remains untested.
+- Local macOS arm64 package: source `541f60a17d42573c97048323dd2f9ea7152a9b60`,
+  development version 0.2.0/build 85, Developer ID signed. Bundle, entitlements
+  and deep strict signature checks passed. All 91 packaged compiled assets
+  match the accepted outputs; TIFF worker, dependencies and notices are present.
+  The same native journeys passed loading main/preload/renderer and TIFF worker
+  from the signed app archive under stock Electron 43.1.1 offscreen. Archive
+  bytes and signature remained unchanged. The signed executable's own launch
+  and Gatekeeper acceptance were not exercised; this is not a notarized release.
+- Availability: local Mac app package. This desktop fix requires no server
+  update; nothing was installed, published or deployed.
 
 ## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
 
