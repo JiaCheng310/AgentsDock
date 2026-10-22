@@ -40,14 +40,14 @@ import type {
   WorkspacePreferences,
 } from '../types'
 import { AgentServerClient, AgentServerClientDisposedError, AgentServerClientUnvalidatedError, AgentServerRequestTimeoutError, AgentServerRequestInterruptedError, ServerError, WebSocketConnectionError } from '../api/AgentServerClient'
-import { errorMessage, mergeEvents, mergeFiles, normalizeServerURL } from '../lib/format'
+import { errorMessage, isUnread, mergeEvents, mergeFiles, normalizeServerURL } from '../lib/format'
 import { selectServerAddress } from '../lib/server-address-selection'
 import { reconcileHealthActiveSessions } from '../lib/active-sessions'
 import { shouldAutoConnectServer } from '../lib/first-launch'
 import { SNAPSHOT_CACHE_VERSION, shouldReplaceCachedTimeline, snapshotLatestSeq } from '../lib/history'
 import { crossChatQueueRefreshSessionId, isUserQueuedTurn, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier, resolveNewQueuedTurn, updateQueuedTurns } from '../lib/queue'
 import { isAgentActivityEvent } from '../lib/codex-controls'
-import { notificationForEvent, notificationForSessionUpdate, type AgentNotification } from '../lib/notification-levels'
+import { notificationForEvent, notificationForSessionUpdate, notificationLevelRank, type AgentNotification } from '../lib/notification-levels'
 import { t } from '../i18n'
 import {
   agentCrossChatRoutesAvailable,
@@ -872,7 +872,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (pauseReconnectForInactiveApp(scope, set)) return
       if (isStaleConnectionError(error, scope)) return
       const message = errorMessage(error)
-      forceValidationOffline(scope, message, set)
+      forceValidationOffline(scope, message, set, !syncFailureIsTransient(error))
       return
     }
 
@@ -1091,7 +1091,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (isStaleConnectionError(error, scope)) return
       const message = errorMessage(error)
       if (!isDefinitiveValidationFailure(error, message)) {
-        set({ error: message })
+        if (!syncFailureIsTransient(error)) set({ error: message })
         return
       }
       forceValidationOffline(scope, message, set)
@@ -1406,7 +1406,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             syncSessionId: sessionId,
             syncStatus: transient ? (get().liveConnected ? 'live' : 'reconnecting') : 'error',
             syncError: transient && get().liveConnected ? null : message,
-            ...(reason === 'manual' ? { error: message } : {}),
+            ...(reason === 'manual' && !transient ? { error: message } : {}),
           })
           if (transient) scheduleSyncRecovery(scope, sessionId, epoch, get, set)
           return
@@ -2282,9 +2282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         pendingServerUpdate: pendingServerUpdateMatchesScope(state.pendingServerUpdate, scope)
           ? null
           : state.pendingServerUpdate,
-        error: pendingServerUpdateMatchesScope(state.pendingServerUpdate, scope)
-          ? null
-          : state.error,
+        error: null,
       }))
       if (consumeComposer) void saveCurrentWorkspace(get)
       if (response.event && response.event.seq > locallyObservedSeq) applyLiveEvent(scope, response.event, set, get)
@@ -3899,6 +3897,7 @@ function forceValidationOffline(
   scope: ConnectionScope,
   message: string,
   set: (value: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  surfaceError = true,
 ): void {
   if (!connectionIsCurrent(scope)) return
   healthFailureCount = 2
@@ -3910,12 +3909,12 @@ function forceValidationOffline(
     connecting: false,
     liveConnected: false,
     health: null,
-    error: message,
+    error: surfaceError ? message : null,
     pendingServerUpdate: null,
     cancelingServerUpdate: false,
     syncSessionId: state.selectedSessionId,
     syncStatus: state.selectedSessionId ? 'offline' : 'idle',
-    syncError: state.selectedSessionId ? message : null,
+    syncError: surfaceError && state.selectedSessionId ? message : null,
     profiles: updateProfileRuntime(state.profiles, scope.profileId, {
       connectionState: 'offline',
       lastConnectionError: message,
@@ -4359,6 +4358,14 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
             latest_agent_event_at: event.ts,
             latest_agent_event_type: event.type,
           } : {}),
+          ...(event.type === 'agent_notification' && event.notification_level ? {
+            latest_notification_level: event.notification_level,
+            latest_notification_message: event.message,
+            ...(notificationLevelRank(event.notification_level) >= notificationLevelRank(session.unread_notification_level ?? 'normal') ? {
+              unread_notification_level: event.notification_level,
+              unread_notification_seq: event.seq,
+            } : {}),
+          } : {}),
         } : session)
       : state.sessions
     const profiles = updateSessionMetadata
@@ -4428,7 +4435,10 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
     && isAgentActivityEvent(event)
   ) scheduleReadReceipt(scope, sessionId, get)
   const notificationSession = get().sessions.find(value => value.id === sessionId)
-  if (notificationSession && event.seq > knownEventSeq) void notifyOnce(scope, notificationSession, event)
+  if (notificationSession && event.seq > knownEventSeq
+    && !(NativeAppState.currentState === 'active' && get().selectedSessionId === sessionId)) {
+    void notifyOnce(scope, notificationSession, event)
+  }
 }
 
 function scheduleReadReceipt(scope: ConnectionScope, sessionId: string, get: () => AppState): void {
@@ -4786,7 +4796,7 @@ function notifySessionChanges(scope: ConnectionScope, previous: Session[], curre
 }
 
 async function scheduleAgentNotification(scope: ConnectionScope, session: Session, notification: AgentNotification): Promise<void> {
-  if (!connectionIsCurrent(scope)) return
+  if (!connectionIsCurrent(scope) || !isUnread(session)) return
   const key = `${scope.profileId}:${scope.namespace}:${session.id}:${notification.key}`
   if (notifiedEvents.has(key)) return
   notifiedEvents.add(key)
