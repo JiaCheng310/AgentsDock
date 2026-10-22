@@ -1,5 +1,32 @@
 # Public development log
 
+## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
+
+- Handle bulk Stop events on mobile, clear obsolete promotion flags and retain
+  delivery-uncertainty warnings. If a promoted row has already left the mobile
+  shelf, recover it through the existing guarded authoritative queue read.
+  Recovery never resends messages or introduces polling.
+- Preserve a message held by Stop even when its earlier Run now request succeeds;
+  show an informational paused status instead of a misleading send failure.
+  Add reducer and live-store regressions to CI, including stale navigation reads.
+- Make the server cancellation test's startup barrier tolerate busy CI workers;
+  cancellation and slot-ownership assertions remain unchanged.
+- Verification: the new mobile regressions fail before the correction and pass
+  afterward. Mobile type checking, iOS JavaScript export, related store suites,
+  46 interaction contracts and 121 targeted server tests pass. The broader local
+  server shard is not clean in this environment and is not a passing CI result.
+- Native offscreen Electron against the exact test-server source and real Claude
+  exercised Run now immediately followed by Stop: both messages returned paused
+  in order, one explicit retry started exactly once and the other stayed held.
+  Editing, navigation, renderer reconnect and removal used production IPC/HTTP.
+- Native iOS Dev with the patched bundle observed the same real cross-client
+  handoff race and restored both held rows. A native Run now tap completed one
+  real Claude request exactly once while the other stayed paused. Editing,
+  removal, navigation and cold relaunch retained the expected queue state;
+  relaunch did not resend the held message. The queue area scrolls to reveal
+  actions when its content exceeds the available height. Android native
+  acceptance was not exercised. No release or deployment to users is included.
+
 ## 2026-10-21 — Restore queued messages after Stop interrupts a handoff
 
 - When Stop pauses a message that was about to start, return it to the held
