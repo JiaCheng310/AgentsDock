@@ -1,5 +1,30 @@
 # Public development log
 
+## 2026-10-22 — TIFF previews and split-chat file opening
+
+- Desktop attachment and workspace viewers render TIFF files through a PNG
+  preview of the first page. Portable background workers decode the image;
+  downloads and native Open preserve the original file. Failed previews retain
+  download recovery. Queued previews retain stream backpressure instead of
+  buffering every visible TIFF, and remote transfers gain no new timeout.
+- Split chat delivers a fresh file-open event: Chromium otherwise drops the
+  replay of the original stopped event. Delivery also waits for saved workspace
+  tabs and mount effects, so restoration cannot select the prior tab over the
+  clicked file. Both conversations and their drafts remain in place.
+- Validation: the full desktop Vitest suite passed (5,340 tests; five skipped),
+  followed by 42 media tests and 201 split/workspace tests on the final changes.
+  Eight build/license script tests, TypeScript and production compilation passed.
+- Native macOS offscreen acceptance reproduced both failures before the fix and
+  passed the final production-compiled candidate through real authenticated
+  server routes. Checks covered attachment/workspace TIFF rendering, unchanged
+  original download bytes, split file links and Files browsing, repeat opens,
+  focus, chat/file draft preservation, navigation, light/dark and narrow views.
+  Typing and idle checks observed no workspace requests or long tasks.
+  Test chats were synthetic; no provider was invoked. Native Linux/Windows
+  execution and release packaging remain untested.
+- Availability: source and local development build only. This desktop fix
+  requires no server update; nothing was installed, published or deployed.
+
 ## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
 
 - Handle bulk Stop events on mobile, clear obsolete promotion flags and retain

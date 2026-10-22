@@ -5,6 +5,7 @@ import { app, BrowserWindow, clipboard, dialog, nativeImage, Notification, shell
 import QRCode from 'qrcode'
 import { localOnlyServerUrl, normalizeConnectionURLs, serverConnectionLink, type ServerConnectionQr } from '../shared/server-connection-link'
 import { discoverLocalServers, type DiscoveredLocalServer } from './local-server-discovery'
+import { imagePreviewResponse } from './image-preview'
 import { applyOpenCodeSessionEvent } from '../shared/opencode'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { open, rename, rm, stat, writeFile } from 'node:fs/promises'
@@ -5099,7 +5100,12 @@ export class AppService {
     if (scope.profileId !== profileId || scope.generation !== profileGeneration) throw staleProfileError()
     await this.ensureValidatedScope(scope)
     this.assertCurrentScope(scope)
-    const response = await scope.client.fileRequest(sessionId, fileId, request)
+    const response = await imagePreviewResponse(request, async mediaRequest => {
+      this.assertCurrentScope(scope)
+      const original = await scope.client.fileRequest(sessionId, fileId, mediaRequest)
+      this.assertCurrentScope(scope)
+      return original
+    })
     this.assertCurrentScope(scope)
     return response
   }
@@ -5115,7 +5121,12 @@ export class AppService {
     if (scope.profileId !== profileId || scope.generation !== profileGeneration) throw staleProfileError()
     await this.ensureValidatedScope(scope)
     this.assertCurrentScope(scope)
-    const response = await scope.client.workspacePreviewRequest(sessionId, path, request)
+    const response = await imagePreviewResponse(request, async mediaRequest => {
+      this.assertCurrentScope(scope)
+      const original = await scope.client.workspacePreviewRequest(sessionId, path, mediaRequest)
+      this.assertCurrentScope(scope)
+      return original
+    }, path)
     this.assertCurrentScope(scope)
     return response
   }

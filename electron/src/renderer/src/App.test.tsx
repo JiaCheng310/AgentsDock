@@ -982,7 +982,7 @@ describe('App chat workspace identity', () => {
     await waitFor(() => expect(document.activeElement).toBe(document.querySelector('[data-chat-pane="primary"]')))
   })
 
-  it('preserves both chat panes and consumes the exact targeted workspace request once on editor readiness', async () => {
+  it('preserves both chat panes and delivers the targeted request once in a fresh event on editor readiness', async () => {
     act(() => useAppStore.setState({
       selectedSessionId: 'chat-a',
       chatPanes: { primary: 'chat-a', secondary: 'chat-b' },
@@ -996,7 +996,10 @@ describe('App chat workspace identity', () => {
     window.addEventListener('agentsdock:open-workspace-path', opened)
     try {
       const request = new CustomEvent('agentsdock:open-workspace-path', {
-        detail: { sessionId: 'chat-b', path: 'src/index.ts' }
+        detail: { sessionId: 'chat-b', path: 'src/index.ts', line: 12, column: 3, resolve: true },
+        bubbles: true,
+        cancelable: true,
+        composed: true
       })
       act(() => { window.dispatchEvent(request) })
 
@@ -1030,7 +1033,10 @@ describe('App chat workspace identity', () => {
       expect(view.container.querySelector('[data-chat-pane="secondary"]')).toBe(secondaryPane)
       expect(view.container.querySelector('.chat-split-view')).not.toHaveAttribute('inert')
       expect(view.container.querySelector('.chat-split-view')).not.toHaveAttribute('aria-hidden')
-      expect(opened.mock.calls[0][0]).toBe(request)
+      // Chromium retains stopImmediatePropagation when the same Event is
+      // dispatched again; jsdom does not. Never replay that stopped instance.
+      expect(opened.mock.calls[0][0]).not.toBe(request)
+      expect(opened.mock.calls[0][0]).toMatchObject({ type: request.type, bubbles: true, cancelable: true, composed: true })
       expect((opened.mock.calls[0][0] as CustomEvent).detail).toBe(request.detail)
 
     } finally {
@@ -1038,7 +1044,7 @@ describe('App chat workspace identity', () => {
     }
   })
 
-  it('replays the exact menu open-file event only after the targeted editor is ready', () => {
+  it('replays the menu open-file request in a fresh event only after the targeted editor is ready', () => {
     act(() => useAppStore.setState({
       selectedSessionId: 'chat-b',
       chatPanes: { primary: 'chat-a', secondary: 'chat-b' },
@@ -1058,7 +1064,8 @@ describe('App chat workspace identity', () => {
 
       act(() => workspaceEditorHarness.onReady?.())
       expect(opened).toHaveBeenCalledOnce()
-      expect(opened.mock.calls[0][0]).toBe(request)
+      expect(opened.mock.calls[0][0]).not.toBe(request)
+      expect(opened.mock.calls[0][0]).toMatchObject({ type: request.type, detail: request.detail })
     } finally {
       window.removeEventListener('agentsdock:open-workspace-file', opened)
     }
