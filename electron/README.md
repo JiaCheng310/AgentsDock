@@ -180,15 +180,19 @@ older history loads on upward navigation. Failed refreshes retain the cache.
 Incoming events are coalesced to one renderer publish per animation frame.
 Timeline rows are virtualized with stable semantic keys.
 
-Unread chats keep their ordinary folder or pinned placement by default, with
-blue unread dots. Scheduled results do not automatically move a chat into a top
-Unread section. Settings → General → **Group unread chats at the top** restores
-that optional section; the choice is remembered separately for each server.
-Running chats still temporarily appear in the green Running group. Running
-takes precedence while a turn is active. Chats appear only once; their saved
-folder, pinned state and unread receipts are unchanged. With unread grouping
-enabled, reading a completed chat returns it to its ordinary section, and empty
-status groups disappear. Groups and folders use
+Settings → General has three sidebar switches, remembered locally per server:
+**Unread chats at the top** (on), **Include cron jobs in Unread** (off), and
+**Show Running section** (on). Turning a section off leaves its chats in their
+saved folders or pins, with unread and activity indicators intact. Active chats
+never move into Unread while Running is hidden. Cron-only unread output stays
+in its folder by default; an unread ordinary reply still promotes the chat even
+if a later cron result arrives. Explicit **Mark unread** also promotes it.
+Cron attribution requires the matching server change; older servers or pending
+history recovery retain ordinary unread grouping until provenance is known.
+
+Chats appear only once; their saved folder and pinned state are unchanged.
+Reading a completed chat returns it to its ordinary section, and empty status
+groups disappear. Groups and folders use
 right-aligned collapse arrows. Status collapse state lasts within the current
 workspace, and next/previous-chat shortcuts follow the visible group order.
 Pinned also collapses, remembers its state per server across reopening, and

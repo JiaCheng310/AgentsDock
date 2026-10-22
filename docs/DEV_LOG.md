@@ -1,23 +1,34 @@
 # Public development log
 
-## 2026-10-22 — Keep unread chats in their folders
+## 2026-10-22 — Configure Unread and Running sidebar sections
 
-- Unread chats retain their normal folder or pinned placement by default,
-  including routine scheduled-job results. Unread dots, counts, read receipts
-  and manual Mark Read/Unread remain unchanged. Running chats keep their group.
-- Settings → General adds **Group unread chats at the top**, off by default,
-  to restore the separate Unread section. The setting persists independently
-  for each server and also controls keyboard navigation order.
-- Validation: the default-placement regression failed before the change;
-  743 focused sidebar, settings, navigation/store and main-service tests passed,
-  along with locale checks, TypeScript and production compilation. An isolated
-  native offscreen app reproduced the old placement and verified the new layout,
-  real read/unread operations, both preference values across app restarts,
-  server switching, folder collapse, keyboard search, light/dark and narrow views.
-  It used actual IPC and authenticated server routes with synthetic completed
-  output; the future scheduled job did not run and no live provider was invoked.
-- Availability: source and compiled development app only; no packaged build,
-  installation, release or deployment. No server update is required.
+- Add three General settings remembered locally per server: Unread chats at the
+  top (on by default), Include cron jobs in Unread (off), and Show Running
+  section (on). Hidden sections return chats to their saved folders or pins;
+  unread dots and activity indicators remain visible. Active chats stay out of
+  Unread even when Running is hidden. Keyboard navigation follows the same order.
+- Distinguish scheduled output from ordinary unread replies on the server. A
+  later cron result cannot hide an unread ordinary reply, and explicit Mark
+  unread still promotes the chat. Imported history does not count as a new
+  ordinary reply. Existing read cursors, folders and pins remain unchanged.
+- Recover existing provenance once in a background worker and persist a journal
+  checkpoint for subsequent restarts. Unknown provenance and older servers keep
+  the previous unread behavior; catalog, session-list and turn-admission paths
+  do not wait for recovery. Include the helper in server installation and
+  packaging inventories.
+- Verification: 474 focused desktop tests, 14 unread-provenance regressions,
+  related server projection/provider tests and runtime archive checks pass.
+  TypeScript, Python compilation, production Electron compilation and entry
+  verification pass. Native offscreen Electron exercised the controls through
+  production IPC and authenticated server transport, including active unread
+  placement, manual unread, mixed replies, keyboard navigation, narrow/light
+  layouts, profile switching and app/server restarts. Final server checks also
+  recovered legacy metadata without changing read cursors or event journals.
+  These used synthetic provider events in disposable state; no live provider
+  or scheduled job ran. A packaged release and other native platforms were not
+  exercised.
+- Availability: source changes for desktop and server; cron filtering requires
+  both. No release, installation or live-server deployment is included.
 
 ## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
 

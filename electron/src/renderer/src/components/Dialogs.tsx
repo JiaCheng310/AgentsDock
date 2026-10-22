@@ -473,6 +473,8 @@ export function AppSettingsDialog({ serverSettings, serverUpdates, onServerUpdat
   const profiles = useAppStore(state => state.profiles)
   const activeProfileId = useAppStore(state => state.activeProfileId)
   const groupUnreadChats = useAppStore(state => state.groupUnreadChats)
+  const includeCronInUnread = useAppStore(state => state.includeCronInUnread)
+  const groupRunningChats = useAppStore(state => state.groupRunningChats)
   const open = appSettingsOpen || legacyServerSettingsOpen
   const [section, setSection] = useState<AppSettingsSection>('general')
   const [providerRequest, setProviderRequest] = useState<{ backend?: Backend }>()
@@ -628,6 +630,14 @@ export function AppSettingsDialog({ serverSettings, serverUpdates, onServerUpdat
               <label className="app-settings-row">
                 <div className="app-settings-row-copy"><strong>{t('settings.groupUnreadChats')}</strong><span id="group-unread-chats-help">{t('settings.groupUnreadChatsHelp')}</span></div>
                 <Switch.Root className="settings-switch" aria-label={t('settings.groupUnreadChats')} aria-describedby="group-unread-chats-help" checked={groupUnreadChats} onCheckedChange={value => useAppStore.getState().setGroupUnreadChats(value)}><Switch.Thumb className="settings-switch-thumb" /></Switch.Root>
+              </label>
+              <label className="app-settings-row">
+                <div className="app-settings-row-copy"><strong>{t('settings.includeCronInUnread')}</strong><span id="include-cron-in-unread-help">{t('settings.includeCronInUnreadHelp')}</span></div>
+                <Switch.Root className="settings-switch" aria-label={t('settings.includeCronInUnread')} aria-describedby="include-cron-in-unread-help" checked={includeCronInUnread} onCheckedChange={value => useAppStore.getState().setIncludeCronInUnread(value)}><Switch.Thumb className="settings-switch-thumb" /></Switch.Root>
+              </label>
+              <label className="app-settings-row">
+                <div className="app-settings-row-copy"><strong>{t('settings.groupRunningChats')}</strong><span id="group-running-chats-help">{t('settings.groupRunningChatsHelp')}</span></div>
+                <Switch.Root className="settings-switch" aria-label={t('settings.groupRunningChats')} aria-describedby="group-running-chats-help" checked={groupRunningChats} onCheckedChange={value => useAppStore.getState().setGroupRunningChats(value)}><Switch.Thumb className="settings-switch-thumb" /></Switch.Root>
               </label>
               <div className="app-settings-row">
                 <strong className="app-settings-row-title">AgentsDock</strong>

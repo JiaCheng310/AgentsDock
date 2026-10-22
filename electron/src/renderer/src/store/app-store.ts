@@ -213,6 +213,8 @@ interface AppState {
   collapsedFolders: Set<string>
   collapsedStatusGroups: Set<SidebarStatus>
   groupUnreadChats: boolean
+  includeCronInUnread: boolean
+  groupRunningChats: boolean
   pinnedCollapsed: boolean
   archivedCollapsed: boolean
   inspectorVisible: boolean
@@ -284,6 +286,8 @@ interface AppState {
   toggleFolder(folder: string): void
   toggleStatusGroup(status: SidebarStatus): void
   setGroupUnreadChats(value: boolean): void
+  setIncludeCronInUnread(value: boolean): void
+  setGroupRunningChats(value: boolean): void
   setFolderOrder(order: string[]): void
   setArchivedCollapsed(value: boolean): void
   setPinnedCollapsed(value: boolean): void
@@ -578,7 +582,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   pinnedCollapsed: false,
   archivedCollapsed: false,
   collapsedStatusGroups: new Set(),
-  groupUnreadChats: false,
+  groupUnreadChats: true,
+  includeCronInUnread: false,
+  groupRunningChats: true,
   inspectorVisible: false,
   activeSessionIds: new Set(),
   turnAdmissionTokens: {},
@@ -1570,7 +1576,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().switchingProfileId) return
     const scope = captureProfileScope(get())
     const state = get()
-    const visible = navigableSessions(state.sessions, state.folderOrder, state.collapsedFolders, state.activeSessionIds, state.collapsedStatusGroups, state.pinnedCollapsed, state.groupUnreadChats)
+    const visible = navigableSessions(state.sessions, state.folderOrder, state.collapsedFolders, state.activeSessionIds, state.collapsedStatusGroups, state.pinnedCollapsed, state)
     if (!visible.length) return
     const current = visible.findIndex(session => session.id === get().selectedSessionId)
     const next = visible[(current + direction + visible.length) % visible.length]
@@ -2617,6 +2623,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ groupUnreadChats: value })
     void setWorkspacePreference(scope, 'groupUnreadChats', value).catch(() => undefined)
   },
+  setIncludeCronInUnread(value) {
+    if (get().switchingProfileId) return
+    const scope = captureWorkspaceScope(get())
+    set({ includeCronInUnread: value })
+    void setWorkspacePreference(scope, 'includeCronInUnread', value).catch(() => undefined)
+  },
+  setGroupRunningChats(value) {
+    if (get().switchingProfileId) return
+    const scope = captureWorkspaceScope(get())
+    set({ groupRunningChats: value })
+    void setWorkspacePreference(scope, 'groupRunningChats', value).catch(() => undefined)
+  },
   toggleFolder(folder) {
     const next = new Set(get().collapsedFolders)
     if (next.has(folder)) next.delete(folder); else next.add(folder)
@@ -3097,7 +3115,9 @@ function workspaceStateFromBootstrap(
     folderOrder: payload.folderOrder,
     collapsedFolders: new Set(payload.collapsedFolders.filter(folder => !emergencyFolders.has(folder))),
     collapsedStatusGroups: new Set(),
-    groupUnreadChats: payload.groupUnreadChats === true,
+    groupUnreadChats: payload.groupUnreadChats !== false,
+    includeCronInUnread: payload.includeCronInUnread === true,
+    groupRunningChats: payload.groupRunningChats !== false,
     pinnedCollapsed: payload.sessions.some(session => session.pinned && !session.archived && activeEmergencyAlert(session))
       ? false
       : payload.pinnedCollapsed ?? false,
@@ -3272,7 +3292,9 @@ async function runProfileRefresh(
       folderOrder: payload.folderOrder,
       collapsedFolders: new Set(payload.collapsedFolders),
       pinnedCollapsed: payload.pinnedCollapsed ?? false,
-      groupUnreadChats: payload.groupUnreadChats === true,
+      groupUnreadChats: payload.groupUnreadChats !== false,
+      includeCronInUnread: payload.includeCronInUnread === true,
+      groupRunningChats: payload.groupRunningChats !== false,
       archivedCollapsed: payload.archivedCollapsed,
       inspectorVisible: payload.inspectorVisible
     })
