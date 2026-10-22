@@ -425,6 +425,10 @@ export interface Session {
   last_read_agent_event_seq?: number | null
   last_read_agent_event_at?: string | null
   manual_unread?: boolean | null
+  unread_notification_level?: 'normal' | 'important' | 'emergency' | null
+  unread_notification_seq?: number | null
+  latest_notification_level?: 'normal' | 'important' | 'emergency' | null
+  latest_notification_message?: string | null
   emergency_alert?: EmergencyAlert | null
   unacknowledged_emergency_count?: number | null
 }
@@ -890,6 +894,7 @@ export interface Event {
   text?: string | null
   result_text?: string | null
   message?: string | null
+  notification_level?: 'normal' | 'important' | 'emergency' | null
   error?: JsonValue
   emergency_alert?: EmergencyAlert | null
   emergency_alert_id?: string | null
