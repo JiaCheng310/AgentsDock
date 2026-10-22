@@ -180,11 +180,15 @@ older history loads on upward navigation. Failed refreshes retain the cache.
 Incoming events are coalesced to one renderer publish per animation frame.
 Timeline rows are virtualized with stable semantic keys.
 
-The chat sidebar temporarily groups unread and running chats above ordinary
-folders, with a blue dot for Unread and green for Running. Running takes
-precedence while a turn is active. Chats appear only once; their saved folder
-and pinned state are unchanged. Reading a completed chat returns it to its
-ordinary section, and empty status groups disappear. Groups and folders use
+Unread chats keep their ordinary folder or pinned placement by default, with
+blue unread dots. Scheduled results do not automatically move a chat into a top
+Unread section. Settings → General → **Group unread chats at the top** restores
+that optional section; the choice is remembered separately for each server.
+Running chats still temporarily appear in the green Running group. Running
+takes precedence while a turn is active. Chats appear only once; their saved
+folder, pinned state and unread receipts are unchanged. With unread grouping
+enabled, reading a completed chat returns it to its ordinary section, and empty
+status groups disappear. Groups and folders use
 right-aligned collapse arrows. Status collapse state lasts within the current
 workspace, and next/previous-chat shortcuts follow the visible group order.
 Pinned also collapses, remembers its state per server across reopening, and

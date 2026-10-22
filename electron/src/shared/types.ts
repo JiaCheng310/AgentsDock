@@ -2343,6 +2343,8 @@ export interface BootstrapPayload {
   folderOrder: string[]
   collapsedFolders: string[]
   pinnedCollapsed?: boolean
+  /** Local server-scoped sidebar preference; unread badges are independent. */
+  groupUnreadChats?: boolean
   archivedCollapsed: boolean
   inspectorVisible: boolean
   /** Present for profile-aware bootstraps; omitted by the legacy single-server path. */

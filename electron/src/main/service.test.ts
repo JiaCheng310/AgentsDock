@@ -989,6 +989,22 @@ describe('inspector visibility preference', () => {
   })
 })
 
+describe('unread grouping preference', () => {
+  it('defaults off and restores the explicit choice for each server', async () => {
+    const { service, cache } = createProfileService({
+      'http://a.test:7850': [fakeClient(), fakeClient()],
+      'http://b.test:7850': [fakeClient()]
+    })
+    expect((await service.bootstrap()).groupUnreadChats).toBe(false)
+    cache.putPreference('profile:a', 'groupUnreadChats', true)
+    expect((await service.bootstrap()).groupUnreadChats).toBe(true)
+    await service.switchServer('b')
+    expect((await service.bootstrap()).groupUnreadChats).toBe(false)
+    await service.switchServer('a')
+    expect((await service.bootstrap()).groupUnreadChats).toBe(true)
+  })
+})
+
 describe('server-wide Codex goals compatibility', () => {
   it('reports legacy servers as unavailable instead of breaking Settings', async () => {
     const client = {

@@ -68,6 +68,7 @@ export function Sidebar({ hidden = false }: { hidden?: boolean }) {
   const folderOrder = useAppStore(state => state.folderOrder)
   const collapsed = useAppStore(state => state.collapsedFolders)
   const collapsedStatuses = useAppStore(state => state.collapsedStatusGroups)
+  const groupUnreadChats = useAppStore(state => state.groupUnreadChats)
   const pinnedCollapsed = useAppStore(state => state.pinnedCollapsed)
   const archivedCollapsed = useAppStore(state => state.archivedCollapsed)
   const catalog = useAppStore(state => state.runtimeCatalog)
@@ -82,7 +83,7 @@ export function Sidebar({ hidden = false }: { hidden?: boolean }) {
   const sidebarScrollingUntil = useRef(0)
   const sidebarScrollTimer = useRef<number | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: SIDEBAR_LONG_PRESS }))
-  const sections = useMemo(() => buildSections(sessions, folderOrder, '', new Set(), activeSessionIds), [sessions, folderOrder, activeSessionIds, getLocale()])
+  const sections = useMemo(() => buildSections(sessions, folderOrder, '', new Set(), activeSessionIds, groupUnreadChats), [sessions, folderOrder, activeSessionIds, groupUnreadChats, getLocale()])
   const computedFolders = useMemo(() => orderedFolders(
     [...new Set([...folderOrder, ...sessions.filter(session => !session.archived && !session.pinned).map(session => session.folder?.trim() || 'General')])],
     folderOrder
@@ -455,10 +456,10 @@ function MenuItem({ icon: Icon, label, onSelect, danger, disabled, title }: { ic
   return <ContextMenu.Item className={`menu-item ${danger ? 'danger' : ''}`} disabled={disabled} title={title} onSelect={onSelect}><Icon size={14} />{label}</ContextMenu.Item>
 }
 
-export function buildSections(sessions: Session[], folderOrder: string[], query: string, historySessionIds: Set<string> = new Set(), activeSessionIds: ReadonlySet<string> = new Set()): Section[] {
+export function buildSections(sessions: Session[], folderOrder: string[], query: string, historySessionIds: Set<string> = new Set(), activeSessionIds: ReadonlySet<string> = new Set(), groupUnreadChats = false): Section[] {
   const filtered = rankSessionsForSearch(sessions, query, historySessionIds)
   if (query.trim()) return filtered.length ? [{ id: 'search', title: t("ui.Sidebar.buildSections.matches_98abff2"), sessions: filtered, kind: 'search' }] : []
-  const { running, unread, ordinary } = sidebarSessionGroups(filtered, activeSessionIds)
+  const { running, unread, ordinary } = sidebarSessionGroups(filtered, activeSessionIds, groupUnreadChats)
   const pinned = ordinary.filter(session => session.pinned && !session.archived)
   const archived = filtered.filter(session => session.archived)
   const byFolder = new Map<string, Session[]>()

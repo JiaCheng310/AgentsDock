@@ -8,9 +8,23 @@ import { buildSections, resolveSidebarDrop, Sidebar } from './Sidebar'
 
 const chat = (id: string, patch: Partial<Session> = {}): Session => ({ id, title: id, backend: 'codex', folder: 'Work', ...patch })
 const groups = (sessions: Session[], active = new Set<string>(), folders: string[] = []) =>
-  buildSections(sessions, folders, '', new Set(), active).map(section => [section.id, section.sessions.map(session => session.id)])
+  buildSections(sessions, folders, '', new Set(), active, true).map(section => [section.id, section.sessions.map(session => session.id)])
 
 describe('sidebar status grouping', () => {
+  it('keeps unread scheduled results and ordinary replies in their folders by default', () => {
+    const sessions = [
+      chat('read'),
+      chat('cron', { folder: 'Schedules', latest_agent_event_seq: 12, last_read_agent_event_seq: 4, latest_agent_event_type: 'job_finished' }),
+      chat('reply', { latest_agent_event_seq: 9, last_read_agent_event_seq: 2 }),
+      chat('pinned', { pinned: true, manual_unread: true })
+    ]
+    expect(buildSections(sessions, ['Work', 'Schedules'], '').map(section => [section.id, section.sessions.map(session => session.id)])).toEqual([
+      ['pinned', ['pinned']], ['folder:Work', ['read', 'reply']], ['folder:Schedules', ['cron']]
+    ])
+    expect(navigableSessions(sessions, ['Work', 'Schedules'], new Set()).map(session => session.id)).toEqual(['pinned', 'read', 'reply', 'cron'])
+    expect(navigableSessions(sessions, ['Work', 'Schedules'], new Set(['Schedules']), new Set(), new Set(), true).map(session => session.id)).toEqual(['read', 'reply'])
+  })
+
   it('puts unread before running, without duplicating or mutating folders and pinned state', () => {
     const sessions = [chat('idle'), chat('running', { manual_unread: true }), chat('unread', { pinned: true, latest_agent_event_seq: 4, last_read_agent_event_seq: 2 }), chat('archived', { archived: true, manual_unread: true })]
     const original = structuredClone(sessions)
@@ -55,8 +69,8 @@ describe('sidebar status grouping', () => {
 
   it('matches keyboard navigation to visible status and folder groups', () => {
     const sessions = [chat('idle'), chat('running'), chat('unread', { manual_unread: true }), chat('archived', { archived: true })]
-    expect(navigableSessions(sessions, [], new Set(), new Set(['running'])).map(session => session.id)).toEqual(['unread', 'running', 'idle'])
-    expect(navigableSessions(sessions, [], new Set(['Work']), new Set(['running']), new Set(['unread'])).map(session => session.id)).toEqual(['running'])
+    expect(navigableSessions(sessions, [], new Set(), new Set(['running']), new Set(), false, true).map(session => session.id)).toEqual(['unread', 'running', 'idle'])
+    expect(navigableSessions(sessions, [], new Set(['Work']), new Set(['running']), new Set(['unread']), false, true).map(session => session.id)).toEqual(['running'])
   })
 })
 
@@ -68,11 +82,43 @@ describe('sidebar status controls', () => {
     useAppStore.setState({ ...useAppStore.getInitialState(),
       sessions: [chat('Idle chat'), chat('Running chat'), chat('Unread chat', { manual_unread: true }), chat('Real folder chat', { folder: 'Unread' })],
       activeSessionIds: new Set(['Running chat']), folderOrder: ['Work', 'Unread'],
+      groupUnreadChats: true,
       activeProfileId: 'profile-a', profileGeneration: 1,
       prefetchSession: vi.fn().mockResolvedValue(undefined)
     }, true)
   })
   afterEach(() => { cleanup(); useAppStore.setState(useAppStore.getInitialState(), true); vi.restoreAllMocks() })
+
+  it('toggles unread grouping without changing read state, pins, folders or selection', async () => {
+    const cron = chat('Cron result', { folder: 'Schedules', latest_agent_event_seq: 20, last_read_agent_event_seq: 3, latest_agent_event_type: 'job_finished' })
+    const pinned = chat('Unread pinned', { pinned: true, manual_unread: true })
+    const setScoped = vi.fn().mockResolvedValue(undefined)
+    window.agentsDock.preferences.setScoped = setScoped
+    useAppStore.setState(state => ({ groupUnreadChats: false, sessions: [...state.sessions, cron, pinned], selectedSessionId: cron.id }))
+    const original = useAppStore.getState().sessions
+    const { container } = render(<Sidebar />)
+    const cronRow = () => screen.getByText(cron.title).closest('.session-row')!
+    expect(container.querySelector('[data-section-id="status:unread"]')).toBeNull()
+    expect(cronRow()).toHaveClass('unread', 'selected')
+    expect(cronRow().querySelector('.status-dot')).toHaveClass('unread')
+    expect(cronRow().closest('.sidebar-section')).toHaveAttribute('data-section-id', 'folder:Schedules')
+    expect(screen.getByText(pinned.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'pinned')
+    expect(screen.getByText('Running chat').closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:running')
+
+    act(() => useAppStore.getState().setGroupUnreadChats(true))
+    expect(cronRow().closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    expect(setScoped).toHaveBeenLastCalledWith({ profileId: 'profile-a', profileGeneration: 1, serverIdentity: null }, 'groupUnreadChats', true)
+    act(() => useAppStore.getState().setGroupUnreadChats(false))
+    expect(container.querySelector('[data-section-id="status:unread"]')).toBeNull()
+    expect(cronRow().closest('.sidebar-section')).toHaveAttribute('data-section-id', 'folder:Schedules')
+    expect(cronRow()).toHaveClass('unread', 'selected')
+    expect(useAppStore.getState().sessions).toBe(original)
+    expect(setScoped).toHaveBeenLastCalledWith({ profileId: 'profile-a', profileGeneration: 1, serverIdentity: null }, 'groupUnreadChats', false)
+    useAppStore.setState({ switchingProfileId: 'profile-b' })
+    act(() => useAppStore.getState().setGroupUnreadChats(true))
+    expect(useAppStore.getState().groupUnreadChats).toBe(false)
+    expect(setScoped).toHaveBeenCalledTimes(2)
+  })
 
   it('shows status dots and rightmost chevrons; collapse does not write server preferences', () => {
     const { container } = render(<Sidebar />)

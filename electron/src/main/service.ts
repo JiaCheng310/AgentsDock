@@ -6485,6 +6485,7 @@ export class AppService {
       folderOrder: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'folderOrder', [] as string[]), []),
       collapsedFolders: resetPending ? [] : cacheValue(() => this.cache.preference(scope.namespace, 'collapsedFolders', [] as string[]), []),
       pinnedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'pinnedCollapsed', false), false),
+      groupUnreadChats: !resetPending && cacheValue(() => this.cache.preference<boolean>(scope.namespace, 'groupUnreadChats', false) === true, false),
       archivedCollapsed: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'archivedCollapsed', false), false),
       inspectorVisible: resetPending ? false : cacheValue(() => this.cache.preference(scope.namespace, 'inspectorVisible', false), false),
       activeProfileId: scope.profileId,

@@ -1,5 +1,24 @@
 # Public development log
 
+## 2026-10-22 — Keep unread chats in their folders
+
+- Unread chats retain their normal folder or pinned placement by default,
+  including routine scheduled-job results. Unread dots, counts, read receipts
+  and manual Mark Read/Unread remain unchanged. Running chats keep their group.
+- Settings → General adds **Group unread chats at the top**, off by default,
+  to restore the separate Unread section. The setting persists independently
+  for each server and also controls keyboard navigation order.
+- Validation: the default-placement regression failed before the change;
+  743 focused sidebar, settings, navigation/store and main-service tests passed,
+  along with locale checks, TypeScript and production compilation. An isolated
+  native offscreen app reproduced the old placement and verified the new layout,
+  real read/unread operations, both preference values across app restarts,
+  server switching, folder collapse, keyboard search, light/dark and narrow views.
+  It used actual IPC and authenticated server routes with synthetic completed
+  output; the future scheduled job did not run and no live provider was invoked.
+- Availability: source and compiled development app only; no packaged build,
+  installation, release or deployment. No server update is required.
+
 ## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
 
 - Handle bulk Stop events on mobile, clear obsolete promotion flags and retain
