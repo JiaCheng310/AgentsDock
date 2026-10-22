@@ -45,7 +45,7 @@ import { selectServerAddress } from '../lib/server-address-selection'
 import { reconcileHealthActiveSessions } from '../lib/active-sessions'
 import { shouldAutoConnectServer } from '../lib/first-launch'
 import { SNAPSHOT_CACHE_VERSION, shouldReplaceCachedTimeline, snapshotLatestSeq } from '../lib/history'
-import { crossChatQueueRefreshSessionId, isUserQueuedTurn, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier, resolveNewQueuedTurn, updateQueuedTurns } from '../lib/queue'
+import { crossChatQueueRefreshSessionId, isUserQueuedTurn, pausedQueueNeedsRefresh, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier, resolveNewQueuedTurn, updateQueuedTurns } from '../lib/queue'
 import { isAgentActivityEvent } from '../lib/codex-controls'
 import { notificationForEvent, notificationForSessionUpdate, notificationLevelRank, type AgentNotification } from '../lib/notification-levels'
 import { t } from '../i18n'
@@ -3161,7 +3161,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!connectionIsCurrent(scope)) return false
       setSnapshotQueue(scope, sessionId, reconciledTurns, set, get)
 
-      const remainsQueued = reconciledTurns.some(value => value.queued_id === queuedId)
+      const remainingTurn = reconciledTurns.find(value => value.queued_id === queuedId)
+      if (response.ok !== false && !response.deferred && remainingTurn?.paused && remainingTurn.pause_reason !== 'delivery_uncertain') {
+        set(state => ({
+          queuedRunStatus: queuedRunStatusMap(state.queuedRunStatus, sessionId, {
+            queued_id: queuedId,
+            tone: 'info',
+            message: 'Queued messages were kept after the parent turn stopped. Use Run now to continue.',
+          }),
+        }))
+        return false
+      }
+      const remainsQueued = Boolean(remainingTurn)
       if (response.deferred || response.ok === false || remainsQueued) {
         const deferred = response.deferred === true
         set(state => ({
@@ -4428,6 +4439,7 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
     && event.positions?.length
     && !(get().snapshots[sessionId]?.queuedTurns.length))
     || crossChatQueueRefreshSessionId(event) === sessionId
+    || pausedQueueNeedsRefresh(get().snapshots[sessionId]?.queuedTurns ?? [], event)
   ) void refreshQueueAfterSparseSnapshot(scope, sessionId, set, get)
   if (
     NativeAppState.currentState === 'active'

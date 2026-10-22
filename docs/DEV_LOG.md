@@ -1,5 +1,64 @@
 # Public development log
 
+## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
+
+- Handle bulk Stop events on mobile, clear obsolete promotion flags and retain
+  delivery-uncertainty warnings. If a promoted row has already left the mobile
+  shelf, recover it through the existing guarded authoritative queue read.
+  Recovery never resends messages or introduces polling.
+- Preserve a message held by Stop even when its earlier Run now request succeeds;
+  show an informational paused status instead of a misleading send failure.
+  Add reducer and live-store regressions to CI, including stale navigation reads.
+- Make the server cancellation test's startup barrier tolerate busy CI workers;
+  cancellation and slot-ownership assertions remain unchanged.
+- Verification: the new mobile regressions fail before the correction and pass
+  afterward. Mobile type checking, iOS JavaScript export, related store suites,
+  46 interaction contracts and 121 targeted server tests pass. The broader local
+  server shard is not clean in this environment and is not a passing CI result.
+- Native offscreen Electron against the exact test-server source and real Claude
+  exercised Run now immediately followed by Stop: both messages returned paused
+  in order, one explicit retry started exactly once and the other stayed held.
+  Editing, navigation, renderer reconnect and removal used production IPC/HTTP.
+- Native iOS Dev with the patched bundle observed the same real cross-client
+  handoff race and restored both held rows. A native Run now tap completed one
+  real Claude request exactly once while the other stayed paused. Editing,
+  removal, navigation and cold relaunch retained the expected queue state;
+  relaunch did not resend the held message. The queue area scrolls to reveal
+  actions when its content exceeds the available height. Android native
+  acceptance was not exercised. No release or deployment to users is included.
+- Follow-up manual testing in the visible native desktop was accepted by the
+  user against the patched test service. A message already admitted before Stop
+  remains interrupted in history; only an unadmitted promotion returns to the
+  held queue. This distinction prevents automatic duplicate execution.
+- Pre-review recheck: 280 targeted desktop tests, 126 targeted server tests,
+  mobile queue reducer/store regressions and both client type checks pass.
+  Full hosted CI remains a separate merge gate.
+
+## 2026-10-21 — Restore queued messages after Stop interrupts a handoff
+
+- When Stop pauses a message that was about to start, return it to the held
+  queue immediately and clear the obsolete Starting state. Retain its text,
+  attachments and order, and restore Send now, edit and remove controls.
+- Treat paused snapshots from older servers as paused even if they still carry
+  a promotion flag. Preserve a paused message when a successful Send now
+  response is followed by a newer Stop; do not filter it out of the cache.
+- Describe pending admission as waiting for the provider instead of claiming
+  that the message was already handed over. Explicit Stop still prevents
+  automatic delivery; retry uses the existing authenticated queue operation.
+- Verification: five new queue/projection/UI regressions fail before the fix;
+  190 focused server tests and 964 related desktop tests pass. TypeScript,
+  Python compilation, production Electron compilation and entry verification
+  pass. Native offscreen Electron reproduces the stale Starting row before
+  the fix and restores retry afterward, through production IPC, authenticated
+  HTTP, websocket events and server queue admission. Each of two messages
+  starts exactly once on explicit retry; the other stays paused and ordered.
+  Chat navigation, renderer reconnect and full app reopen retain the queue.
+  This initial race was seeded and Claude replies were simulated; the subsequent
+  real-provider and native-client acceptance is recorded in the follow-up above.
+  No live service was modified during that initial simulated check.
+- Availability: source only; the complete correction includes app and server
+  changes. No release, installation, deployment or restart is included.
+
 ## 2026-10-20 — Recover Codex model-switch compaction without replacing history
 
 - Address the remaining compaction path in #89; authentication-aware model

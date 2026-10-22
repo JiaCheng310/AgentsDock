@@ -4183,7 +4183,7 @@ export class AppService {
     this.assertCurrentScope(scope)
     const turns = result.deferred === true
       ? refreshed
-      : refreshed.filter(turn => turn.queued_id !== queuedId || turn.promoted === true)
+      : refreshed.filter(turn => turn.queued_id !== queuedId || turn.promoted === true || turn.paused === true)
     this.cache.putQueuedTurns(scope.namespace, sessionId, turns)
     return result
   }

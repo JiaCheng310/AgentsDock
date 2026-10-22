@@ -3182,6 +3182,13 @@ describe('queued Force Send reconciliation', () => {
 
     await expect(service.runQueuedNow('chat-1', queued.queued_id)).resolves.toBe(successResponse)
     expect(putQueuedTurns).toHaveBeenNthCalledWith(2, scope.namespace, 'chat-1', [later])
+
+    // Stop can supersede the successful promotion before the list response.
+    const stopped = { ...queued, paused: true, promoted: false, pause_reason: 'stopped' }
+    runQueuedNow.mockResolvedValueOnce(successResponse)
+    queue.mockResolvedValueOnce([stopped, later])
+    await expect(service.runQueuedNow('chat-1', queued.queued_id)).resolves.toBe(successResponse)
+    expect(putQueuedTurns).toHaveBeenNthCalledWith(3, scope.namespace, 'chat-1', [stopped, later])
   })
 })
 
