@@ -1,3 +1,4 @@
+import { isQueuedTurnStarting } from '@shared/queue'
 // Localized display strings use semantic catalog keys.
 import { t, getLocale } from '@shared/i18n'
 import { openAIProviderSettings } from '../lib/provider-settings'
@@ -3519,7 +3520,7 @@ const QueueShelf = memo(function QueueShelf({
   const grantedRoutes = useAppStore(state => state.agentRoutesBySession[sessionId]?.routes ?? EMPTY_AGENT_ROUTES)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const pausedCount = turns.filter(turn => turn.paused === true).length
-  const promotedCount = queueOrderTurns.filter(turn => turn.promoted === true).length
+  const promotedCount = queueOrderTurns.filter(isQueuedTurnStarting).length
   const firstFencedTurn = queuedTurnsInPositionOrder(turns)
     .find(turn => queuedTurnCrossChatFence(queueOrderTurns, turn.queued_id, mixedReorder, asyncControls).runNow) ?? null
   const blockingDelivery = firstFencedTurn
@@ -3639,7 +3640,7 @@ const QueueShelf = memo(function QueueShelf({
   useEffect(() => {
     if (!editing) return
     const current = queueOrderTurns.find(turn => turn.queued_id === editing.queued_id)
-    if (!current || current.promoted === true) setEditing(null)
+    if (!current || isQueuedTurnStarting(current)) setEditing(null)
   }, [editing, queueOrderTurns])
   if (!turns.length && !pendingSubmission) return null
   const moveTo = async (activeId: string, targetId: string, placement: 'before' | 'after') => {
@@ -3649,10 +3650,10 @@ const QueueShelf = memo(function QueueShelf({
     try {
       const latestQueue = useAppStore.getState().snapshots[sessionId]?.queuedTurns ?? queueOrderTurns
       const allowMixed = exactQueuedDeliveryReorderAvailable(useAppStore.getState().health)
-      if (latestQueue.some(turn => turn.queued_id === activeId && turn.promoted === true)) {
+      if (latestQueue.some(turn => turn.queued_id === activeId && isQueuedTurnStarting(turn))) {
         throw new Error('This queued message is already starting and can no longer be moved.')
       }
-      if (latestQueue.some(turn => turn.queued_id === targetId && turn.promoted === true)) return
+      if (latestQueue.some(turn => turn.queued_id === targetId && isQueuedTurnStarting(turn))) return
       if (queuedMoveCrossesCrossChatDelivery(latestQueue, activeId, targetId, placement, allowMixed)) {
         throw new Error('Incoming cross-chat deliveries keep their arrival position.')
       }
@@ -3840,7 +3841,7 @@ const QueueShelf = memo(function QueueShelf({
       if (steer) {
         const state = useAppStore.getState()
         const latestQueue = state.snapshots[sessionId]?.queuedTurns ?? queueOrderTurns
-        if (latestQueue.some(turn => turn.promoted === true)) {
+        if (latestQueue.some(isQueuedTurnStarting)) {
           throw new Error('A queued message is already starting. Wait for its provider handoff to finish.')
         }
         const currentSource = state.sessions.find(candidate => candidate.id === sessionId) ?? sourceSession
@@ -4229,7 +4230,7 @@ function QueuedRow({ profileId, profileGeneration, steeringScope, turn, sourceSe
   const deliveryBarrier = isQueuedDeliveryBarrier(turn)
   const scheduledJob = isScheduledJobQueuedTurn(turn)
   const immutable = isImmutableQueuedTurn(turn)
-  const promoted = turn.promoted === true
+  const promoted = isQueuedTurnStarting(turn)
   const remoteAgentRoute = queuedTurnHasRemoteAgentRoute(turn)
   const [skippingDelivery, setSkippingDelivery] = useState(false)
   const bodyIdentity = `${profileId}\0${profileGeneration}\0${sessionId}\0${turn.queued_id}\0${turn.cross_chat_envelope_id}\0${turn.message_revision ?? ''}`
@@ -4284,7 +4285,7 @@ function QueuedRow({ profileId, profileGeneration, steeringScope, turn, sourceSe
     if (!canControlAgentMessage || promoted) return
     const body = await loadMessageBody()
     const current = useAppStore.getState().snapshots[sessionId]?.queuedTurns.find(row => row.queued_id === turn.queued_id)
-    if (body != null && current && !current.promoted && current.message_revision === turn.message_revision
+    if (body != null && current && !isQueuedTurnStarting(current) && current.message_revision === turn.message_revision
       && bodyMounted.current && profileIsActive(profileId, profileGeneration)) onEdit(body)
   }
   const viewMessageBody = async () => {
@@ -4357,7 +4358,7 @@ function QueuedRow({ profileId, profileGeneration, steeringScope, turn, sourceSe
       const latestTurn = latestQueue?.find(candidate => candidate.queued_id === turn.queued_id) ?? turn
       if (queuedTurnHasRemoteAgentRoute(latestTurn)) throw new Error(remoteAgentRouteUnavailable())
       const latestFence = latestQueue ? queuedTurnCrossChatFence(latestQueue, turn.queued_id, false, asyncQueuedMessageControlsAvailable(useAppStore.getState().health)) : crossChatFence
-      if (latestQueue?.some(candidate => candidate.promoted === true)) {
+      if (latestQueue?.some(isQueuedTurnStarting)) {
         throw new Error('A queued message is already starting. Wait for its provider handoff to finish.')
       }
       if (latestFence.runNow) {
@@ -4447,7 +4448,7 @@ function QueuedRow({ profileId, profileGeneration, steeringScope, turn, sourceSe
         onClick={() => void viewMessageBody()}>{bodyLoading ? t('composer.agentQueue.loading') : bodyExpanded ? t('composer.agentQueue.showLess') : t('composer.agentQueue.viewMessage')}</button>}
       {bodyError && <small role="alert">{bodyError}</small>}
       {promoted
-        ? <small>{securePeerDelivery ? 'Starting… · handed to the provider' : t("ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965")}</small>
+        ? <small>{securePeerDelivery ? 'Starting… · waiting for the provider' : t("ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965")}</small>
         : deliveryBarrier && !agentMessage
         ? <small>{securePeerDelivery ? `Encrypted peer delivery · position ${turn.position ?? 'pending'} · starts automatically` : t('ui.composer.deliveryPosition', { position: turn.position ?? t("ui.Composer.QueuedRow.pending_62a2fed") })}</small>
         : pausedLabel && <small>{pausedLabel}</small>}

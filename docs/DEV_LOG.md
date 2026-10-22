@@ -1,5 +1,29 @@
 # Public development log
 
+## 2026-10-21 — Restore queued messages after Stop interrupts a handoff
+
+- When Stop pauses a message that was about to start, return it to the held
+  queue immediately and clear the obsolete Starting state. Retain its text,
+  attachments and order, and restore Send now, edit and remove controls.
+- Treat paused snapshots from older servers as paused even if they still carry
+  a promotion flag. Preserve a paused message when a successful Send now
+  response is followed by a newer Stop; do not filter it out of the cache.
+- Describe pending admission as waiting for the provider instead of claiming
+  that the message was already handed over. Explicit Stop still prevents
+  automatic delivery; retry uses the existing authenticated queue operation.
+- Verification: five new queue/projection/UI regressions fail before the fix;
+  190 focused server tests and 964 related desktop tests pass. TypeScript,
+  Python compilation, production Electron compilation and entry verification
+  pass. Native offscreen Electron reproduces the stale Starting row before
+  the fix and restores retry afterward, through production IPC, authenticated
+  HTTP, websocket events and server queue admission. Each of two messages
+  starts exactly once on explicit retry; the other stays paused and ordered.
+  Chat navigation, renderer reconnect and full app reopen retain the queue.
+  The race is seeded and Claude replies are simulated; live-provider acceptance
+  remains untested. No live service was modified.
+- Availability: source only; the complete correction includes app and server
+  changes. No release, installation, deployment or restart is included.
+
 ## 2026-10-20 — Recover Codex model-switch compaction without replacing history
 
 - Address the remaining compaction path in #89; authentication-aware model
