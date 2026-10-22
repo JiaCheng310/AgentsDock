@@ -26,6 +26,13 @@
   relaunch did not resend the held message. The queue area scrolls to reveal
   actions when its content exceeds the available height. Android native
   acceptance was not exercised. No release or deployment to users is included.
+- Follow-up manual testing in the visible native desktop was accepted by the
+  user against the patched test service. A message already admitted before Stop
+  remains interrupted in history; only an unadmitted promotion returns to the
+  held queue. This distinction prevents automatic duplicate execution.
+- Pre-review recheck: 280 targeted desktop tests, 126 targeted server tests,
+  mobile queue reducer/store regressions and both client type checks pass.
+  Full hosted CI remains a separate merge gate.
 
 ## 2026-10-21 — Restore queued messages after Stop interrupts a handoff
 
@@ -46,8 +53,9 @@
   HTTP, websocket events and server queue admission. Each of two messages
   starts exactly once on explicit retry; the other stays paused and ordered.
   Chat navigation, renderer reconnect and full app reopen retain the queue.
-  The race is seeded and Claude replies are simulated; live-provider acceptance
-  remains untested. No live service was modified.
+  This initial race was seeded and Claude replies were simulated; the subsequent
+  real-provider and native-client acceptance is recorded in the follow-up above.
+  No live service was modified during that initial simulated check.
 - Availability: source only; the complete correction includes app and server
   changes. No release, installation, deployment or restart is included.
 
