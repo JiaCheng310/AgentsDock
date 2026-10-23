@@ -57,10 +57,9 @@ export function ChatHeader({
     () => sessions.filter(candidate => (
       !candidate.archived
       && candidate.id !== session?.id
-      && candidate.id !== chatPanes.primary
-      && candidate.id !== chatPanes.secondary
+      && !Object.values(chatPanes).includes(candidate.id)
     )).slice(0, 30),
-    [chatPanes.primary, chatPanes.secondary, session?.id, sessions]
+    [chatPanes, session?.id, sessions]
   )
   const folders = useMemo(() => {
     const order = new Map(folderOrder.map((folder, index) => [folder, index]))

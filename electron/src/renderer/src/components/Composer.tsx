@@ -539,7 +539,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   const grantsLoading = useAppStore(state => selectedId ? state.agentRouteLoadingSessionIds.has(selectedId) : false)
   const grantsError = useAppStore(state => selectedId ? state.agentRouteErrorsBySession[selectedId] ?? null : null)
   const revokingAgentRouteIds = useAppStore(state => state.revokingAgentRouteIds)
-  const splitOpen = useAppStore(state => Boolean(state.chatPanes.primary && state.chatPanes.secondary))
+  const splitOpen = useAppStore(state => Object.values(state.chatPanes).filter(Boolean).length > 1)
   const codexRuntime = useCodexRuntime()
   const activeCodexGoal = session?.backend === 'codex'
     && (codexRuntime.runtime ? codexRuntime.runtime.goal : session.codex_goal)?.status === 'active'
@@ -1668,12 +1668,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   }
   const focusCommandSession = () => {
     const state = useAppStore.getState()
-    const pane = state.chatPanes.primary === session?.id
-      ? 'primary'
-      : state.chatPanes.secondary === session?.id
-        ? 'secondary'
-        : null
-    if (pane) state.focusChatPane(pane)
+    const pane = Object.entries(state.chatPanes).find(([, id]) => id === session?.id)?.[0]
+    if (pane) state.focusChatPane(pane as typeof state.focusedChatPane)
   }
   const replaceCommand = (replacement = '', restoreCaret = true) => {
     if (!commandTrigger) return
@@ -2432,7 +2428,7 @@ function composerSessionIsCurrent(
     && activeIdentity(state) === serverIdentity
     && !state.switchingProfileId
     && draftContext.current.sessionId === sessionId
-    && (state.chatPanes.primary === sessionId || state.chatPanes.secondary === sessionId || state.selectedSessionId === sessionId)
+    && (Object.values(state.chatPanes).includes(sessionId) || state.selectedSessionId === sessionId)
     && state.sessions.some(session => session.id === sessionId && !session.archived)
 }
 

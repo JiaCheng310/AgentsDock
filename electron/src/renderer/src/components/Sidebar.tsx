@@ -1,6 +1,7 @@
 // Localized display strings use semantic catalog keys.
 import { t, getLocale } from '@shared/i18n'
 import { useLocale } from '../lib/i18n'
+import { CHAT_PANE_IDS, type ChatPane as ChatPaneId, type ChatPanes } from '../lib/chat-panes'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import {
@@ -289,11 +290,11 @@ export function Sidebar({ hidden = false }: { hidden?: boolean }) {
 }
 
 function SidebarSection({ section, selectedId, chatPanes, collapsed, drop, runtime, suppressClick, folders, isSidebarScrolling }: {
-  section: Section; selectedId: string | null; chatPanes: { primary: string | null; secondary: string | null }; collapsed: boolean; drop: DropIndicator | null; runtime: (session: Session) => string; suppressClick: (id: string) => boolean
+  section: Section; selectedId: string | null; chatPanes: ChatPanes; collapsed: boolean; drop: DropIndicator | null; runtime: (session: Session) => string; suppressClick: (id: string) => boolean
   folders: string[]; isSidebarScrolling: () => boolean
 }) {
   useLocale()
-  const splitOpen = Boolean(chatPanes.primary && chatPanes.secondary && chatPanes.primary !== chatPanes.secondary)
+  const splitOpen = Object.values(chatPanes).filter(Boolean).length > 1
   const droppable = useDroppable({
     id: section.id,
     disabled: section.kind !== 'folder',
@@ -312,7 +313,7 @@ function SidebarSection({ section, selectedId, chatPanes, collapsed, drop, runti
     <section ref={droppable.setNodeRef} data-section-id={section.id} className={`sidebar-section ${boundaryIndicator}`}>
       <FolderHeader section={section} collapsed={collapsed} drop={drop} onToggle={toggle} suppressClick={suppressClick} />
       {!collapsed && section.sessions.map(session => (
-        <SessionRow key={session.id} session={session} selected={session.id === selectedId} visiblePane={splitOpen ? chatPanes.primary === session.id ? 'primary' : chatPanes.secondary === session.id ? 'secondary' : null : null} sectionId={section.id} dropIndicator={drop?.id === `session:${session.id}` ? `drop-${drop.placement}` : ''} runtime={runtime(session)} suppressClick={suppressClick} folders={folders} isSidebarScrolling={isSidebarScrolling} />
+        <SessionRow key={session.id} session={session} selected={session.id === selectedId} visiblePane={splitOpen ? CHAT_PANE_IDS.find(pane => chatPanes[pane] === session.id) ?? null : null} sectionId={section.id} dropIndicator={drop?.id === `session:${session.id}` ? `drop-${drop.placement}` : ''} runtime={runtime(session)} suppressClick={suppressClick} folders={folders} isSidebarScrolling={isSidebarScrolling} />
       ))}
     </section>
   )
@@ -350,7 +351,7 @@ function FolderHeader({ section, collapsed, drop, onToggle, suppressClick }: { s
 interface SessionRowProps {
   session: Session
   selected: boolean
-  visiblePane: 'primary' | 'secondary' | null
+  visiblePane: ChatPaneId | null
   sectionId: string
   dropIndicator: string
   runtime: string
@@ -410,7 +411,7 @@ const SessionRow = memo(function SessionRow({ session, selected, visiblePane, se
           <span className="session-copy"><strong>{session.title}</strong><small title={emergency?.message || (needsUserAction ? t("ui.Sidebar.SessionRow.this_agent_is_paused_until_you_respond_82dc6e8") : undefined)}>{emergency ? t("ui.Sidebar.SessionRow.emergency_89e4490", { "message": String(emergency.message) }) : needsUserAction ? t("ui.Sidebar.SessionRow.action_needed_c2d066a", { "chat": String(backendLabel(session.backend)) }) : `${backendLabel(session.backend)} · ${runtime}${running ? ' · running' : unread ? ' · new' : ''}`}</small></span>
           {session.archived && <span className="session-archive-badge">{t('chat.archived')}</span>}
           {emergency && <span key={emergency.id} className="sr-only" role="alert">{t('ui.sidebar.emergency', { title: session.title, message: emergency.message })}</span>}
-          {visiblePane && <span className="sr-only">{t(visiblePane === 'primary' ? 'ui.sidebar.firstPane' : 'ui.sidebar.secondPane')}</span>}
+          {visiblePane && <span className="sr-only">{visiblePane === 'primary' ? t('ui.sidebar.firstPane') : visiblePane === 'secondary' ? t('ui.sidebar.secondPane') : t('chatWorkspace.paneNumber', { number: CHAT_PANE_IDS.indexOf(visiblePane) + 1 })}</span>}
           {(emergency || needsUserAction || running || unread) && <span className={`status-dot ${emergency ? 'emergency' : needsUserAction ? 'attention' : running ? 'running' : 'unread'}`} aria-hidden="true" />}
         </div>
       </ContextMenu.Trigger>

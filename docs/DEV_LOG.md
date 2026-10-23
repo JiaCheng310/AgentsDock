@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-23 — Tabbed chat workspaces and pane-local file tabs
+
+- Add named workspace tabs with one, two, three or four chat panes. Three panes
+  use a tall left pane and stacked right panes; four use a resizable grid.
+  Each pane owns its chat and file tabs, so opening a file leaves other chats
+  visible and preserves the conversation in its pinned tab.
+- Remember workspace layouts, focused panes and divider sizes per server.
+  Retain chat drafts, scroll positions and file edits while switching workspaces,
+  servers and layouts; reducing the pane count keeps hidden chat assignments.
+  Keyboard pane navigation follows the visible grid and file commands target
+  the focused pane.
+- Focused renderer, editor and store regressions, TypeScript and production
+  compilation pass. Native offscreen desktop acceptance exercised all four
+  layouts, mouse and keyboard dividers, pane-local file reads and saves, dirty
+  edits, drafts, exact scroll restoration, named workspace switching, server
+  isolation and app/server restart persistence through real IPC and authenticated
+  HTTP in disposable state. Provider events were synthetic. A narrow-header
+  visual correction and final signed-package checks follow below.
+- Scope: desktop only, using existing server contracts. No server update is
+  required for the tabbed grid. This local trial does not publish a release or
+  replace an installed app.
+
 ## 2026-10-23 — Local desktop package with sidebar controls
 
 - Built macOS arm64 from `29951a90`, combining the sidebar settings with the

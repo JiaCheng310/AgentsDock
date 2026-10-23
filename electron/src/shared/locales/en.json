@@ -3279,5 +3279,19 @@
   "claudeControls.nativeStatus": "Live state from Claude",
   "claudeControls.loaded": "Loaded",
   "claudeControls.notLoaded": "Not loaded",
-  "claudeControls.disconnected": "Connect to the server to use Claude controls."
+  "claudeControls.disconnected": "Connect to the server to use Claude controls.",
+  "chatWorkspace.untitled": "Workspace",
+  "chatWorkspace.resizeColumns": "Resize columns",
+  "chatWorkspace.resizeRows": "Resize rows",
+  "chatWorkspace.showSidebar": "Show sidebar",
+  "chatWorkspace.tabs": "Workspaces",
+  "chatWorkspace.name": "Workspace name",
+  "chatWorkspace.close": "Close {name}",
+  "chatWorkspace.new": "New workspace",
+  "chatWorkspace.layout": "Pane layout",
+  "chatWorkspace.paneCount": "{count} panes",
+  "chatWorkspace.chooseChat": "Choose a chat for this pane",
+  "chatWorkspace.search": "Find a chat…",
+  "chatWorkspace.noChats": "No matching chats. Create one from the sidebar.",
+  "chatWorkspace.paneNumber": "Pane {number}"
 }

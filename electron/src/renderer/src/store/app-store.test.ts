@@ -3703,7 +3703,7 @@ describe('chat selection', () => {
     expect(analytics.trackEvent.mock.calls.filter(([name]) => name === 'split_view_opened')).toHaveLength(1)
 
     await useAppStore.getState().openSessionInSplit('chat-c')
-    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'chat-a', secondary: 'chat-c' })
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'chat-a', secondary: 'chat-b', tertiary: 'chat-c' })
     expect(analytics.trackEvent.mock.calls.filter(([name]) => name === 'split_view_opened')).toHaveLength(1)
   })
 

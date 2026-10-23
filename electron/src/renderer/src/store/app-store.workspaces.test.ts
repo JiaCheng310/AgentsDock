@@ -1,0 +1,196 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentsDockAPI } from '@shared/ipc'
+import type { BootstrapPayload, PublicServerProfile, Session, SessionSnapshot, WorkspaceProfileScope } from '@shared/types'
+import { useAppStore } from './app-store'
+
+vi.mock('../lib/analytics', () => ({ trackEvent: vi.fn() }))
+
+const sessions: Session[] = ['a', 'b', 'c', 'd', 'e'].map(id => ({ id, title: `Chat ${id}`, backend: 'codex' }))
+const profiles: PublicServerProfile[] = ['one', 'two'].map(id => ({
+  id, name: id, serverUrl: `http://${id}.test`, serverIdentity: `server-${id}`,
+  hasAccessToken: false, serverSetupComplete: true, connectionState: 'offline', cachedUnreadCount: 0
+}))
+const snapshot = (id: string): SessionSnapshot => ({
+  session: sessions.find(session => session.id === id)!,
+  events: [{ id: `${id}-1`, session_id: id, seq: 1, type: 'assistant_text', text: id, ts: '2026-10-23T00:00:00Z' }],
+  queuedTurns: [], files: [], hasMoreEvents: false, filesTotal: 0, cachedAt: 0
+})
+const payload = (profileId = 'one', generation = 1): BootstrapPayload => ({
+  settings: { serverUrl: profiles.find(profile => profile.id === profileId)!.serverUrl, hasAccessToken: false, serverSetupComplete: true },
+  health: null, sessions, jobs: [], runtimeCatalog: null, selectedSessionId: 'a',
+  folderOrder: [], collapsedFolders: [], archivedCollapsed: false, inspectorVisible: false,
+  activeProfileId: profileId, profiles, profileGeneration: generation
+})
+const key = (scope: WorkspaceProfileScope, name: string): string => `${scope.serverIdentity ?? scope.profileId}:${name}`
+
+let persisted: Map<string, unknown>
+let api: {
+  bootstrap: ReturnType<typeof vi.fn>
+  timeline: { cached: ReturnType<typeof vi.fn>; subscribe: ReturnType<typeof vi.fn>; unsubscribe: ReturnType<typeof vi.fn>; open: ReturnType<typeof vi.fn> }
+  preferences: { getScoped: ReturnType<typeof vi.fn>; setScoped: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> }
+  servers: { switch: ReturnType<typeof vi.fn> }
+  native: { log: ReturnType<typeof vi.fn>; setBadge: ReturnType<typeof vi.fn> }
+  events: { on: ReturnType<typeof vi.fn> }
+}
+
+async function initialize(): Promise<void> {
+  useAppStore.setState(useAppStore.getInitialState(), true)
+  await useAppStore.getState().initialize()
+}
+
+beforeEach(async () => {
+  persisted = new Map()
+  api = {
+    bootstrap: vi.fn(async () => payload()),
+    timeline: {
+      cached: vi.fn(async (id: string) => snapshot(id)), subscribe: vi.fn().mockResolvedValue(undefined),
+      unsubscribe: vi.fn().mockResolvedValue(undefined), open: vi.fn(async (id: string) => snapshot(id))
+    },
+    preferences: {
+      getScoped: vi.fn(async (scope: WorkspaceProfileScope, name: string, fallback: unknown) => persisted.get(key(scope, name)) ?? fallback),
+      setScoped: vi.fn(async (scope: WorkspaceProfileScope, name: string, value: unknown) => { persisted.set(key(scope, name), structuredClone(value)) }),
+      get: vi.fn(async (_name: string, fallback: unknown) => fallback), set: vi.fn().mockResolvedValue(undefined)
+    },
+    servers: { switch: vi.fn(async (id: string) => payload(id, useAppStore.getState().profileGeneration + 1)) },
+    native: { log: vi.fn().mockResolvedValue(undefined), setBadge: vi.fn().mockResolvedValue(undefined) },
+    events: { on: vi.fn().mockReturnValue(() => {}) }
+  }
+  Object.defineProperty(window, 'agentsDock', { configurable: true, value: api as unknown as AgentsDockAPI })
+  await initialize()
+  api.timeline.subscribe.mockClear()
+  api.timeline.unsubscribe.mockClear()
+})
+
+describe('tabbed chat workspaces', () => {
+  it('fills all four slots, keeps existing streams, then replaces only the focused slot', async () => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    expect(useAppStore.getState()).toMatchObject({
+      chatPanes: { primary: 'a', secondary: 'b', tertiary: 'c', quaternary: 'd' }, chatPaneCount: 4, focusedChatPane: 'quaternary'
+    })
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+    expect(api.timeline.subscribe.mock.calls.map(([id]) => id)).toEqual(['b', 'c', 'd'])
+    await useAppStore.getState().selectSession('c')
+    await useAppStore.getState().openSessionInSplit('e')
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: 'b', tertiary: 'e', quaternary: 'd' })
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('c')
+  })
+
+  it('retains hidden chats and drafts across shrinking, empty focus, and expansion', async () => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    useAppStore.getState().setDraftForSession('d', 'unfinished')
+    useAppStore.getState().setChatPaneCount(1)
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: null })
+    expect(useAppStore.getState().selectedSessionId).toBe('a')
+    expect(useAppStore.getState().chatWorkspaces[0].panes.quaternary).toBe('d')
+    useAppStore.getState().setChatPaneCount(4)
+    await vi.waitFor(() => expect(api.timeline.subscribe).toHaveBeenLastCalledWith('d', 1))
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: 'b', tertiary: 'c', quaternary: 'd' })
+    expect(useAppStore.getState().drafts.d).toBe('unfinished')
+    await useAppStore.getState().createChatWorkspace()
+    useAppStore.getState().setChatPaneCount(4)
+    useAppStore.getState().focusChatPane('tertiary')
+    expect(useAppStore.getState()).toMatchObject({ focusedChatPane: 'tertiary', selectedSessionId: null, chatPaneCount: 4 })
+    await useAppStore.getState().selectSession('e')
+    expect(useAppStore.getState().chatPanes.tertiary).toBe('e')
+  })
+
+  it('preserves workspace layouts, ratios, names and shared subscriptions when changing tabs', async () => {
+    await useAppStore.getState().openSessionInSplit('b')
+    const first = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatWorkspaceRatios({ columnRatio: 0.63, rowRatio: 0.42 })
+    useAppStore.getState().renameChatWorkspace(first, 'Research')
+    useAppStore.getState().setDraftForSession('a', 'draft A')
+    const capture = vi.fn()
+    window.addEventListener('agentsdock:capture-timeline', capture)
+    await useAppStore.getState().createChatWorkspace('b')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('a')
+    expect(capture).toHaveBeenCalledTimes(2)
+    window.removeEventListener('agentsdock:capture-timeline', capture)
+    await useAppStore.getState().openSessionInSplit('c')
+    api.timeline.unsubscribe.mockClear()
+    api.timeline.subscribe.mockClear()
+    await useAppStore.getState().selectChatWorkspace(first)
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: 'b' })
+    expect(useAppStore.getState().selectedSessionId).toBe('b')
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('c')
+    expect(api.timeline.subscribe).toHaveBeenCalledExactlyOnceWith('a', 1)
+    expect(useAppStore.getState().drafts.a).toBe('draft A')
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)).toMatchObject({ title: 'Research', columnRatio: 0.63, rowRatio: 0.42 })
+    await useAppStore.getState().closeChatWorkspace(second)
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe(first)
+    expect(useAppStore.getState().chatWorkspaces).toHaveLength(1)
+    await useAppStore.getState().closeChatWorkspace(first)
+    expect(useAppStore.getState().chatWorkspaces).toHaveLength(1)
+    expect(useAppStore.getState().selectedSessionId).toBeNull()
+    expect(useAppStore.getState().drafts.a).toBe('draft A')
+  })
+
+  it('restores tabs, hidden assignments and focus on restart, hydrating only active visible chats', async () => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    const first = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatPaneCount(2)
+    useAppStore.getState().focusChatPane('secondary')
+    useAppStore.getState().setChatWorkspaceRatios({ columnRatio: 0.72 })
+    await useAppStore.getState().createChatWorkspace('e')
+    await useAppStore.getState().selectChatWorkspace(first)
+    api.timeline.cached.mockClear()
+    api.timeline.subscribe.mockClear()
+    await initialize()
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: first, chatPaneCount: 2, focusedChatPane: 'secondary' })
+    expect(useAppStore.getState().chatWorkspaces).toHaveLength(2)
+    expect(useAppStore.getState().chatWorkspaces[0]).toMatchObject({ panes: { tertiary: 'c', quaternary: 'd' }, columnRatio: 0.72 })
+    expect(api.timeline.cached.mock.calls.map(([id]) => id)).toEqual(['a', 'b'])
+    expect(api.timeline.subscribe.mock.calls.map(([id]) => id)).toEqual(['a', 'b'])
+    useAppStore.getState().setChatPaneCount(4)
+    await vi.waitFor(() => expect(useAppStore.getState().snapshots.d).toBeDefined())
+    expect(useAppStore.getState().chatPanes.quaternary).toBe('d')
+  })
+
+  it('isolates saved workspace tabs by server and restores them after switching back', async () => {
+    await useAppStore.getState().createChatWorkspace('c')
+    const firstServerTab = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatPaneCount(3)
+    useAppStore.getState().focusChatPane('tertiary')
+    await useAppStore.getState().switchServer('two')
+    expect(useAppStore.getState().chatWorkspaces).toHaveLength(1)
+    expect(useAppStore.getState().chatPaneCount).toBe(1)
+    await useAppStore.getState().createChatWorkspace('e')
+    await useAppStore.getState().switchServer('one')
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: firstServerTab, chatPaneCount: 3, focusedChatPane: 'tertiary', selectedSessionId: null })
+    expect(useAppStore.getState().chatPanes.primary).toBe('c')
+    expect(persisted.get('server-one:chatWorkspaces')).not.toEqual(persisted.get('server-two:chatWorkspaces'))
+  })
+
+  it('discards a delayed hidden-chat load after switching workspaces', async () => {
+    let resolve!: (value: SessionSnapshot) => void
+    api.timeline.cached.mockImplementation((id: string) => id === 'b' ? new Promise<SessionSnapshot>(done => { resolve = done }) : Promise.resolve(snapshot(id)))
+    const opening = useAppStore.getState().openSessionInSplit('b')
+    await useAppStore.getState().createChatWorkspace('c')
+    const active = useAppStore.getState().activeChatWorkspaceId
+    resolve(snapshot('b'))
+    await opening
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: active, selectedSessionId: 'c', chatPanes: { primary: 'c', secondary: null } })
+    expect(api.timeline.subscribe).not.toHaveBeenCalledWith('b', 1)
+    expect(useAppStore.getState().snapshots.b).toBeUndefined()
+  })
+
+  it('clears deleted chats before reopening an inactive workspace, including hidden slots', async () => {
+    Object.assign(api, { sessions: { remove: vi.fn().mockResolvedValue(undefined) } })
+    const first = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace('c')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().openSessionInSplit('d')
+    useAppStore.getState().setChatPaneCount(1)
+    await useAppStore.getState().selectChatWorkspace(first)
+    await useAppStore.getState().deleteSession('c')
+    await useAppStore.getState().deleteSession('d')
+    api.timeline.cached.mockClear()
+    api.timeline.subscribe.mockClear()
+    await useAppStore.getState().selectChatWorkspace(second)
+    useAppStore.getState().setChatPaneCount(2)
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: null, secondary: null })
+    expect(api.timeline.cached).not.toHaveBeenCalled()
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+  })
+})
