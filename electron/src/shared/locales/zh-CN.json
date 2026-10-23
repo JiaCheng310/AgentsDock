@@ -3290,8 +3290,8 @@
   "chatWorkspace.new": "新建工作区",
   "chatWorkspace.layout": "窗格布局",
   "chatWorkspace.paneCount": "{count} 个窗格",
-  "chatWorkspace.chooseChat": "选择此窗格的聊天",
-  "chatWorkspace.search": "搜索聊天…",
-  "chatWorkspace.noChats": "没有匹配的聊天。可从侧边栏新建聊天。",
+  "chatWorkspace.chooseChat": "选择此窗格的会话",
+  "chatWorkspace.search": "搜索会话…",
+  "chatWorkspace.noChats": "没有匹配的会话。可从侧边栏新建会话。",
   "chatWorkspace.paneNumber": "窗格 {number}"
 }

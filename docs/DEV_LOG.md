@@ -17,7 +17,9 @@
   edits, drafts, exact scroll restoration, named workspace switching, server
   isolation and app/server restart persistence through real IPC and authenticated
   HTTP in disposable state. Provider events were synthetic. A narrow-header
-  visual correction and final signed-package checks follow below.
+  visual correction and final signed-package checks follow below. The full-suite
+  check also caught a missing pane-owned drag cancellation handler; Escape,
+  focus loss and navigation now clear the drag highlight immediately.
 - Scope: desktop only, using existing server contracts. No server update is
   required for the tabbed grid. This local trial does not publish a release or
   replace an installed app.

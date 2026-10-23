@@ -85,7 +85,33 @@ export const ChatPane = memo(function ChatPane({
     dragTimer.current = window.setTimeout(resetDrag, 1_500)
   }, [clearDragTimer, resetDrag])
 
-  useEffect(() => resetDrag, [resetDrag])
+  useEffect(() => {
+    resetDrag()
+  }, [activeProfileId, profileGeneration, serverIdentity, session.id, switchingProfileId, resetDrag])
+
+  useEffect(() => {
+    const resetOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') resetDrag()
+    }
+    const resetWhenHidden = () => {
+      if (document.visibilityState !== 'visible') resetDrag()
+    }
+    window.addEventListener('dragend', resetDrag, true)
+    window.addEventListener('drop', resetDrag, true)
+    window.addEventListener('blur', resetDrag)
+    window.addEventListener('pointerdown', resetDrag, true)
+    window.addEventListener('keydown', resetOnEscape, true)
+    document.addEventListener('visibilitychange', resetWhenHidden)
+    return () => {
+      window.removeEventListener('dragend', resetDrag, true)
+      window.removeEventListener('drop', resetDrag, true)
+      window.removeEventListener('blur', resetDrag)
+      window.removeEventListener('pointerdown', resetDrag, true)
+      window.removeEventListener('keydown', resetOnEscape, true)
+      document.removeEventListener('visibilitychange', resetWhenHidden)
+      clearDragTimer()
+    }
+  }, [clearDragTimer, resetDrag])
 
   const hasFiles = (event: ReactDragEvent) => Array.from(event.dataTransfer.types).includes('Files')
   const canDrop = !session.archived && !switchingProfileId

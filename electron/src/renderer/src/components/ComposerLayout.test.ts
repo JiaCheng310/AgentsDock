@@ -43,7 +43,8 @@ describe('composer queue layout', () => {
   })
 
   it('reserves an invariant bottom control rail and bounds expandable content in short or stacked panes', () => {
-    expect(app).toMatch(/<div className="chat-workspace-history">\s*<Timeline[^>]*\/>\s*<\/div>\s*<div className="chat-workspace-shelves">/)
+    expect(app).toContain('<ChatWorkspaceGrid')
+    expect(readFileSync(resolve(process.cwd(), 'src/renderer/src/components/ChatWorkspaceGrid.tsx'), 'utf8')).toContain('<ChatPane')
     expect(pane).toMatch(/<div className="chat-workspace-history">\s*<Timeline[^>]*\/>\s*<\/div>\s*<div className="chat-workspace-shelves">/)
     expect(styles).toMatch(/\.chat-workspace \{[^}]*grid-template-rows: minmax\(0, 1fr\) auto auto auto;[^}]*overflow: hidden;/s)
     expect(styles).toMatch(/\.chat-workspace-shelves \{[^}]*max-height: min\(44vh, 460px\);[^}]*overflow-y: auto;/s)
