@@ -1094,6 +1094,9 @@ export class AgentServerClient {
         || /^fetch failed:\s*(?:FetchRequestCanceledException:\s*)?Fetch request has been cancel(?:l)?ed\b/i.test(error.message))) {
         throw new AgentServerRequestInterruptedError()
       }
+      if (error instanceof Error && /^fetch failed:\s*The request timed out\.?$/i.test(error.message)) {
+        throw new AgentServerRequestTimeoutError()
+      }
       throw error
     } finally {
       clearTimeout(timer)

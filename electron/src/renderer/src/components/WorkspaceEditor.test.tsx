@@ -369,7 +369,7 @@ describe('WorkspaceEditor', () => {
     expect(window.agentsDock.workspace.write).not.toHaveBeenCalled()
   })
 
-  it('announces readiness only after all workspace-open listeners are mounted', () => {
+  it('announces readiness only after all workspace-open listeners are mounted and saved tabs are restored', async () => {
     const addEventListener = vi.spyOn(window, 'addEventListener')
     const onReady = vi.fn(() => {
       const registered = addEventListener.mock.calls.map(([type]) => type)
@@ -382,7 +382,26 @@ describe('WorkspaceEditor', () => {
 
     renderEditor('server-a:chat-a', 5, undefined, onReady)
 
-    expect(onReady).toHaveBeenCalledOnce()
+    await waitFor(() => expect(onReady).toHaveBeenCalledOnce())
+  })
+
+  it('finishes readiness when the outgoing editor populates memory during replacement', async () => {
+    const props = {
+      workspaceKey: 'replace-workspace', session, available: true,
+      profileScope: { profileId: 'profile-a', profileGeneration: 1, serverIdentity: 'server-a' },
+      chatContent: <p>Chat timeline</p>
+    }
+    const firstReady = vi.fn()
+    const secondReady = vi.fn()
+    const view = render(<WorkspaceEditor key="first" {...props} onReady={firstReady} />)
+    await waitFor(() => expect(firstReady).toHaveBeenCalledOnce())
+    const restore = deferred<null>()
+    vi.mocked(window.agentsDock.preferences.getScoped).mockReturnValueOnce(restore.promise)
+
+    view.rerender(<WorkspaceEditor key="second" {...props} onReady={secondReady} />)
+    await act(async () => restore.resolve(null))
+
+    await waitFor(() => expect(secondReady).toHaveBeenCalledOnce())
   })
 
   it('keeps Cmd+P available for chat switching and uses Cmd+O for focused file quick open', async () => {

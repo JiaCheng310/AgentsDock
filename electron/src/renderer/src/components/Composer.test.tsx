@@ -4305,7 +4305,7 @@ describe('Composer', () => {
 
     const starting = screen.getByRole('status', { name: 'Hand this off, starting provider handoff' })
     expect(within(starting).getByText('Starting…')).toBeVisible()
-    expect(within(starting).getByText(/handed to the provider/)).toBeVisible()
+    expect(within(starting).getByText(/waiting for the provider/)).toBeVisible()
     expect(within(starting).queryByTitle('Drag to reorder')).not.toBeInTheDocument()
     expect(within(starting).queryByTitle('Remove from queue')).not.toBeInTheDocument()
     expect(within(starting).queryByTitle('More queue actions')).not.toBeInTheDocument()
@@ -4315,6 +4315,30 @@ describe('Composer', () => {
       'title',
       'A queued message is already starting'
     )
+  })
+
+  it('restores Send now when a stopped queue snapshot still carries an old promotion', async () => {
+    const runNow = vi.fn().mockResolvedValue({ ok: true })
+    window.agentsDock.queue = { runNow, list: vi.fn().mockResolvedValue([]) } as unknown as AgentsDockAPI['queue']
+    useAppStore.setState({
+      sessions: [{ id: 'chat-1', title: 'Chat', backend: 'claude' }],
+      snapshots: { 'chat-1': {
+        session: { id: 'chat-1', title: 'Chat', backend: 'claude' }, events: [],
+        queuedTurns: [{ queued_id: 'stopped-handoff', session_id: 'chat-1', prompt: 'Check the quota',
+          file_ids: [], position: 1, promoted: true, paused: true, pause_reason: 'stopped' }],
+        files: [], hasMoreEvents: false, filesTotal: 0, cachedAt: 0
+      } }
+    })
+    render(<Composer />)
+    expect(screen.getByText('Paused after Stop')).toBeVisible()
+    expect(screen.queryByText('1 starting')).not.toBeInTheDocument()
+    expect(screen.queryByText(/handed to the provider/)).not.toBeInTheDocument()
+    const send = screen.getByRole('button', { name: 'Send now' })
+    expect(send).toBeEnabled()
+    expect(screen.getByTitle('Remove from queue')).toBeEnabled()
+    await userEvent.click(send)
+    await waitFor(() => expect(runNow).toHaveBeenCalledTimes(1))
+    expect(runNow.mock.calls[0].slice(0, 2)).toEqual(['chat-1', 'stopped-handoff'])
   })
 
   it('keeps a long steer prompt in the bounded queue prompt surface', () => {
