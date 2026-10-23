@@ -12,9 +12,13 @@
   development app used its actual Settings controls and authenticated client
   connection to a disposable local server: the server version appeared, the
   product channel was shown once and no separate server update panel appeared.
-  The development app does not self-install; this UI change has not been
-  exercised through another packaged update installation. Availability: source
-  only; no public release, server deployment or user app replacement.
+  A separately identified local QA app containing this compiled UI was also
+  opened and operated through Settings: Updates showed one product channel and
+  action, the Server page had no manual update panel, and saved server versions
+  remained visible. This QA bundle reuses a test shell and is not a release-grade
+  package. The final UI has not been exercised through a packaged update
+  installation. Availability: source and local QA only; no public release or
+  production app/server replacement.
 
 ## 2026-10-20 — Sync the coordinated updater with current main
 
