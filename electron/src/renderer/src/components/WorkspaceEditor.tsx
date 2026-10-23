@@ -326,7 +326,9 @@ export function WorkspaceEditor({
   const filesHostRef = useRef(filesHost)
   filesHostRef.current = filesHost
   const maxEditableFileBytes = resolvedWorkspaceFileByteLimit(maxTextFileBytes)
-  const memory = workspaceMemory.get(workspaceKey)
+  // Keep restoration tied to the snapshot that initialized this instance.
+  // An outgoing editor can populate the cache during a replacement commit.
+  const [memory] = useState(() => workspaceMemory.get(workspaceKey))
   const memoryMatches = memory?.sessionId === session.id && memory.cwd === cwd
   const memoryFiles = memoryMatches
     ? memory.openFiles.filter(file => (
@@ -2846,8 +2848,14 @@ export function WorkspaceEditor({
   }, [available, cwd, session.id])
 
   useEffect(() => {
-    onReady?.()
-  }, [onReady, session.id])
+    if (!restored && profileScope) return
+    // A split workspace replays its pending open from this callback. Finish
+    // restoring the selected tab first so hydration cannot invalidate that
+    // request, and let mount effect cleanup finish before accepting it.
+    let cancelled = false
+    queueMicrotask(() => { if (!cancelled) onReady?.() })
+    return () => { cancelled = true }
+  }, [onReady, restored, Boolean(profileScope), session.id])
 
   const updateFile = (path: string, update: (file: OpenWorkspaceFile) => OpenWorkspaceFile) => {
     setOpenFiles(current => current.map(file => file.path === path ? update(file) : file))
