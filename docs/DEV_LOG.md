@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-23 — Readable syncing status in compact chat panes
+
+- Place the neutral syncing status beside the working-directory control, outside
+  the compact input's scrolling area. Keep the full input line and toolbar
+  visible without increasing the desktop composer's height. Shared chats show
+  the status without exposing the working-directory control.
+- Source `99d50432`, local macOS arm64 development package 0.2.0/build 85.
+  Placement regressions failed before the fix; all 5,430 desktop tests passed
+  (five skipped), plus TypeScript, production compilation, bundle audit,
+  Developer ID signing, required entitlements and deep strict signature checks.
+- Native offscreen acceptance reproduced the clipped input in the previous
+  package, then verified a full input line, readable status, accessible toolbar
+  and retained typing through reconnection. Three/four panes, completed goal
+  banners, light/dark themes and narrow windows passed through production IPC
+  and authenticated HTTP/WebSockets in isolated state. All 91 compiled assets
+  matched; archive and signature remained unchanged.
+- Reconnecting activity was a disposable fixture; no provider ran. The packaged
+  archive ran in stock Electron offscreen, without launching the signed executable
+  or exercising Gatekeeper. This is an app-only local trial; no server update is
+  required. No installed app, live service or published release was changed.
+
 ## 2026-10-23 — Keep every visible chat receiving live updates
 
 - Remove the obsolete two-stream eviction from the desktop service. Opening a
