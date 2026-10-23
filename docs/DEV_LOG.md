@@ -16,10 +16,19 @@
   layouts, mouse and keyboard dividers, pane-local file reads and saves, dirty
   edits, drafts, exact scroll restoration, named workspace switching, server
   isolation and app/server restart persistence through real IPC and authenticated
-  HTTP in disposable state. Provider events were synthetic. A narrow-header
-  visual correction and final signed-package checks follow below. The full-suite
-  check also caught a missing pane-owned drag cancellation handler; Escape,
-  focus loss and navigation now clear the drag highlight immediately.
+  HTTP in disposable state. Provider events were synthetic. Narrow-pane headers
+  retain compact controls without wrapping their provider status. Escape, focus
+  loss and navigation clear the drag highlight immediately.
+- Local macOS arm64 package: source `fe26f598`, development version 0.2.0/build
+  85. All 5,393 desktop tests passed (five skipped), followed by production
+  compilation, bundle audit, Developer ID signing, required entitlements and
+  deep strict signature checks.
+- Packaged native offscreen smoke loaded main, preload and renderer directly
+  from the signed archive; all 91 compiled assets matched. Pane-local file
+  reads/saves, four-pane tabs, per-server state, app restart, retained drafts,
+  native drag cancellation and narrow light layouts passed. The archive and
+  signature were unchanged after testing. Signed-executable/Gatekeeper launch
+  was not exercised; this remains a local, unnotarized trial build.
 - Scope: desktop only, using existing server contracts. No server update is
   required for the tabbed grid. This local trial does not publish a release or
   replace an installed app.
