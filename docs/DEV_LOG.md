@@ -7,7 +7,11 @@
 - Add three full-height, independently resizable columns alongside the existing
   three-pane split. Remember each workspace's layout and widths separately;
   retain pane assignments, drafts and file tabs when changing arrangements.
-  Keyboard focus navigation follows the visible columns.
+  Keyboard focus navigation follows the visible columns. Command-Control-Left
+  and Command-Control-Right cycle workspace tabs, including from the composer.
+- Show each pane's chat title once in its pinned tab. Double-click that tab or
+  use Rename chat in the actions menu to rename it; keep the folder control
+  accessible in the toolbar.
 - Focused layout, resize ownership, persistence, file-tab, design-system and
   store regressions pass, as do TypeScript and production compilation. Native
   packaged acceptance is pending. This is an app-only local trial using existing

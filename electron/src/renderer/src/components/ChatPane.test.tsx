@@ -16,7 +16,7 @@ const workspaceEditor = vi.hoisted(() => ({ render: vi.fn() }))
 
 vi.mock('../lib/native-files', () => ({ nativeFileRefsFromFiles: nativeFiles.fromFiles }))
 vi.mock('./ChatHeader', () => ({
-  ChatHeader: ({ session }: { session: Session }) => <div data-testid="chat-header">Header:{session.id}</div>
+  ChatHeader: ({ session, titleInTab }: { session: Session; titleInTab?: boolean }) => <div data-testid="chat-header" data-title-in-tab={String(titleInTab)}>Header:{session.id}</div>
 }))
 vi.mock('./ClaudeRuntimeContext', () => ({
   ClaudeRuntimeProvider: ({ children }: { children: React.ReactNode }) => {
@@ -102,6 +102,7 @@ describe('ChatPane', () => {
     renderSecondary()
 
     expect(screen.getByTestId('chat-header')).toHaveTextContent('Header:chat-b')
+    expect(screen.getByTestId('chat-header')).toHaveAttribute('data-title-in-tab', 'true')
     expect(screen.getByTestId('timeline')).toHaveAttribute('data-session-id', secondary.id)
     expect(screen.getByTestId('timeline')).toHaveAttribute('data-focused', 'false')
     expect(screen.getByTestId('composer')).toHaveAttribute('data-session-id', secondary.id)

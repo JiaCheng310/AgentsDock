@@ -795,6 +795,8 @@
   "shortcuts.action.jumpLatest": "Jump to latest",
   "shortcuts.action.newChat": "New chat",
   "shortcuts.action.nextServer": "Next server",
+  "shortcuts.action.nextChatWorkspace": "Next chat workspace",
+  "shortcuts.action.previousChatWorkspace": "Previous chat workspace",
   "shortcuts.action.nextWorkspaceTab": "Next workspace tab",
   "shortcuts.action.openWorkspaceFile": "Open workspace file",
   "shortcuts.action.previousServer": "Previous server",

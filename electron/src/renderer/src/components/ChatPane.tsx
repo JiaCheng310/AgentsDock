@@ -181,6 +181,7 @@ export const ChatPane = memo(function ChatPane({
   const conversation = <div className="pane-conversation">
     <ChatHeader
       session={session}
+      titleInTab
       focused={focused}
       sidebarVisible={sidebarVisible}
       terminalOpen={terminalOpen}

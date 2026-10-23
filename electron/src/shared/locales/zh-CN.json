@@ -795,6 +795,8 @@
   "shortcuts.action.jumpLatest": "跳至最新消息",
   "shortcuts.action.newChat": "新建会话",
   "shortcuts.action.nextServer": "下一个服务端",
+  "shortcuts.action.nextChatWorkspace": "下一个会话工作区",
+  "shortcuts.action.previousChatWorkspace": "上一个会话工作区",
   "shortcuts.action.nextWorkspaceTab": "下一个工作区标签页",
   "shortcuts.action.openWorkspaceFile": "打开工作区文件",
   "shortcuts.action.previousServer": "上一个服务端",

@@ -278,6 +278,27 @@ describe('WorkspaceEditor', () => {
     expect(await screen.findByRole('textbox', { name: 'Contents of src/App.tsx' })).toHaveValue('unsaved edit')
   })
 
+  it('offers the existing rename dialog for the owning chat when its pane tab is double-clicked', () => {
+    const rename = vi.fn()
+    window.addEventListener('agentsdock:rename-chat', rename)
+    try {
+      const view = render(<WorkspaceEditor workspaceKey="tabbed:rename" session={session} profileScope={null}
+        available tabbedPane chatContent={<p>Conversation</p>} />)
+      const chatTab = screen.getByRole('button', { name: 'Chat (pinned)' })
+      expect(chatTab).toHaveTextContent(session.title)
+      fireEvent.doubleClick(chatTab)
+      expect(rename).toHaveBeenCalledOnce()
+      expect((rename.mock.calls[0][0] as CustomEvent).detail).toBe(session)
+
+      view.rerender(<WorkspaceEditor workspaceKey="tabbed:rename" session={session} profileScope={null}
+        available chatContent={<p>Conversation</p>} />)
+      fireEvent.doubleClick(screen.getByRole('button', { name: 'Chat (pinned)' }))
+      expect(rename).toHaveBeenCalledOnce()
+    } finally {
+      window.removeEventListener('agentsdock:rename-chat', rename)
+    }
+  })
+
   it('routes targeted opens to their pane but global commands and Files portals only to the focused pane', async () => {
     const scope = { profileId: 'profile-a', profileGeneration: 1, serverIdentity: 'server-a' }
     const second = { ...session, id: 'chat-b', title: 'Chat B' }

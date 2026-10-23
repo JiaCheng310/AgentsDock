@@ -75,6 +75,30 @@ describe('App split workspace files', () => {
 
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
+  it('cycles workspace tabs with Command-Control arrows while preserving drafts', async () => {
+    const first = useAppStore.getState().chatWorkspaces[0]
+    useAppStore.setState({ chatWorkspaces: [first, { ...first, id: 'workspace-b', title: 'Second workspace' }] })
+    render(<App />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft chat-a' }), { target: { value: 'Keep typed draft' } })
+    const chord = { metaKey: true, ctrlKey: true }
+    await act(async () => fireEvent.keyDown(screen.getByRole('textbox', { name: 'Draft chat-a' }), { key: 'ArrowRight', ...chord }))
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe('workspace-b')
+    expect(screen.getByRole('textbox', { name: 'Draft chat-a' })).toHaveValue('Keep typed draft')
+    await act(async () => fireEvent.keyDown(window, { key: 'ArrowRight', ...chord }))
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe('workspace-a')
+    await act(async () => fireEvent.keyDown(window, { key: 'ArrowLeft', ...chord }))
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe('workspace-b')
+    fireEvent.keyDown(window, { key: 'ArrowLeft', ...chord, shiftKey: true })
+    fireEvent.keyDown(window, { key: 'ArrowLeft', metaKey: true })
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe('workspace-b')
+    const modal = document.createElement('div')
+    modal.setAttribute('aria-modal', 'true')
+    document.body.appendChild(modal)
+    fireEvent.keyDown(window, { key: 'ArrowLeft', ...chord })
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe('workspace-b')
+    modal.remove()
+  })
+
   it('moves keyboard focus across three columns without remounting their drafts', () => {
     const three = [...sessions, { ...sessions[0], id: 'chat-c', title: 'Chat C' }]
     useAppStore.setState({ sessions: three, chatPaneCount: 3,

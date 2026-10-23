@@ -284,6 +284,25 @@ function AppWorkspace() {
     })
   }, [activeProfileId, activeServerIdentity, selectedSession?.id, selectedSession?.archived, terminalOpenBySession])
   useEffect(() => {
+    const switchWorkspace = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.isComposing
+        || !event.metaKey || !event.ctrlKey || event.altKey || event.shiftKey
+        || !['ArrowLeft', 'ArrowRight'].includes(event.key)
+        || document.querySelector('[aria-modal="true"]')) return
+      const state = useAppStore.getState()
+      if (state.switchingProfileId || state.chatWorkspaces.length < 2) return
+      const index = state.chatWorkspaces.findIndex(workspace => workspace.id === state.activeChatWorkspaceId)
+      if (index < 0) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      const direction = event.key === 'ArrowRight' ? 1 : -1
+      const next = (index + direction + state.chatWorkspaces.length) % state.chatWorkspaces.length
+      void state.selectChatWorkspace(state.chatWorkspaces[next].id)
+    }
+    window.addEventListener('keydown', switchWorkspace, true)
+    return () => window.removeEventListener('keydown', switchWorkspace, true)
+  }, [])
+  useEffect(() => {
     const focusSplitPane = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.shiftKey) return
       if (document.querySelector('[aria-modal="true"]')) return

@@ -58,7 +58,7 @@
 .workspace-chat-grid .chat-header .codex-status-button { white-space: nowrap; flex-shrink: 0; }
 @container chat-workspace-pane (max-width: 420px) {
   /* The pinned chat tab already carries the title in a narrow editor group. */
-  .workspace-chat-grid .chat-header .title-block { display: none; }
+  .workspace-chat-grid .chat-header .title-block:not(.chat-header-tab-folder) { display: none; }
   .workspace-chat-grid .chat-header .header-actions { flex: 1; justify-content: flex-start; }
   .workspace-chat-grid .chat-header .header-actions > * { flex-shrink: 0; }
   .workspace-chat-grid .chat-header .codex-status-button small { display: none; }

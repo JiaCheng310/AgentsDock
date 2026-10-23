@@ -3484,6 +3484,9 @@ export function WorkspaceEditor({
       openRequestSequence.current += 1
       showChat()
     }}
+    onDoubleClick={tabbedPane && paneActive
+      ? () => window.dispatchEvent(new CustomEvent('agentsdock:rename-chat', { detail: session }))
+      : undefined}
   >
     <MessageSquare size={13} aria-hidden="true" />
     <span>{tabbedPane ? session.title || t('editor.chat') : t('editor.chat')}</span>
