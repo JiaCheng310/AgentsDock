@@ -11,6 +11,13 @@ this operation the desktop displays a blocking progress view; the native app
 installer runs only after all saved servers have reached the target. A server
 already newer and compatible is never downgraded.
 
+Settings exposes one product update action and one Stable/Beta choice. The
+separate manual AgentsServer update controls are no longer shown. Each saved
+server still reports its version and paired-update progress; if a paired
+update fails after the app is current, the main action becomes **Retry
+AgentsDock update** and retries the incomplete server targets. Server restart
+remains a separate maintenance control on the Server page.
+
 Servers advertising `server_update_continuation_v1` can activate a prepared
 idle-scheduled update immediately. The request is bound to the exact schedule
 and server boot. It durably queues an internal continuation for each ordinary

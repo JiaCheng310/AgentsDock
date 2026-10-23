@@ -1,5 +1,21 @@
 # Public development log
 
+## Unreleased — Use one product update control in desktop Settings
+
+- Remove the separate manual AgentsServer update controls from Settings. The
+  Updates page keeps one Stable/Beta choice and one AgentsDock installation
+  action while listing each server's version and paired-update progress. A
+  failed paired update is retried from one product-level action; server restart
+  remains available on the Server page.
+- Verification: 236 focused desktop UI/updater tests, TypeScript checking, production
+  compilation and the compiled-entry audit pass. An isolated native Electron
+  development app used its actual Settings controls and authenticated client
+  connection to a disposable local server: the server version appeared, the
+  product channel was shown once and no separate server update panel appeared.
+  The development app does not self-install; this UI change has not been
+  exercised through another packaged update installation. Availability: source
+  only; no public release, server deployment or user app replacement.
+
 ## 2026-10-20 — Sync the coordinated updater with current main
 
 - Merge main `b21ef7ea` into the unreleased coordinated-update branch, retaining
