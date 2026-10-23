@@ -1,6 +1,7 @@
 export const CHAT_PANE_IDS = ['primary', 'secondary', 'tertiary', 'quaternary'] as const
 export type ChatPane = typeof CHAT_PANE_IDS[number]
 export type ChatPaneCount = 1 | 2 | 3 | 4
+export type ChatThreePaneLayout = 'split' | 'columns'
 
 export interface ChatPanes {
   primary: string | null
@@ -21,6 +22,8 @@ export interface ChatWorkspace extends ChatPaneLayout {
   paneCount: ChatPaneCount
   columnRatio: number
   rowRatio: number
+  threePaneLayout?: ChatThreePaneLayout
+  threeColumnRatios?: [number, number]
 }
 
 export interface ChatWorkspaceState {
@@ -67,6 +70,7 @@ export function closeChatPane(layout: ChatPaneLayout, pane: ChatPane): ChatPaneL
   const focusedId = focusedChatSessionId(layout)
   const focusedPane = (focusedId && chatPaneForSession(panes, focusedId)) || CHAT_PANE_IDS[Math.min(index, Math.max(ids.length - 1, 0))]
   return {
+    ...layout,
     panes,
     focusedPane,
     ...(layout.paneCount ? { paneCount: Math.max(1, count - 1) as ChatPaneCount } : {})
@@ -98,7 +102,7 @@ export function reconcileChatPaneLayout(
   }
   if (layout.paneCount) {
     const focusedPane = CHAT_PANE_IDS.slice(0, layout.paneCount).includes(layout.focusedPane) ? layout.focusedPane : 'primary'
-    return { panes, focusedPane, paneCount: layout.paneCount }
+    return { ...layout, panes, focusedPane, paneCount: layout.paneCount }
   }
   // Older two-pane preferences had no empty-slot concept; preserve migration.
   if (!panes.primary) {
@@ -109,7 +113,7 @@ export function reconcileChatPaneLayout(
       panes[source] = null
     } else panes.primary = fallbackPrimary && validSessionIds.has(fallbackPrimary) ? fallbackPrimary : null
   }
-  return { panes, focusedPane: panes[layout.focusedPane] ? layout.focusedPane : 'primary' }
+  return { ...layout, panes, focusedPane: panes[layout.focusedPane] ? layout.focusedPane : 'primary' }
 }
 
 export function visibleWorkspaceLayout(workspace: ChatWorkspace): ChatPaneLayout {
@@ -134,6 +138,13 @@ export function workspaceRatio(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.min(0.8, Math.max(0.2, value)) : 0.5
 }
 
+export function workspaceThreeColumnRatios(value: unknown): [number, number] {
+  if (!Array.isArray(value) || value.length !== 2
+    || !value.every(boundary => typeof boundary === 'number' && Number.isFinite(boundary))) return [1 / 3, 2 / 3]
+  const first = Math.min(0.6, Math.max(0.2, value[0]))
+  return [first, Math.min(0.8, Math.max(first + 0.2, value[1]))]
+}
+
 export function parseChatWorkspaces(value: unknown, validSessionIds: ReadonlySet<string>): ChatWorkspaceState | null {
   if (!value || typeof value !== 'object') return null
   const stored = value as Partial<ChatWorkspaceState>
@@ -153,7 +164,9 @@ export function parseChatWorkspaces(value: unknown, validSessionIds: ReadonlySet
     workspaces.push({
       id: raw.id, ...layout, paneCount,
       ...(typeof raw.title === 'string' && raw.title.trim() ? { title: raw.title.trim() } : {}),
-      columnRatio: workspaceRatio(raw.columnRatio), rowRatio: workspaceRatio(raw.rowRatio)
+      columnRatio: workspaceRatio(raw.columnRatio), rowRatio: workspaceRatio(raw.rowRatio),
+      threePaneLayout: raw.threePaneLayout === 'columns' ? 'columns' : 'split',
+      threeColumnRatios: workspaceThreeColumnRatios(raw.threeColumnRatios)
     })
     ids.add(raw.id)
   }

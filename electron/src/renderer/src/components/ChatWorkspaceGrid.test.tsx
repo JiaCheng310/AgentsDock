@@ -71,6 +71,39 @@ describe('ChatWorkspaceGrid resize ownership', () => {
     return view
   }
 
+  it('offers both three-pane arrangements and keeps independent widths', () => {
+    const view = render(<ChatWorkspaceGrid sidebarVisible terminalOpen={false}
+      onSidebarToggle={() => undefined} onTerminalToggle={() => undefined} sideChat={() => null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Three columns' }))
+    const grid = view.container.querySelector('.workspace-chat-grid')!
+    expect(grid).toHaveAttribute('data-three-pane-layout', 'columns')
+    expect(grid).not.toHaveClass('short')
+    expect(screen.getAllByRole('separator')).toHaveLength(2)
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize first column' }), { key: 'ArrowLeft' })
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize last column' }), { key: 'ArrowRight' })
+    expect(useAppStore.getState().chatWorkspaces[0].threeColumnRatios?.[0]).toBeCloseTo(1 / 3 - 0.05)
+    expect(useAppStore.getState().chatWorkspaces[0].threeColumnRatios?.[1]).toBeCloseTo(2 / 3 + 0.05)
+    fireEvent.click(screen.getByRole('button', { name: '3 panes' }))
+    expect(grid).toHaveAttribute('data-three-pane-layout', 'split')
+    expect(grid).toHaveClass('short')
+    expect(screen.getByRole('separator', { name: 'Resize columns' })).toHaveAttribute('aria-valuenow', '50')
+    fireEvent.click(screen.getByRole('button', { name: 'Three columns' }))
+    expect(screen.getByRole('separator', { name: 'Resize first column' })).toHaveAttribute('aria-valuenow', '28')
+    expect(screen.getByRole('separator', { name: 'Resize last column' })).toHaveAttribute('aria-valuenow', '72')
+  })
+
+  it('does not let either column divider collapse a neighboring pane', () => {
+    render(<ChatWorkspaceGrid sidebarVisible terminalOpen={false}
+      onSidebarToggle={() => undefined} onTerminalToggle={() => undefined} sideChat={() => null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Three columns' }))
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize first column' }), { key: 'End' })
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize last column' }), { key: 'Home' })
+    const [first, second] = useAppStore.getState().chatWorkspaces[0].threeColumnRatios!
+    expect(second - first).toBeCloseTo(0.2)
+    expect(first).toBeGreaterThanOrEqual(0.2)
+    expect(second).toBeLessThanOrEqual(0.8)
+  })
+
   it('persists a completed drag to its current profile and workspace', () => {
     startDrag()
     fireEvent(window, new MouseEvent('pointerup'))
@@ -93,6 +126,24 @@ describe('ChatWorkspaceGrid resize ownership', () => {
     expect(document.body).not.toHaveClass('chat-split-resizing')
     fireEvent(window, new MouseEvent('pointerup'))
     expect(setScoped).not.toHaveBeenCalled()
+  })
+
+  it('resets a departing drag when the next profile has identical saved ratios', () => {
+    startDrag()
+    act(() => useAppStore.setState({ activeProfileId: 'b', profileGeneration: 2, profiles: [profile('b')],
+      chatWorkspaces: [workspace('workspace-main')] }))
+    expect(screen.getByRole('separator', { name: 'Resize columns' })).toHaveAttribute('aria-valuenow', '50')
+    expect(document.body).not.toHaveClass('chat-split-resizing')
+    expect(setScoped).not.toHaveBeenCalled()
+  })
+
+  it('discards a drag when layout changes before pointer release', () => {
+    startDrag()
+    fireEvent.click(screen.getByRole('button', { name: 'Three columns' }))
+    fireEvent.click(screen.getByRole('button', { name: '2 panes' }))
+    expect(screen.getByRole('separator', { name: 'Resize columns' })).toHaveAttribute('aria-valuenow', '50')
+    expect(useAppStore.getState().chatWorkspaces[0].columnRatio).toBe(0.5)
+    expect(document.body).not.toHaveClass('chat-split-resizing')
   })
 
   it('ends a departing tab drag without resizing the newly selected tab', async () => {

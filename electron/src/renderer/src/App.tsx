@@ -303,6 +303,9 @@ function AppWorkspace() {
       if (count === 2) {
         if (direction === 'Left') next = 0
         if (direction === 'Right') next = 1
+      } else if (count === 3 && state.chatWorkspaces.find(workspace => workspace.id === state.activeChatWorkspaceId)?.threePaneLayout === 'columns') {
+        if (direction === 'Left') next = Math.max(0, index - 1)
+        if (direction === 'Right') next = Math.min(2, index + 1)
       } else if (count === 3) {
         if (direction === 'Left') next = 0
         if (direction === 'Right') next = index === 0 ? 1 : index

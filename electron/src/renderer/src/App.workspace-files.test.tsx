@@ -75,6 +75,29 @@ describe('App split workspace files', () => {
 
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
+  it('moves keyboard focus across three columns without remounting their drafts', () => {
+    const three = [...sessions, { ...sessions[0], id: 'chat-c', title: 'Chat C' }]
+    useAppStore.setState({ sessions: three, chatPaneCount: 3,
+      chatPanes: { primary: 'chat-a', secondary: 'chat-b', tertiary: 'chat-c' },
+      chatWorkspaces: [{ ...useAppStore.getState().chatWorkspaces[0], paneCount: 3,
+        threePaneLayout: 'columns', panes: { primary: 'chat-a', secondary: 'chat-b', tertiary: 'chat-c' } }] })
+    render(<App />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft chat-b' }), { target: { value: 'Keep center draft' } })
+    const modifiers = /Mac|iPhone|iPad|iPod/i.test(`${navigator.platform} ${navigator.userAgent}`)
+      ? { metaKey: true, altKey: true } : { ctrlKey: true, altKey: true }
+    fireEvent.keyDown(window, { key: 'ArrowRight', ...modifiers })
+    expect(useAppStore.getState().focusedChatPane).toBe('secondary')
+    fireEvent.keyDown(window, { key: 'ArrowRight', ...modifiers })
+    expect(useAppStore.getState().focusedChatPane).toBe('tertiary')
+    fireEvent.keyDown(window, { key: 'ArrowDown', ...modifiers })
+    expect(useAppStore.getState().focusedChatPane).toBe('tertiary')
+    fireEvent.keyDown(window, { key: 'ArrowLeft', ...modifiers })
+    expect(useAppStore.getState().focusedChatPane).toBe('secondary')
+    fireEvent.click(screen.getByRole('button', { name: '3 panes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Three columns' }))
+    expect(screen.getByRole('textbox', { name: 'Draft chat-b' })).toHaveValue('Keep center draft')
+  })
+
   it('opens a fourth-pane file without changing the first three conversations', async () => {
     const four = [...sessions,
       { ...sessions[0], id: 'chat-c', title: 'Chat C' },

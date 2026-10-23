@@ -58,16 +58,18 @@ import {
   visibleChatSessionIds,
   visibleWorkspaceLayout,
   workspaceRatio,
+  workspaceThreeColumnRatios,
   workspaceWithLayout,
   type ChatPane,
   type ChatPaneCount,
+  type ChatThreePaneLayout,
   type ChatPaneLayout,
   type ChatPanes,
   type ChatWorkspace,
   type ChatWorkspaceState
 } from '../lib/chat-panes'
 
-export type { ChatPane, ChatPaneCount, ChatPanes, ChatWorkspace } from '../lib/chat-panes'
+export type { ChatPane, ChatPaneCount, ChatPanes, ChatThreePaneLayout, ChatWorkspace } from '../lib/chat-panes'
 
 const SEMANTIC_HISTORY_ITEM_LIMIT = 120
 const LEGACY_HISTORY_EVENT_LIMIT = 480
@@ -267,7 +269,8 @@ interface AppState {
   closeChatWorkspace(workspaceId: string): Promise<void>
   renameChatWorkspace(workspaceId: string, title: string): void
   setChatPaneCount(count: ChatPaneCount): void
-  setChatWorkspaceRatios(ratios: { columnRatio?: number; rowRatio?: number }): void
+  setChatThreePaneLayout(layout: ChatThreePaneLayout): void
+  setChatWorkspaceRatios(ratios: { columnRatio?: number; rowRatio?: number; threeColumnRatios?: [number, number] }): void
   prefetchSession(sessionId: string): Promise<void>
   selectAdjacent(direction: 1 | -1): Promise<void>
   setDraft(text: string): void
@@ -1643,9 +1646,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ chatWorkspaces: current.workspaces.map(workspace => workspace.id === current.activeWorkspaceId
       ? { ...workspace,
           ...(ratios.columnRatio !== undefined ? { columnRatio: workspaceRatio(ratios.columnRatio) } : {}),
-          ...(ratios.rowRatio !== undefined ? { rowRatio: workspaceRatio(ratios.rowRatio) } : {}) }
+          ...(ratios.rowRatio !== undefined ? { rowRatio: workspaceRatio(ratios.rowRatio) } : {}),
+          ...(ratios.threeColumnRatios !== undefined ? { threeColumnRatios: workspaceThreeColumnRatios(ratios.threeColumnRatios) } : {}) }
       : workspace) })
     persistChatPaneState(get())
+  },
+
+  setChatThreePaneLayout(layout) {
+    const state = get()
+    if (state.switchingProfileId || (layout !== 'split' && layout !== 'columns')) return
+    const current = currentChatWorkspaceState(state)
+    const active = current.workspaces.find(workspace => workspace.id === current.activeWorkspaceId)!
+    const countChanged = active.paneCount !== 3
+    if (!countChanged && (active.threePaneLayout ?? 'split') === layout) return
+    if (countChanged) captureChatTimelines(state.chatPanes)
+    const workspaces = current.workspaces.map(workspace => workspace.id === current.activeWorkspaceId
+      ? { ...workspace, threePaneLayout: layout, paneCount: 3 as const,
+          focusedPane: workspace.focusedPane === 'quaternary' ? 'primary' as const : workspace.focusedPane }
+      : workspace)
+    set(value => chatWorkspaceAliases(value, { ...current, workspaces }))
+    if (countChanged) unsubscribeHiddenChatSessions(state.chatPanes, get().chatPanes, captureProfileScope(state))
+    persistChatPaneState(get())
+    if (countChanged) void hydrateVisibleChatPanes(get)
   },
 
   async prefetchSession(sessionId) {
@@ -2856,7 +2878,10 @@ function focusedPaneAliases(state: AppState, layout: ChatPaneLayout, updateWorks
 }
 
 function newChatWorkspace(id: string, layout: ChatPaneLayout): ChatWorkspace {
-  return { id, ...layout, paneCount: chatPaneCount(layout), columnRatio: 0.5, rowRatio: 0.5 }
+  return {
+    id, ...layout, paneCount: chatPaneCount(layout), columnRatio: 0.5, rowRatio: 0.5,
+    threePaneLayout: 'split', threeColumnRatios: [1 / 3, 2 / 3]
+  }
 }
 
 function currentChatWorkspaceState(state: AppState, layout = currentChatPaneLayout(state)): ChatWorkspaceState {

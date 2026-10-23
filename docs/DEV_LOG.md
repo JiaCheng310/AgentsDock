@@ -1,5 +1,18 @@
 # Public development log
 
+## 2026-10-23 — Three-column chat workspaces
+
+- Place the new-workspace button immediately beside the workspace tabs. Keep
+  it accessible when tabs overflow and reveal the newly selected tab.
+- Add three full-height, independently resizable columns alongside the existing
+  three-pane split. Remember each workspace's layout and widths separately;
+  retain pane assignments, drafts and file tabs when changing arrangements.
+  Keyboard focus navigation follows the visible columns.
+- Focused layout, resize ownership, persistence, file-tab, design-system and
+  store regressions pass, as do TypeScript and production compilation. Native
+  packaged acceptance is pending. This is an app-only local trial using existing
+  server contracts; no service update or public release is required.
+
 ## 2026-10-23 — Cron unread grouping on older servers
 
 - When cron inclusion is off and an older server omits output provenance, use

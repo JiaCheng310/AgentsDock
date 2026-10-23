@@ -94,6 +94,64 @@ describe('tabbed chat workspaces', () => {
     expect(useAppStore.getState().chatPanes.tertiary).toBe('e')
   })
 
+  it('switches three-pane modes without losing hidden chats, focus, drafts or split sizes', async () => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    useAppStore.getState().setDraftForSession('d', 'unfinished')
+    useAppStore.getState().setChatWorkspaceRatios({ columnRatio: 0.6, rowRatio: 0.4, threeColumnRatios: [0.25, 0.7] })
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    expect(useAppStore.getState()).toMatchObject({ chatPaneCount: 3, focusedChatPane: 'primary', selectedSessionId: 'a' })
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: 'b', tertiary: 'c' })
+    expect(useAppStore.getState().chatWorkspaces[0]).toMatchObject({
+      panes: { quaternary: 'd' }, threePaneLayout: 'columns', threeColumnRatios: [0.25, 0.7], columnRatio: 0.6, rowRatio: 0.4
+    })
+    await vi.waitFor(() => expect(useAppStore.getState().loadingSessionIds.size).toBe(0))
+    useAppStore.getState().focusChatPane('tertiary')
+    api.timeline.cached.mockClear()
+    api.timeline.subscribe.mockClear()
+    api.timeline.unsubscribe.mockClear()
+    useAppStore.getState().setChatThreePaneLayout('split')
+    expect(useAppStore.getState()).toMatchObject({ chatPaneCount: 3, focusedChatPane: 'tertiary', selectedSessionId: 'c' })
+    expect(useAppStore.getState().chatWorkspaces[0]).toMatchObject({
+      threePaneLayout: 'split', threeColumnRatios: [0.25, 0.7], columnRatio: 0.6, rowRatio: 0.4
+    })
+    expect(api.timeline.cached).not.toHaveBeenCalled()
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+    useAppStore.getState().setChatPaneCount(1)
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    useAppStore.getState().setChatPaneCount(4)
+    expect(useAppStore.getState().chatPanes).toEqual({ primary: 'a', secondary: 'b', tertiary: 'c', quaternary: 'd' })
+    expect(useAppStore.getState().drafts.d).toBe('unfinished')
+  })
+
+  it('persists independent three-pane modes and bounded divider ratios per workspace and server', async () => {
+    const first = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    useAppStore.getState().setChatWorkspaceRatios({ threeColumnRatios: [0.1, 0.95] })
+    await useAppStore.getState().createChatWorkspace('b')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatThreePaneLayout('split')
+    useAppStore.getState().setChatWorkspaceRatios({ threeColumnRatios: [0.3, 0.55] })
+    await useAppStore.getState().selectChatWorkspace(first)
+    await initialize()
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)).toMatchObject({
+      threePaneLayout: 'columns', threeColumnRatios: [0.2, 0.8], paneCount: 3
+    })
+    await useAppStore.getState().switchServer('two')
+    expect(useAppStore.getState().chatWorkspaces[0]).toMatchObject({ threePaneLayout: 'split', threeColumnRatios: [1 / 3, 2 / 3] })
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    useAppStore.getState().setChatWorkspaceRatios({ threeColumnRatios: [0.4, 0.65] })
+    await useAppStore.getState().switchServer('one')
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe(first)
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)).toMatchObject({
+      threePaneLayout: 'columns', threeColumnRatios: [0.2, 0.8]
+    })
+    await useAppStore.getState().selectChatWorkspace(second)
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === second)).toMatchObject({
+      threePaneLayout: 'split', threeColumnRatios: [0.3, 0.55]
+    })
+  })
+
   it('preserves workspace layouts, ratios, names and shared subscriptions when changing tabs', async () => {
     await useAppStore.getState().openSessionInSplit('b')
     const first = useAppStore.getState().activeChatWorkspaceId

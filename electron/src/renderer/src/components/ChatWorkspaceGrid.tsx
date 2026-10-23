@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
-import { Columns2, Grid2X2, PanelLeft, Plus, Square, X } from 'lucide-react'
+import { Columns2, Columns3, Grid2X2, PanelLeft, Plus, Square, X } from 'lucide-react'
 import type { Session } from '@shared/types'
 import { t, useLocale } from '../lib/i18n'
 import { CHAT_PANE_IDS, type ChatPane as ChatPaneId } from '../lib/chat-panes'
@@ -7,6 +7,8 @@ import { notifyTimelineViewportLayout } from '../lib/workspace-layout'
 import { useAppStore } from '../store/app-store'
 import { ChatPane } from './ChatPane'
 import './ChatWorkspaceGrid.css'
+
+type ResizeAxis = 'column' | 'row' | 'first' | 'second'
 
 const boundRatio = (value: number) => Math.max(25, Math.min(75, value))
 
@@ -28,42 +30,73 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
   const focused = useAppStore(state => state.focusedChatPane)
   const sessions = useAppStore(state => state.sessions)
   const active = workspaces.find(workspace => workspace.id === activeId)
+  const threeColumns = count === 3 && active?.threePaneLayout === 'columns'
   const [renaming, setRenaming] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [ratios, setRatios] = useState({ column: (active?.columnRatio ?? 0.5) * 100, row: (active?.rowRatio ?? 0.5) * 100 })
+  const [ratios, setRatios] = useState({
+    column: (active?.columnRatio ?? 0.5) * 100, row: (active?.rowRatio ?? 0.5) * 100,
+    first: (active?.threeColumnRatios?.[0] ?? 1 / 3) * 100, second: (active?.threeColumnRatios?.[1] ?? 2 / 3) * 100
+  })
   const ratioRef = useRef(ratios)
   const gridRef = useRef<HTMLDivElement>(null)
+  const tabsRef = useRef<HTMLDivElement>(null)
   const finishResizeRef = useRef<(() => void) | null>(null)
   const title = (workspace: (typeof workspaces)[number]) => workspace.title
     || sessions.find(session => session.id === workspace.panes.primary)?.title
     || t('chatWorkspace.untitled')
 
   useEffect(() => {
-    const next = { column: (active?.columnRatio ?? 0.5) * 100, row: (active?.rowRatio ?? 0.5) * 100 }
+    const tabs = tabsRef.current
+    const selected = tabs?.querySelector<HTMLElement>('.chat-workspace-tab.active')
+    if (!tabs || !selected) return
+    const viewport = tabs.getBoundingClientRect()
+    const tab = selected.getBoundingClientRect()
+    if (tab.left < viewport.left) tabs.scrollLeft += tab.left - viewport.left
+    else if (tab.right > viewport.right) tabs.scrollLeft += tab.right - viewport.right
+  }, [activeId, workspaces.length])
+
+  useEffect(() => {
+    const next = {
+      column: (active?.columnRatio ?? 0.5) * 100, row: (active?.rowRatio ?? 0.5) * 100,
+      first: (active?.threeColumnRatios?.[0] ?? 1 / 3) * 100, second: (active?.threeColumnRatios?.[1] ?? 2 / 3) * 100
+    }
     ratioRef.current = next
     setRatios(next)
-  }, [activeId, active?.columnRatio, active?.rowRatio])
-  useEffect(() => () => finishResizeRef.current?.(), [activeId])
+  }, [activeId, profileId, profileGeneration, serverIdentity, count, threeColumns, active?.columnRatio, active?.rowRatio, active?.threeColumnRatios])
+  useEffect(() => () => finishResizeRef.current?.(), [activeId, profileId, profileGeneration, serverIdentity, count, threeColumns])
   useEffect(() => {
     notifyTimelineViewportLayout('begin')
     const frame = requestAnimationFrame(() => notifyTimelineViewportLayout('end'))
     return () => cancelAnimationFrame(frame)
-  }, [count, activeId])
+  }, [count, threeColumns, activeId])
 
-  const commitRatio = useCallback((axis: 'column' | 'row', value: number) => {
-    const next = { ...ratioRef.current, [axis]: boundRatio(value) }
+  const bounds = (axis: ResizeAxis) => axis === 'first' ? [20, ratioRef.current.second - 20]
+    : axis === 'second' ? [ratioRef.current.first + 20, 80] : [25, 75]
+  const clampRatio = (axis: ResizeAxis, value: number) => {
+    if (axis === 'column' || axis === 'row') return boundRatio(value)
+    const [min, max] = bounds(axis)
+    return Math.max(min, Math.min(max, value))
+  }
+  const ownsResize = useCallback(() => {
+    const state = useAppStore.getState()
+    return state.activeChatWorkspaceId === activeId && state.activeProfileId === profileId
+      && state.profileGeneration === profileGeneration && state.chatPaneCount === count
+      && (state.chatWorkspaces.find(workspace => workspace.id === activeId)?.threePaneLayout === 'columns' && count === 3) === threeColumns
+      && (state.profiles.find(profile => profile.id === state.activeProfileId)?.serverIdentity ?? null) === serverIdentity
+  }, [activeId, profileId, profileGeneration, serverIdentity, count, threeColumns])
+  const commitRatio = (axis: ResizeAxis, value: number) => {
+    // A departing drag must not resize or persist into another workspace or profile.
+    if (!ownsResize()) return
+    const next = { ...ratioRef.current, [axis]: clampRatio(axis, value) }
     ratioRef.current = next
     setRatios(next)
-    // A drag that outlives a tab change must not resize the newly selected tab.
     const state = useAppStore.getState()
-    if (state.activeChatWorkspaceId !== activeId || state.activeProfileId !== profileId
-      || state.profileGeneration !== profileGeneration
-      || (state.profiles.find(profile => profile.id === state.activeProfileId)?.serverIdentity ?? null) !== serverIdentity) return
-    state.setChatWorkspaceRatios(axis === 'column'
-      ? { columnRatio: next.column / 100 } : { rowRatio: next.row / 100 })
-  }, [activeId, profileId, profileGeneration, serverIdentity])
+    state.setChatWorkspaceRatios(axis === 'first' || axis === 'second'
+      ? { threeColumnRatios: [next.first / 100, next.second / 100] }
+      : axis === 'column' ? { columnRatio: next.column / 100 } : { rowRatio: next.row / 100 })
+  }
 
-  const beginResize = (event: PointerEvent, axis: 'column' | 'row') => {
+  const beginResize = (event: PointerEvent, axis: ResizeAxis) => {
     if (event.button !== 0 || !gridRef.current) return
     event.preventDefault()
     ;(event.currentTarget as HTMLElement).focus({ preventScroll: true })
@@ -75,9 +108,9 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
     const paint = () => {
       frame = null
       const rect = gridRef.current?.getBoundingClientRect()
-      if (!latest || !rect) return
-      const value = axis === 'column' ? (latest.clientX - rect.left) / rect.width : (latest.clientY - rect.top) / rect.height
-      const next = { ...ratioRef.current, [axis]: boundRatio(value * 100) }
+      if (!latest || !rect || !ownsResize()) return
+      const value = axis === 'row' ? (latest.clientY - rect.top) / rect.height : (latest.clientX - rect.left) / rect.width
+      const next = { ...ratioRef.current, [axis]: clampRatio(axis, value * 100) }
       ratioRef.current = next
       setRatios(next)
       notifyTimelineViewportLayout('update')
@@ -107,22 +140,22 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
     window.addEventListener('blur', finish)
   }
 
-  const separator = (axis: 'column' | 'row') => <div
-    className={`workspace-grid-divider ${axis}`}
+  const separator = (axis: ResizeAxis) => <div
+    className={`workspace-grid-divider ${axis === 'row' ? 'row' : 'column'}${axis === 'first' || axis === 'second' ? ` ${axis}` : ''}`}
     role="separator"
-    aria-label={t(axis === 'column' ? 'chatWorkspace.resizeColumns' : 'chatWorkspace.resizeRows')}
-    aria-orientation={axis === 'column' ? 'vertical' : 'horizontal'}
-    aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(ratios[axis])}
+    aria-label={t(axis === 'first' ? 'chatWorkspace.resizeFirstColumn' : axis === 'second' ? 'chatWorkspace.resizeLastColumn' : axis === 'column' ? 'chatWorkspace.resizeColumns' : 'chatWorkspace.resizeRows')}
+    aria-orientation={axis === 'row' ? 'horizontal' : 'vertical'}
+    aria-valuemin={Math.round(bounds(axis)[0])} aria-valuemax={Math.round(bounds(axis)[1])} aria-valuenow={Math.round(ratios[axis])}
     tabIndex={0}
     onPointerDown={event => beginResize(event, axis)}
-    onDoubleClick={() => commitRatio(axis, 50)}
+    onDoubleClick={() => commitRatio(axis, axis === 'first' ? 100 / 3 : axis === 'second' ? 200 / 3 : 50)}
     onKeyDown={event => {
-      const minus = axis === 'column' ? 'ArrowLeft' : 'ArrowUp'
-      const plus = axis === 'column' ? 'ArrowRight' : 'ArrowDown'
+      const minus = axis === 'row' ? 'ArrowUp' : 'ArrowLeft'
+      const plus = axis === 'row' ? 'ArrowDown' : 'ArrowRight'
       if (![minus, plus, 'Home', 'End'].includes(event.key)) return
       event.preventDefault()
       notifyTimelineViewportLayout('begin')
-      commitRatio(axis, event.key === 'Home' ? 25 : event.key === 'End' ? 75 : ratios[axis] + (event.key === plus ? 5 : -5))
+      commitRatio(axis, event.key === 'Home' ? bounds(axis)[0] : event.key === 'End' ? bounds(axis)[1] : ratios[axis] + (event.key === plus ? 5 : -5))
       requestAnimationFrame(() => notifyTimelineViewportLayout('end'))
     }}
   />
@@ -130,33 +163,39 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
   return <div className="chat-grid-workspace">
     <header className="workspace-tabs-bar">
       {!sidebarVisible && <button type="button" className="icon-button" onClick={onSidebarToggle} aria-label={t('chatWorkspace.showSidebar')}><PanelLeft size={16} /></button>}
-      <div className="chat-workspace-tabs" role="tablist" aria-label={t('chatWorkspace.tabs')}>
-        {workspaces.map(workspace => <div className={`chat-workspace-tab${workspace.id === activeId ? ' active' : ''}`} key={workspace.id}>
-          {renaming === workspace.id
-            ? <input autoFocus aria-label={t('chatWorkspace.name')} value={name} onChange={event => setName(event.target.value)}
-              onBlur={() => { useAppStore.getState().renameChatWorkspace(workspace.id, name.trim()); setRenaming(null) }}
-              onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.preventDefault(); setRenaming(null) } }} />
-            : <button type="button" role="tab" aria-selected={workspace.id === activeId} title={title(workspace)}
-              onClick={() => void useAppStore.getState().selectChatWorkspace(workspace.id)}
-              onDoubleClick={() => { setName(title(workspace)); setRenaming(workspace.id) }}>
-              <span>{title(workspace)}</span><small>{workspace.paneCount}</small>
-            </button>}
-          {workspaces.length > 1 && <button type="button" className="workspace-tab-close" aria-label={t('chatWorkspace.close', { name: title(workspace) })}
-            onClick={() => void useAppStore.getState().closeChatWorkspace(workspace.id)}><X size={12} /></button>}
-        </div>)}
+      <div className="workspace-tab-controls">
+        <div ref={tabsRef} className="chat-workspace-tabs" role="tablist" aria-label={t('chatWorkspace.tabs')}>
+          {workspaces.map(workspace => <div className={`chat-workspace-tab${workspace.id === activeId ? ' active' : ''}`} key={workspace.id}>
+            {renaming === workspace.id
+              ? <input autoFocus aria-label={t('chatWorkspace.name')} value={name} onChange={event => setName(event.target.value)}
+                onBlur={() => { useAppStore.getState().renameChatWorkspace(workspace.id, name.trim()); setRenaming(null) }}
+                onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.preventDefault(); setRenaming(null) } }} />
+              : <button type="button" role="tab" aria-selected={workspace.id === activeId} title={title(workspace)}
+                onClick={() => void useAppStore.getState().selectChatWorkspace(workspace.id)}
+                onDoubleClick={() => { setName(title(workspace)); setRenaming(workspace.id) }}>
+                <span>{title(workspace)}</span><small>{workspace.paneCount}</small>
+              </button>}
+            {workspaces.length > 1 && <button type="button" className="workspace-tab-close" aria-label={t('chatWorkspace.close', { name: title(workspace) })}
+              onClick={() => void useAppStore.getState().closeChatWorkspace(workspace.id)}><X size={12} /></button>}
+          </div>)}
+        </div>
+        <button type="button" className="icon-button workspace-add" aria-label={t('chatWorkspace.new')} title={t('chatWorkspace.new')}
+          onClick={() => void useAppStore.getState().createChatWorkspace()}><Plus size={16} /></button>
       </div>
-      <button type="button" className="icon-button workspace-add" aria-label={t('chatWorkspace.new')} title={t('chatWorkspace.new')}
-        onClick={() => void useAppStore.getState().createChatWorkspace()}><Plus size={16} /></button>
       <div className="workspace-layout-picker" role="group" aria-label={t('chatWorkspace.layout')}>
-        {([1, 2, 3, 4] as const).map(value => <button key={value} type="button" className="icon-button"
-          aria-label={t('chatWorkspace.paneCount', { count: value })} title={t('chatWorkspace.paneCount', { count: value })}
-          aria-pressed={count === value} onClick={() => useAppStore.getState().setChatPaneCount(value)}>
-          {value === 1 ? <Square size={15} /> : value === 2 ? <Columns2 size={15} /> : value === 4 ? <Grid2X2 size={15} /> : <span className="three-pane-icon" aria-hidden="true"><span /><span /><span /></span>}
+        {([1, 2, 3, 'columns', 4] as const).map(value => <button key={value} type="button" className="icon-button"
+          aria-label={value === 'columns' ? t('chatWorkspace.threeColumns') : t('chatWorkspace.paneCount', { count: value })} title={value === 'columns' ? t('chatWorkspace.threeColumns') : t('chatWorkspace.paneCount', { count: value })}
+          aria-pressed={value === 'columns' ? threeColumns : count === value && !threeColumns}
+          onClick={() => value === 'columns' || value === 3
+            ? useAppStore.getState().setChatThreePaneLayout(value === 'columns' ? 'columns' : 'split')
+            : useAppStore.getState().setChatPaneCount(value)}>
+          {value === 1 ? <Square size={15} /> : value === 2 ? <Columns2 size={15} /> : value === 'columns' ? <Columns3 size={15} /> : value === 4 ? <Grid2X2 size={15} /> : <span className="three-pane-icon" aria-hidden="true"><span /><span /><span /></span>}
         </button>)}
       </div>
     </header>
-    <div ref={gridRef} className={`workspace-chat-grid chat-split-view${count >= 3 ? ' short' : ''}`} data-pane-count={count}
-      style={{ '--workspace-column': `${ratios.column}%`, '--workspace-row': `${ratios.row}%` } as CSSProperties}>
+    <div ref={gridRef} className={`workspace-chat-grid chat-split-view${count >= 3 && !threeColumns ? ' short' : ''}`} data-pane-count={count} data-three-pane-layout={threeColumns ? 'columns' : 'split'}
+      style={{ '--workspace-column': `${ratios.column}%`, '--workspace-row': `${ratios.row}%`,
+        '--workspace-first-column': `${ratios.first}%`, '--workspace-second-column': `${ratios.second}%` } as CSSProperties}>
       {CHAT_PANE_IDS.slice(0, count).map(pane => {
         const session = sessions.find(candidate => candidate.id === panes[pane])
         return <div key={session?.id ?? `empty:${pane}`} className="workspace-pane-slot" data-pane={pane}>
@@ -166,8 +205,10 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
             : <EmptyChatPane pane={pane} focused={focused === pane} />}
         </div>
       })}
-      {count >= 2 && separator('column')}
-      {count >= 3 && separator('row')}
+      {threeColumns ? <>{separator('first')}{separator('second')}</> : <>
+        {count >= 2 && separator('column')}
+        {count >= 3 && separator('row')}
+      </>}
     </div>
   </div>
 }

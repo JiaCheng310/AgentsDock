@@ -8,6 +8,8 @@ const rendererRoot = resolve(process.cwd(), 'src/renderer/src')
 // or Radix. They are not design tokens and intentionally have no global value.
 const runtimeCustomProperties = new Set([
   '--workspace-column',
+  '--workspace-first-column',
+  '--workspace-second-column',
   '--workspace-row',
   '--workspace-editor-width',
   '--workspace-explorer-width',
