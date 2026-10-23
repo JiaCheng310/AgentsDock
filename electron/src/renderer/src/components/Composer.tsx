@@ -1875,8 +1875,9 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   if (!session) return <div className="composer disabled"><span>{t("ui.Composer.Composer.select_or_create_a_chat_to_begin_3a0c22a")}</span></div>
   return (
     <div className="composer-dock">
-      {!window.agentsDock.sharedChat && <div className="composer-context-row">
-        <WorkingDirectoryPopover session={session} />
+      {(!window.agentsDock.sharedChat || activeInboundDeliveryKind === 'unknown') && <div className="composer-context-row">
+        {!window.agentsDock.sharedChat && <WorkingDirectoryPopover session={session} />}
+        {activeInboundDeliveryKind === 'unknown' && <span className="composer-sync-status" role="status">{t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")}</span>}
       </div>}
       <fieldset className="composer-goal-controls" disabled={writeDisabled}><CodexGoalBar /></fieldset>
       <ClaudeGoalControls open={claudeGoalOpen} onOpenChange={setClaudeGoalOpen} disabled={writeDisabled} />
@@ -1904,9 +1905,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       {(uploads.length > 0 || uploadPaths.length > 0) && <AttachmentShelf sessionId={session.id} profileId={activeProfileId} profileGeneration={profileGeneration} files={uploads} pending={uploadPaths} />}
       <GeminiImportConnection key={`${activeProfileId}:${profileGeneration}:${session.id}`} session={session} />
       <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || (geminiImportRecovery ? undefined : selectedRuntimeError) || undefined} />
-      {activeInboundDeliveryKind && <span className={activeInboundDeliveryKind === 'unknown' ? 'composer-sync-status' : 'chat-reference-warning'} role="status">{activeInboundDeliveryKind === 'unknown'
-        ? t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")
-        : activeInboundDeliveryKind === 'secure_peer'
+      {activeInboundDeliveryKind && activeInboundDeliveryKind !== 'unknown' && <span className="chat-reference-warning" role="status">{activeInboundDeliveryKind === 'secure_peer'
           ? 'An incoming encrypted peer delivery is running. Stop or Send now will interrupt it.'
           : t("ui.Composer.Composer.an_incoming_delivery_is_running_stop_or_se_92e6678", { "delivery": 'chat-to-chat' })}</span>}
       <div className={`composer-editor${hasInlineReferences ? ' has-inline-references' : ''}${hasMessageLinks ? ' has-message-links' : ''}`}>

@@ -1778,6 +1778,8 @@ describe('Composer', () => {
       expect(notice).toHaveAttribute('role', 'status')
       expect(notice).toHaveClass('composer-sync-status')
       expect(notice).not.toHaveClass('chat-reference-warning')
+      expect(notice.closest('.composer-context-row')).not.toBeNull()
+      expect(notice.closest('.composer-scroll-region')).toBeNull()
       expect(screen.queryByText(/An active turn is running while chat sync is not live/)).not.toBeInTheDocument()
 
       act(() => useAppStore.setState({ syncBySession: { 'chat-1': { status: 'live', error: null } } }))
@@ -1786,6 +1788,24 @@ describe('Composer', () => {
       expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
     }
   )
+
+  it('keeps shared-chat sync status outside the compact input without exposing the folder control', () => {
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: { ...window.agentsDock, sharedChat: true } })
+    useAppStore.setState({
+      activeSessionIds: new Set(['chat-1']),
+      syncBySession: { 'chat-1': { status: 'syncing', error: null } }
+    })
+    const view = render(<Composer />)
+    const notice = screen.getByText('Syncing…')
+    expect(notice).toHaveAttribute('role', 'status')
+    expect(notice.closest('.composer-context-row')).not.toBeNull()
+    expect(notice.closest('.composer-scroll-region')).toBeNull()
+    expect(view.container.querySelector('.cwd-pill')).toBeNull()
+    expect(screen.getByPlaceholderText('Message')).toBeEnabled()
+
+    act(() => useAppStore.setState({ syncBySession: { 'chat-1': { status: 'live', error: null } } }))
+    expect(view.container.querySelector('.composer-context-row')).toBeNull()
+  })
 
   it('localizes the neutral unknown-origin sync status without inventing activity for an idle chat', () => {
     setLocale('zh-CN')
