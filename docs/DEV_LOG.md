@@ -7657,3 +7657,13 @@ and the original remained unchanged. This is a source fix, not a published beta.
   release candidate. A clean packaged replay, multi-server partial failure,
   rollback, and busy-chat UI journey are still required. No public release or
   production installation changed.
+
+Follow-up verification covered a partial multi-server update in the desktop
+coordinator: after one server reaches the target and another rejects the
+update, the plan retains both results; repeating the main Update action retries
+only the failed server. The affected desktop suites passed 130 tests and type
+checking passed. Server activation, handoff and rollback fixtures passed 112
+tests. A fresh locally signed QA package was built with the isolated feed, but
+it did not reach the application UI on this machine, so the revised offline
+message and automatic app exit are still unverified in a packaged App. This QA
+package is not a release candidate. The disposable server was restored.

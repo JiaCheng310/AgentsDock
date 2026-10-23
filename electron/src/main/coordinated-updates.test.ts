@@ -172,6 +172,32 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
     expect(f.clients.b.ensureServerUpdate).not.toHaveBeenCalled()
   })
 
+  it('keeps a partially completed multi-server update for one-click retry', async () => {
+    const f = fixture(['a', 'b'])
+    const envelope = signed()
+    f.clients.a.ensureServerUpdate.mockImplementation(async () => {
+      f.clients.a.health.mockResolvedValue(health('a', { server_version: '1.2.0-beta.2' }))
+      return { phase: 'pending', current_version: '1.1.0-beta.1', target_version: '1.2.0-beta.2',
+        server_identity: 'server-a', server_instance_id: 'boot-a', schedule_id: 'a-schedule' }
+    })
+    f.clients.b.ensureServerUpdate.mockRejectedValueOnce(new ServerError(503, 'Cannot write update files'))
+      .mockImplementation(async () => {
+        f.clients.b.health.mockResolvedValue(health('b', { server_version: '1.2.0-beta.2' }))
+        return { phase: 'pending', current_version: '1.1.0-beta.1', target_version: '1.2.0-beta.2',
+          server_identity: 'server-b', server_instance_id: 'boot-b', schedule_id: 'b-schedule' }
+      })
+
+    await expect(f.manager.prepareForInstall(envelope, '1.2.0-beta.2')).rejects.toThrow('Server b: Cannot write update files')
+    expect(f.saved()?.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({ profileId: 'a', targetVersion: '1.2.0-beta.2' }),
+      expect.objectContaining({ profileId: 'b', phase: 'blocked', message: 'Cannot write update files' })
+    ]))
+    await f.manager.prepareForInstall(envelope, '1.2.0-beta.2')
+    expect(f.manager.status().map(record => record.phase)).toEqual(['current', 'current'])
+    expect(f.clients.a.ensureServerUpdate).toHaveBeenCalledOnce()
+    expect(f.clients.b.ensureServerUpdate).toHaveBeenCalledTimes(2)
+  }, 10_000)
+
   it('retries failed preparation from the main Update button without reusing its failed receipt', async () => {
     const f = fixture()
     const envelope = signed()
