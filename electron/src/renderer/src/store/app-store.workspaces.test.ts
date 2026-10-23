@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentsDockAPI } from '@shared/ipc'
-import type { BootstrapPayload, PublicServerProfile, Session, SessionSnapshot, WorkspaceProfileScope } from '@shared/types'
+import type { BootstrapPayload, ProfileSyncEvent, PublicServerProfile, Session, SessionSnapshot, WorkspaceProfileScope } from '@shared/types'
 import { useAppStore } from './app-store'
 
 vi.mock('../lib/analytics', () => ({ trackEvent: vi.fn() }))
@@ -62,6 +62,63 @@ beforeEach(async () => {
 })
 
 describe('tabbed chat workspaces', () => {
+  it('forgets an ended subscription and reattaches only on explicit cached-chat selection', async () => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    const onSync = api.events.on.mock.calls.find(([event]) => event === 'server:sync')![1] as (event: ProfileSyncEvent) => void
+    api.timeline.subscribe.mockClear()
+    onSync({ profileId: 'one', profileGeneration: 0, sessionId: 'a', state: 'idle' })
+    await useAppStore.getState().selectSession('a')
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    onSync({ profileId: 'one', profileGeneration: 1, sessionId: 'a', state: 'reconnecting' })
+    await useAppStore.getState().selectSession('a')
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    onSync({ profileId: 'one', profileGeneration: 1, sessionId: 'a', state: 'idle' })
+    await Promise.resolve()
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    await useAppStore.getState().selectSession('a')
+    expect(api.timeline.subscribe).toHaveBeenCalledExactlyOnceWith('a', 1)
+    await useAppStore.getState().selectSession('a')
+    expect(api.timeline.subscribe).toHaveBeenCalledTimes(1)
+    // A delayed idle notification from the previous owner must not stop or
+    // automatically restart the stream attached by the explicit selection.
+    onSync({ profileId: 'one', profileGeneration: 1, sessionId: 'a', state: 'idle' })
+    await Promise.resolve()
+    expect(api.timeline.subscribe).toHaveBeenCalledTimes(1)
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+  })
+
+  it.each([3, 4])('owns all %s visible streams and releases only panes leaving the active workspace', async count => {
+    const ids = ['a', 'b', 'c', 'd'].slice(0, count)
+    for (const id of ids.slice(1)) await useAppStore.getState().openSessionInSplit(id)
+    const first = useAppStore.getState().activeChatWorkspaceId
+    expect(api.timeline.subscribe.mock.calls.map(([id]) => id)).toEqual(ids.slice(1))
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+    api.timeline.subscribe.mockClear()
+    await useAppStore.getState().createChatWorkspace('b')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    const hidden = ids.filter(id => id !== 'b')
+    expect(api.timeline.unsubscribe.mock.calls.map(([id]) => id)).toEqual(hidden)
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    api.timeline.unsubscribe.mockClear()
+    await useAppStore.getState().selectChatWorkspace(first)
+    expect(api.timeline.subscribe.mock.calls.map(([id]) => id)).toEqual(hidden)
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+    api.timeline.subscribe.mockClear()
+    useAppStore.getState().closeChatPane('secondary')
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('b')
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    api.timeline.unsubscribe.mockClear()
+    await useAppStore.getState().closeChatWorkspace(first)
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe(second)
+    expect(api.timeline.unsubscribe.mock.calls.map(([id]) => id)).toEqual(hidden)
+    expect(api.timeline.subscribe).toHaveBeenCalledExactlyOnceWith('b', 1)
+    api.timeline.unsubscribe.mockClear()
+    api.timeline.subscribe.mockClear()
+    await useAppStore.getState().closeChatWorkspace(second)
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('b')
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+  })
+
   it('returns to an existing workspace and focuses its chat without replacing the departing pane', async () => {
     await useAppStore.getState().openSessionInSplit('b')
     const first = useAppStore.getState().activeChatWorkspaceId

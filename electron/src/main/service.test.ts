@@ -4597,31 +4597,82 @@ describe('split-chat timeline subscriptions', () => {
     expect(stops.get('chat-c')).not.toHaveBeenCalled()
   })
 
-  it('defensively bounds live streams to two sessions', async () => {
-    const stops = new Map<string, ReturnType<typeof vi.fn>>()
+  it('keeps primary hydration and completion events live while the third and fourth panes subscribe', async () => {
+    const primaryPage = deferred<TimelinePage>()
+    const streams = new Map<string, { onEvent: (event: Event) => void; stop: ReturnType<typeof vi.fn> }>()
+    const client = fakeClient({
+      sessionPage: async sessionId => sessionId === 'chat-a' ? primaryPage.promise : emptyTimelinePage(sessionId),
+      stream: (sessionId, _after, onEvent, onState) => {
+        const stream = { onEvent, stop: vi.fn() }
+        streams.set(sessionId, stream)
+        onState(true)
+        return stream.stop
+      }
+    })
+    const { service, cache } = createProfileService({ 'http://a.test:7850': [client] })
+    Object.assign(service, { validatedGeneration: 1 })
+    const send = vi.fn()
+    service.addWindow({ isDestroyed: () => false, on: vi.fn(), webContents: { send } } as never)
+
+    await service.subscribeTimeline('chat-a', 0)
+    await settleBackgroundWork()
+    expect(client.sessionPage).toHaveBeenCalledWith('chat-a', expect.objectContaining({ tail: true }))
+    await Promise.all(['chat-b', 'chat-c', 'chat-d'].map(sessionId => service.subscribeTimeline(sessionId, 0)))
+    await settleBackgroundWork()
+    expect(streams.has('chat-a')).toBe(false)
+
+    const reply: Event = { id: 'a-reply', session_id: 'chat-a', seq: 10, type: 'assistant_text', ts: 'now', text: 'Done.' }
+    primaryPage.resolve({ ...emptyTimelinePage('chat-a'), events: [reply], latest_seq: 10, total: 1, semantic_item_count: 1 })
+    await settleBackgroundWork()
+
+    expect([...streams.keys()].sort()).toEqual(['chat-a', 'chat-b', 'chat-c', 'chat-d'])
+    expect(send).toHaveBeenCalledWith('server:timeline', expect.objectContaining({
+      sessionId: 'chat-a', authoritativeTail: true, snapshot: expect.objectContaining({ events: [reply] })
+    }))
+    expect(send).not.toHaveBeenCalledWith('server:sync', expect.objectContaining({ state: 'idle' }))
+    for (const [sessionId, stream] of streams) {
+      const terminal: Event = { id: `${sessionId}-finished`, session_id: sessionId, seq: 11, type: 'turn_finished', ts: 'now', run_id: `${sessionId}-run` }
+      stream.onEvent(terminal)
+      expect(send).toHaveBeenCalledWith('server:event', expect.objectContaining({ event: terminal }))
+      expect(stream.stop).not.toHaveBeenCalled()
+    }
+    ;(service as unknown as { flushEventCache(): void }).flushEventCache()
+    expect(cache.snapshot('profile:a', 'chat-a')?.events).toEqual([reply, expect.objectContaining({ type: 'turn_finished' })])
+  })
+
+  it('retains visible streams during a replacement overlap until the hidden pane explicitly unsubscribes', async () => {
+    const streams = new Map<string, { onEvent: (event: Event) => void; stop: ReturnType<typeof vi.fn> }>()
     const client = fakeClient({
       sessionPage: async sessionId => emptyTimelinePage(sessionId),
-      stream: sessionId => {
-        const stop = vi.fn()
-        stops.set(sessionId, stop)
-        return stop
+      stream: (sessionId, _after, onEvent) => {
+        const stream = { onEvent, stop: vi.fn() }
+        streams.set(sessionId, stream)
+        return stream.stop
       }
     })
     const { service } = createProfileService({ 'http://a.test:7850': [client] })
     Object.assign(service, { validatedGeneration: 1 })
+    const send = vi.fn()
+    service.addWindow({ isDestroyed: () => false, on: vi.fn(), webContents: { send } } as never)
+    for (const sessionId of ['chat-a', 'chat-b', 'chat-c', 'chat-d', 'chat-e']) {
+      await service.subscribeTimeline(sessionId, 0)
+      await settleBackgroundWork()
+    }
+    for (const stream of streams.values()) expect(stream.stop).not.toHaveBeenCalled()
 
-    await service.subscribeTimeline('chat-a', 0)
-    await settleBackgroundWork()
-    await service.subscribeTimeline('chat-b', 0)
-    await settleBackgroundWork()
-    await service.subscribeTimeline('chat-c', 0)
-    await settleBackgroundWork()
-
-    expect(stops.get('chat-a')).toHaveBeenCalledOnce()
-    expect(stops.get('chat-b')).not.toHaveBeenCalled()
-    expect(stops.get('chat-c')).not.toHaveBeenCalled()
-    const subscriptions = (service as unknown as { timelineSubscriptions: Map<string, unknown> }).timelineSubscriptions
-    expect([...subscriptions.keys()]).toEqual(['chat-b', 'chat-c'])
+    service.unsubscribeTimeline('chat-b')
+    expect(streams.get('chat-b')!.stop).toHaveBeenCalledOnce()
+    send.mockClear()
+    for (const [sessionId, stream] of streams) {
+      const terminal: Event = { id: `${sessionId}-finished`, session_id: sessionId, seq: 1, type: 'turn_finished', ts: 'now' }
+      stream.onEvent(terminal)
+      if (sessionId === 'chat-b') {
+        expect(send).not.toHaveBeenCalledWith('server:event', expect.objectContaining({ event: terminal }))
+      } else {
+        expect(stream.stop).not.toHaveBeenCalled()
+        expect(send).toHaveBeenCalledWith('server:event', expect.objectContaining({ event: terminal }))
+      }
+    }
   })
 
   it('closes every session stream on profile switch and service disposal', async () => {

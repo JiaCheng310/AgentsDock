@@ -792,6 +792,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       window.agentsDock.events.on('server:sync', payload => {
         const current = get()
         if (!profileEventMatches(payload, current)) return
+        // Idle means main no longer owns this stream. Let a later selection
+        // reattach cached history; reconnecting streams retain their owner.
+        if (payload.state === 'idle') timelineSubscriptions.delete(payload.sessionId)
         if (payload.state !== 'live' && current.snapshots[payload.sessionId]?.reasoningStream) {
           set(state => ({ snapshots: { ...state.snapshots, [payload.sessionId]: {
             ...state.snapshots[payload.sessionId], reasoningStream: undefined

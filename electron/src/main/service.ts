@@ -250,7 +250,6 @@ const REMOTE_AGENT_ROUTE_UNAVAILABLE = 'Remote agent routes cannot be used from 
 const SERVER_RESTART_RECONNECT_TIMEOUT_MS = 45_000
 const SERVER_RESTART_POLL_DELAY_MS = 500
 const SERVER_RESTART_HEALTH_TIMEOUT_MS = 3_000
-const MAX_TIMELINE_SUBSCRIPTIONS = 2
 const TRACE_DETAIL_EVENT_TYPES = new Set([
   'reasoning_summary',
   'reasoning_text',
@@ -3519,13 +3518,9 @@ export class AppService {
     this.assertCurrentScope(scope)
     this.stopTimelineSubscription(sessionId)
     this.flushEventCache()
-    if (this.timelineSubscriptions.size >= MAX_TIMELINE_SUBSCRIPTIONS) {
-      const oldestSessionId = this.timelineSubscriptions.keys().next().value as string | undefined
-      if (oldestSessionId) {
-        this.stopTimelineSubscription(oldestSessionId)
-        this.emitSync(scope, oldestSessionId, 'idle')
-      }
-    }
+    // The renderer owns the visible pane set and explicitly unsubscribes hidden
+    // chats. Opening another pane must not retire a still-visible chat's lease,
+    // including while a workspace switch briefly overlaps old and new panes.
     const lease = ++this.timelineLeaseSequence
     this.timelineSubscriptions.set(sessionId, { lease, stop: null, connected: false, initializing: true })
     return lease
