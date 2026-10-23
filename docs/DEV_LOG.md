@@ -11,8 +11,20 @@
   Older servers cannot distinguish replies within a mixed-use scheduled chat;
   their fallback applies to the registered chat until inclusion is enabled.
 - Four new regressions failed before the fix. All 281 focused sidebar, session
-  and store tests, TypeScript and production compilation pass. Native packaged
-  acceptance is recorded after the local build is checked.
+  and store tests pass. The local macOS arm64 package uses source `13193ad2`,
+  development version 0.2.0/build 85. All 5,398 desktop tests passed (five skipped),
+  followed by TypeScript, production compilation, bundle audit, Developer ID
+  signing, required entitlements and deep strict signature checks.
+- Native offscreen acceptance reproduced the failure in the prior packaged app,
+  then verified the corrected signed archive against an isolated authenticated
+  server returning missing/null legacy provenance. Settings on/off, preserved
+  saved choices after restart, pinned placement, ordinary and manual unread,
+  keyboard order, server switching, offline cached jobs and reconnect passed.
+  Auxiliary job-add/remove fixtures used the existing read-only jobs-list IPC
+  through real HTTP; the existing background polling cadence was not changed.
+  All 91 compiled assets matched and archive/signature remained unchanged.
+  No scheduled job or provider ran. Signed-executable/Gatekeeper launch remains
+  untested; this is a local unnotarized trial, not a publication or installation.
 - Scope: app compatibility fix; no server update or live-state change required.
 
 ## 2026-10-23 — Tabbed chat workspaces and pane-local file tabs
