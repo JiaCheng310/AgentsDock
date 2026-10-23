@@ -1312,7 +1312,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async selectSession(sessionId, force = false) {
     const state = get()
-    const pane = chatPaneForSession(state.chatPanes, sessionId) ?? state.focusedChatPane
+    if (state.switchingProfileId || !state.sessions.some(session => session.id === sessionId)) return
+    const current = currentChatWorkspaceState(state)
+    const containsSession = (workspace: ChatWorkspace) => Boolean(chatPaneForSession(workspace.panes, sessionId))
+    const destination = current.workspaces.find(workspace => workspace.id === current.activeWorkspaceId && containsSession(workspace))
+      ?? current.workspaces.find(containsSession)
+    const pane = (destination && chatPaneForSession(destination.panes, sessionId)) ?? state.focusedChatPane
+    const requiredCount = (CHAT_PANE_IDS.indexOf(pane) + 1) as ChatPaneCount
+    if (destination && (destination.id !== current.activeWorkspaceId || requiredCount > destination.paneCount)) {
+      const reconciled = parseChatWorkspaces(current, new Set(state.sessions.map(session => session.id)))!
+      const workspaces = reconciled.workspaces.map(workspace => workspace.id === destination.id
+        ? { ...workspace, focusedPane: pane, paneCount: Math.max(workspace.paneCount, requiredCount) as ChatPaneCount }
+        : workspace)
+      captureChatTimelines(state.chatPanes)
+      set(value => chatWorkspaceAliases(value, { workspaces, activeWorkspaceId: destination.id }))
+      unsubscribeHiddenChatSessions(state.chatPanes, get().chatPanes, captureProfileScope(state))
+      persistChatPaneState(get())
+      await hydrateVisibleChatPanes(get, force ? sessionId : undefined)
+      return
+    }
     await state.selectSessionInPane(sessionId, pane, force)
   },
 
@@ -3025,12 +3043,12 @@ function persistChatPaneState(state: AppState): void {
   ]).catch(() => undefined)
 }
 
-async function hydrateVisibleChatPanes(get: () => AppState): Promise<void> {
+async function hydrateVisibleChatPanes(get: () => AppState, forceSessionId?: string): Promise<void> {
   const panes = get().chatPanes
   const tasks: Promise<void>[] = []
   for (const pane of CHAT_PANE_IDS) {
     const sessionId = panes[pane]
-    if (sessionId) tasks.push(get().selectSessionInPane(sessionId, pane, false, false))
+    if (sessionId) tasks.push(get().selectSessionInPane(sessionId, pane, sessionId === forceSessionId, false))
   }
   await Promise.all(tasks)
 }

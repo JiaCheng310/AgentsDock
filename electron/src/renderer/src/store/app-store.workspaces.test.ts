@@ -62,6 +62,88 @@ beforeEach(async () => {
 })
 
 describe('tabbed chat workspaces', () => {
+  it('returns to an existing workspace and focuses its chat without replacing the departing pane', async () => {
+    await useAppStore.getState().openSessionInSplit('b')
+    const first = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().focusChatPane('primary')
+    useAppStore.getState().setDraftForSession('b', 'draft B')
+    useAppStore.setState(state => ({ snapshots: {
+      ...state.snapshots, b: { ...state.snapshots.b, files: [{ id: 'b-file', filename: 'notes.txt', session_id: 'b' }], filesTotal: 1 }
+    } }))
+    await useAppStore.getState().createChatWorkspace('c')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    const capture = vi.fn()
+    window.addEventListener('agentsdock:capture-timeline', capture)
+    api.timeline.subscribe.mockClear()
+    api.timeline.unsubscribe.mockClear()
+    await useAppStore.getState().selectSession('b')
+    window.removeEventListener('agentsdock:capture-timeline', capture)
+    expect(useAppStore.getState()).toMatchObject({
+      activeChatWorkspaceId: first, focusedChatPane: 'secondary', selectedSessionId: 'b',
+      chatPanes: { primary: 'a', secondary: 'b' }
+    })
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === second)?.panes).toEqual({ primary: 'c', secondary: null })
+    expect(useAppStore.getState().chatWorkspaces.flatMap(workspace => Object.values(workspace.panes)).filter(id => id === 'b')).toHaveLength(1)
+    expect(useAppStore.getState().drafts.b).toBe('draft B')
+    expect(useAppStore.getState().snapshots.b.files).toEqual([{ id: 'b-file', filename: 'notes.txt', session_id: 'b' }])
+    expect(capture).toHaveBeenCalledWith(expect.objectContaining({ detail: { sessionId: 'c' } }))
+    expect(api.timeline.unsubscribe).toHaveBeenCalledExactlyOnceWith('c')
+    expect(api.timeline.subscribe.mock.calls.map(([id]) => id)).toEqual(['a', 'b'])
+  })
+
+  it.each([false, true])('reveals a saved hidden pane without changing its assignment (other workspace: %s)', async otherWorkspace => {
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    const first = useAppStore.getState().activeChatWorkspaceId
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    useAppStore.getState().setChatWorkspaceRatios({ threeColumnRatios: [0.25, 0.7] })
+    useAppStore.getState().setChatPaneCount(1)
+    if (otherWorkspace) await useAppStore.getState().createChatWorkspace('e')
+    await useAppStore.getState().selectSession('c')
+    expect(useAppStore.getState()).toMatchObject({
+      activeChatWorkspaceId: first, chatPaneCount: 3, focusedChatPane: 'tertiary', selectedSessionId: 'c',
+      chatPanes: { primary: 'a', secondary: 'b', tertiary: 'c' }
+    })
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)).toMatchObject({
+      panes: { quaternary: 'd' }, threePaneLayout: 'columns', threeColumnRatios: [0.25, 0.7]
+    })
+  })
+
+  it('prefers the current workspace when explicit placement opened the chat in multiple tabs', async () => {
+    await useAppStore.getState().openSessionInSplit('b')
+    const first = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace('c')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().openSessionInSplit('b')
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe(second)
+    useAppStore.getState().setChatPaneCount(1)
+    await useAppStore.getState().selectSession('b')
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: second, chatPaneCount: 2, focusedChatPane: 'secondary' })
+    await useAppStore.getState().createChatWorkspace('d')
+    await useAppStore.getState().selectSession('b')
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: first, focusedChatPane: 'secondary' })
+  })
+
+  it('keeps explicit pane placement and unopened normal selections in the current workspace', async () => {
+    const first = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace('b')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().selectSessionInPane('a', 'secondary')
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: second, chatPanes: { primary: 'b', secondary: 'a' } })
+    await useAppStore.getState().selectSession('e')
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: second, chatPanes: { primary: 'b', secondary: 'e' } })
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)?.panes.primary).toBe('a')
+  })
+
+  it('uses the existing workspace when next-chat keyboard navigation selects its chat', async () => {
+    const first = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace('b')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().selectChatWorkspace(first)
+    await useAppStore.getState().selectAdjacent(1)
+    expect(useAppStore.getState()).toMatchObject({ activeChatWorkspaceId: second, selectedSessionId: 'b' })
+    expect(useAppStore.getState().chatWorkspaces.find(workspace => workspace.id === first)?.panes.primary).toBe('a')
+  })
+
   it('fills all four slots, keeps existing streams, then replaces only the focused slot', async () => {
     for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
     expect(useAppStore.getState()).toMatchObject({

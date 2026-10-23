@@ -11,7 +11,8 @@
   and Command-Control-Right cycle workspace tabs, including from the composer.
 - Show each pane's chat title once in its pinned tab. Double-click that tab or
   use Rename chat in the actions menu to rename it; keep the folder control
-  accessible in the toolbar.
+  accessible in the toolbar. Selecting a chat already assigned to a workspace
+  returns to that workspace and focuses its pane instead of opening a duplicate.
 - Focused layout, resize ownership, persistence, file-tab, design-system and
   store regressions pass, as do TypeScript and production compilation. Native
   packaged acceptance is pending. This is an app-only local trial using existing
