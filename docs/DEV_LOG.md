@@ -1,5 +1,27 @@
 # Public development log
 
+## 2026-10-23 — Local desktop package with sidebar controls
+
+- Built macOS arm64 from `29951a90`, combining the sidebar settings with the
+  merged TIFF-preview and split-chat file-opening fixes. Development metadata
+  remains 0.2.0/build 85; this is a local package, not a published release.
+- The full desktop suite passed: 5,367 tests, five skipped. TypeScript,
+  production compilation, bundle audit, Developer ID signing, entitlements
+  and deep strict signature checks passed.
+- Packaged native offscreen checks loaded main, preload and renderer directly
+  from the signed archive. All 91 compiled assets match. The three sidebar
+  switches, cron grouping, running-chat placement and restart persistence
+  passed through real IPC and an isolated authenticated server. The archive
+  and signature remained unchanged. Provider output was synthetic; no provider
+  or scheduled job executed. Signed-executable/Gatekeeper launch was not tested.
+- Keep metadata-free server summaries sparse, fixing the existing summary-size
+  regression without changing its threshold. Known counters and pending-recovery
+  nulls remain explicit; 44 targeted server tests pass. The packaged smoke used
+  this corrected server source.
+- Availability: local app package only. The grouping switches work with older
+  servers; distinguishing cron output requires the matching server patch.
+  Nothing was installed, published or deployed.
+
 ## 2026-10-22 — Configure Unread and Running sidebar sections
 
 - Add three General settings remembered locally per server: Unread chats at the
