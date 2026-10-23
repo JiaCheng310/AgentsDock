@@ -7635,3 +7635,25 @@ and the original remained unchanged. This is a source fix, not a published beta.
   encountered Codex's retained native writer after unsubscribe; that probe is
   failed, and genuine cross-process credential handoff remains unaccepted.
   No public release, installed-app replacement, or live-service deployment.
+
+## 2026-10-22 — Draft coordinated busy-server update verification
+
+- One product Update action now prepares and verifies saved servers before the
+  native app installer. Disposable managed-service upgrades confirmed one
+  internal continuation and a final reply for each of Codex, Claude, and
+  Cursor. A non-chat job and a persistent goal deferred forced interruption;
+  a persistent terminal survived, and simultaneous client requests caused one
+  server replacement.
+- An isolated packaged-app replay confirmed that an unreachable server leaves
+  the old app installed, but found its error message could be overwritten by a
+  background release check. The source fix retains an explicit incomplete
+  update message across checks and identifies the failed connection. Focused
+  desktop tests, type checking, and the production compile passed; this revised
+  UI message has not yet passed packaged-app acceptance.
+- Native replacement remains unaccepted: a repacked QA app downloaded the
+  matching update, but did not exit automatically. Its installer completed and
+  relaunched only after the disposable old app was explicitly terminated. The
+  QA shell was modified for isolated feeds and is not an exact-source signed
+  release candidate. A clean packaged replay, multi-server partial failure,
+  rollback, and busy-chat UI journey are still required. No public release or
+  production installation changed.

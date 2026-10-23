@@ -60,6 +60,9 @@ export class AppUpdateManager {
   private cancelInstallWait: (() => void) | null = null
   private nativeInstallStarted = false
   private preparingPairedInstall = false
+  // A background release check must not turn a failed paired install back into
+  // an ordinary "ready to install" message for the same downloaded version.
+  private installFailure: { version: string; message: string } | null = null
 
   setServerUpdates(serverUpdates: NonNullable<AppUpdateStatus['serverUpdates']>): void {
     const current = serverUpdates.filter(server => server.phase === 'current').length
@@ -92,6 +95,7 @@ export class AppUpdateManager {
     this.ignoreUpdaterEvents = true
     this.suppressAutomaticChecks = true
     this.readyUpdateBeforeRefresh = null
+    this.installFailure = null
     this.manualCheck = false
     this.downloadCancellation?.cancel()
     this.downloadCancellation = null
@@ -263,6 +267,7 @@ export class AppUpdateManager {
     }
 
     this.trackStore.write(track)
+    this.installFailure = null
     if (this.value.state === 'downloaded') this.cancel()
     this.track = track
     if (this.value.channel === 'development') {
@@ -351,9 +356,11 @@ export class AppUpdateManager {
       this.lifecycle.installFailed?.()
       const message = error instanceof Error ? error.message : String(error)
       appLog('updater', 'could not install downloaded update', { message })
+      const failureMessage = `AgentsDock update is incomplete: ${message} Retry Update AgentsDock after resolving this.`
+      this.installFailure = { version: pinnedVersion, message: failureMessage }
       this.set({
         state: 'downloaded',
-        message: `The update is still downloaded, but AgentsDock could not restart: ${message}`
+        message: failureMessage
       })
       return false
     }
@@ -375,6 +382,7 @@ export class AppUpdateManager {
     autoUpdater.on('update-available', (info: UpdateInfo) => {
       if (this.ignoreUpdaterEvents) return
       appLog('updater', 'update available', { version: info.version })
+      if (this.installFailure?.version !== info.version) this.installFailure = null
       // electron-updater may clear its pending cache while replacing a
       // download. Once replacement begins, the prior installer can no longer
       // be treated as a safe fallback if the new download fails.
@@ -400,6 +408,7 @@ export class AppUpdateManager {
       const previouslyDownloaded = this.readyUpdateBeforeRefresh?.availableVersion
       if (previouslyDownloaded === info.version && this.restoreReadyUpdate()) return
       this.readyUpdateBeforeRefresh = null
+      this.installFailure = null
       this.set({
         state: 'not-available',
         availableVersion: undefined,
@@ -416,11 +425,12 @@ export class AppUpdateManager {
       if (this.ignoreUpdaterEvents) return
       appLog('updater', 'update downloaded', { version: info.version })
       this.readyUpdateBeforeRefresh = null
+      if (this.installFailure?.version !== info.version) this.installFailure = null
       this.set({
         state: 'downloaded',
         availableVersion: info.version,
         progress: 100,
-        message: `AgentsDock ${info.version} is ready to install.`,
+        message: this.installFailure?.message ?? `AgentsDock ${info.version} is ready to install.`,
         checkedAt: now(),
         downloadedAt: now()
       })
@@ -451,12 +461,15 @@ export class AppUpdateManager {
     if (!ready) return false
     this.readyUpdateBeforeRefresh = null
     this.manualCheck = false
+    const failure = this.installFailure
     this.set({
       ...ready,
       serverUpdates: this.value.serverUpdates,
       serverUpdateMessage: this.value.serverUpdateMessage,
       state: 'downloaded',
-      message: message ?? `AgentsDock ${ready.availableVersion ?? 'update'} is ready to install.`,
+      message: message ?? (failure && failure.version === ready.availableVersion
+        ? failure.message
+        : `AgentsDock ${ready.availableVersion ?? 'update'} is ready to install.`),
       checkedAt: now()
     })
     return true

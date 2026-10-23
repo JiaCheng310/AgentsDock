@@ -126,7 +126,10 @@ export class CoordinatedUpdateManager {
               connection.client.dispose()
               reject(new Error(`${profile.name}: server is offline; reconnect before updating the app.`))
             }, 8_000) })
-          ])
+          ]).catch(error => {
+            if (error instanceof ServerError) throw error
+            throw new Error(`${profile.name}: server is offline or unreachable; reconnect before updating AgentsDock.`, { cause: error })
+          })
           connection.assertCurrent()
           if (!health.ok || !profile.serverIdentity || health.server_identity !== profile.serverIdentity) {
             throw new Error(`${profile.name}: reconnect and verify this server before updating the app.`)

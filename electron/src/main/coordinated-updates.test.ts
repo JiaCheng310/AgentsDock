@@ -166,8 +166,8 @@ describe('coordinated app/server reconciliation (mocked server boundary)', () =>
 
   it('does not mutate any server when another saved server fails preflight', async () => {
     const f = fixture(['a', 'b'])
-    f.clients.b.health.mockRejectedValue(new Error('offline'))
-    await expect(f.manager.prepareForInstall(signed(), '1.2.0-beta.2')).rejects.toThrow('offline')
+    f.clients.b.health.mockRejectedValue(new TypeError('fetch failed'))
+    await expect(f.manager.prepareForInstall(signed(), '1.2.0-beta.2')).rejects.toThrow('server is offline or unreachable')
     expect(f.clients.a.ensureServerUpdate).not.toHaveBeenCalled()
     expect(f.clients.b.ensureServerUpdate).not.toHaveBeenCalled()
   })

@@ -17,6 +17,10 @@ server still reports its version and paired-update progress; if a paired
 update fails after the app is current, the main action becomes **Retry
 AgentsDock update** and retries the incomplete server targets. Server restart
 remains a separate maintenance control on the Server page.
+If a saved server is unreachable before installation, the old app remains
+installed and the same Update action stays available. The incomplete-update
+message identifies the unreachable server and remains visible when a background
+release check rediscovers the same app package.
 
 Servers advertising `server_update_continuation_v1` can activate a prepared
 idle-scheduled update immediately. The request is bound to the exact schedule
