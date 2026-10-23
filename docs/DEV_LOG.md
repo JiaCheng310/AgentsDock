@@ -1,5 +1,32 @@
 # Public development log
 
+## 2026-10-23 — Keep every visible chat receiving live updates
+
+- Remove the obsolete two-stream eviction from the desktop service. Opening a
+  third or fourth pane now preserves every visible chat's history request and
+  live connection. Explicit pane/workspace cleanup still releases hidden chats;
+  late events from retired subscriptions remain fenced to their original owner.
+- Clear ended-subscription bookkeeping so explicitly selecting a cached chat
+  can reconnect it. Reconnecting streams keep their owner; this adds no polling
+  or automatic retries.
+- Source `50c89366`, local macOS arm64 development package 0.2.0/build 85.
+  Regression tests reproduced dropped primary history/completion and stale
+  subscription bookkeeping before the fixes. All 5,429 desktop tests passed
+  (five skipped), plus TypeScript, production compilation, bundle audit,
+  Developer ID signing, required entitlements and deep strict signature checks.
+- Native offscreen acceptance reproduced missing primary replies in the old
+  package, then verified all three/four panes receiving new assistant, reasoning,
+  tool and completion events through production IPC, authenticated HTTP and
+  WebSockets. Working, Running and Stop appear during held fixture turns and
+  clear on completion. Concurrent hydration, workspace switching, hidden-pane
+  cleanup and catch-up after reopening passed. All 91 compiled assets matched;
+  the packaged archive and signature stayed unchanged.
+- Provider events and active-run ownership were synthetic fixtures in disposable
+  server state; no provider ran. The actual packaged archive ran in stock
+  Electron offscreen; signed-executable/Gatekeeper launch was not exercised.
+  No installed app, running service or published release was changed. This is
+  an app-only local trial using existing contracts; no server update is required.
+
 ## 2026-10-23 — Three-column chat workspaces
 
 - Place the new-workspace button immediately beside the workspace tabs. Keep
