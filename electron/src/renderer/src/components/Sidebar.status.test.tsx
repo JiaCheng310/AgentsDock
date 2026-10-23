@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentsDockAPI } from '@shared/ipc'
-import type { Session } from '@shared/types'
+import type { Job, Session } from '@shared/types'
 import { navigableSessions, type SidebarGroupingOptions } from '../lib/sessions'
 import { useAppStore } from '../store/app-store'
 import { buildSections, resolveSidebarDrop, Sidebar } from './Sidebar'
@@ -9,6 +9,7 @@ import { buildSections, resolveSidebarDrop, Sidebar } from './Sidebar'
 const chat = (id: string, patch: Partial<Session> = {}): Session => ({ id, title: id, backend: 'codex', folder: 'Work', ...patch })
 const groups = (sessions: Session[], active = new Set<string>(), folders: string[] = [], options: SidebarGroupingOptions = {}) =>
   buildSections(sessions, folders, '', new Set(), active, options).map(section => [section.id, section.sessions.map(session => session.id)])
+const job = (sessionId: string, patch: Partial<Job> = {}): Job => ({ id: `job-${sessionId}`, session_id: sessionId, title: 'Scheduled task', prompt: 'Check', interval_seconds: 60, enabled: true, ...patch })
 
 describe('sidebar status grouping', () => {
   it.each([
@@ -69,7 +70,7 @@ describe('sidebar status grouping', () => {
     expect(groups([{ ...mixed, archived: true }])).toEqual([['archived', ['mixed']]])
   })
 
-  it('preserves normal unread grouping when older servers lack scheduled provenance', () => {
+  it('preserves normal unread grouping without provenance or an associated job', () => {
     const unknown = chat('legacy', { latest_agent_event_seq: 12, last_read_agent_event_seq: 2 })
     expect(groups([unknown])).toEqual([['status:unread', ['legacy']]])
     expect(groups([{ ...unknown, latest_non_job_agent_event_seq: null }])).toEqual([['status:unread', ['legacy']]])
@@ -143,6 +144,47 @@ describe('sidebar status controls', () => {
     }, true)
   })
   afterEach(() => { cleanup(); useAppStore.setState(useAppStore.getInitialState(), true); vi.restoreAllMocks() })
+
+  it('updates legacy cron grouping and keyboard order as jobs arrive or change without altering unread state', async () => {
+    const cron = chat('Forwarding', { backend: 'claude', folder: 'Schedules', latest_agent_event_seq: 20, last_read_agent_event_seq: 3 })
+    const reply = chat('Ordinary reply', { latest_agent_event_seq: 10 })
+    const idle = chat('Idle')
+    const selectSession = vi.fn().mockResolvedValue(undefined)
+    useAppStore.setState({ sessions: [cron, reply, idle], jobs: [], activeSessionIds: new Set(),
+      selectedSessionId: cron.id, folderOrder: ['Schedules', 'Work'], selectSession })
+    const original = useAppStore.getState().sessions
+    render(<Sidebar />)
+    const row = (name: string) => screen.getByText(name).closest('.session-row')!
+    expect(row(cron.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    act(() => useAppStore.setState({ jobs: [job(cron.id)] }))
+    expect(row(cron.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'folder:Schedules')
+    expect(row(cron.title).querySelector('.status-dot')).toHaveClass('unread')
+    expect(row(reply.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    await act(async () => useAppStore.getState().selectAdjacent(1))
+    expect(selectSession).toHaveBeenLastCalledWith(idle.id)
+    act(() => useAppStore.getState().setIncludeCronInUnread(true))
+    expect(row(cron.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    await act(async () => useAppStore.getState().selectAdjacent(1))
+    expect(selectSession).toHaveBeenLastCalledWith(reply.id)
+    act(() => useAppStore.getState().setIncludeCronInUnread(false))
+    act(() => useAppStore.setState({ jobs: [job(reply.id, { enabled: false })] }))
+    expect(row(cron.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    expect(row(reply.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'folder:Work')
+    act(() => useAppStore.setState({ jobs: [] }))
+    expect(row(reply.title).closest('.sidebar-section')).toHaveAttribute('data-section-id', 'status:unread')
+    expect(useAppStore.getState().sessions).toBe(original)
+  })
+
+  it('keeps unknown cron chats pinned and respects collapsed folders in keyboard navigation', () => {
+    const cron = chat('cron', { pinned: true, latest_agent_event_seq: 10, latest_non_job_agent_event_seq: null })
+    const scheduled = chat('scheduled', { folder: 'Schedules', latest_agent_event_seq: 12 })
+    const reply = chat('reply', { latest_agent_event_seq: 15 })
+    const options = { jobSessionIds: new Set(['cron', 'scheduled']) }
+    expect(groups([cron, scheduled, reply], new Set(), [], options)).toEqual([
+      ['status:unread', ['reply']], ['pinned', ['cron']], ['folder:Schedules', ['scheduled']]
+    ])
+    expect(navigableSessions([cron, scheduled, reply], [], new Set(['Schedules']), new Set(), new Set(), true, options)).toEqual([reply])
+  })
 
   it('keeps dots and activity visible while changing each server-scoped grouping option', () => {
     const cron = chat('Cron result', { folder: 'Schedules', latest_agent_event_seq: 20, latest_non_job_agent_event_seq: 0 })

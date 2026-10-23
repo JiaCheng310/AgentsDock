@@ -1677,7 +1677,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().switchingProfileId) return
     const scope = captureProfileScope(get())
     const state = get()
-    const visible = navigableSessions(state.sessions, state.folderOrder, state.collapsedFolders, state.activeSessionIds, state.collapsedStatusGroups, state.pinnedCollapsed, state)
+    const visible = navigableSessions(state.sessions, state.folderOrder, state.collapsedFolders, state.activeSessionIds, state.collapsedStatusGroups, state.pinnedCollapsed, {
+      groupUnreadChats: state.groupUnreadChats,
+      includeCronInUnread: state.includeCronInUnread,
+      groupRunningChats: state.groupRunningChats,
+      jobSessionIds: new Set(state.jobs.map(job => job.session_id))
+    })
     if (!visible.length) return
     const current = visible.findIndex(session => session.id === get().selectedSessionId)
     const next = visible[(current + direction + visible.length) % visible.length]

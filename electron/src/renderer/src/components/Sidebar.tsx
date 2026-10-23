@@ -55,6 +55,8 @@ const sidebarCollisionDetection: CollisionDetection = (args) => {
 export function Sidebar({ hidden = false }: { hidden?: boolean }) {
   useLocale()
   const sessions = useAppStore(state => state.sessions)
+  const jobs = useAppStore(state => state.jobs)
+  const jobSessionIds = useMemo(() => new Set(jobs.map(job => job.session_id)), [jobs])
   const activeSessionIds = useAppStore(state => state.activeSessionIds)
   const selectedId = useAppStore(state => state.selectedSessionId)
   const chatPanes = useAppStore(state => state.chatPanes)
@@ -87,8 +89,8 @@ export function Sidebar({ hidden = false }: { hidden?: boolean }) {
   const sidebarScrollTimer = useRef<number | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: SIDEBAR_LONG_PRESS }))
   const sections = useMemo(() => buildSections(sessions, folderOrder, '', new Set(), activeSessionIds, {
-    groupUnreadChats, includeCronInUnread, groupRunningChats
-  }), [sessions, folderOrder, activeSessionIds, groupUnreadChats, includeCronInUnread, groupRunningChats, getLocale()])
+    groupUnreadChats, includeCronInUnread, groupRunningChats, jobSessionIds
+  }), [sessions, folderOrder, activeSessionIds, groupUnreadChats, includeCronInUnread, groupRunningChats, jobSessionIds, getLocale()])
   const computedFolders = useMemo(() => orderedFolders(
     [...new Set([...folderOrder, ...sessions.filter(session => !session.archived && !session.pinned).map(session => session.folder?.trim() || 'General')])],
     folderOrder

@@ -6,19 +6,21 @@ export interface SidebarGroupingOptions {
   groupUnreadChats?: boolean
   includeCronInUnread?: boolean
   groupRunningChats?: boolean
+  jobSessionIds?: ReadonlySet<string>
 }
 
 export function isUnread(session: Session): boolean {
   return Boolean(session.manual_unread) || (session.latest_agent_event_seq ?? 0) > (session.last_read_agent_event_seq ?? 0)
 }
 
-function promotesUnread(session: Session, includeCronInUnread: boolean): boolean {
+function promotesUnread(session: Session, options: SidebarGroupingOptions): boolean {
   if (!isUnread(session)) return false
-  if (includeCronInUnread) return true
-  // Old servers do not distinguish scheduled output. Preserve their unread
-  // behavior rather than inferring provenance from a chat's title or jobs.
-  const latest = session.latest_non_job_agent_event_seq ?? session.latest_agent_event_seq ?? 0
-  return Boolean(session.manual_unread) || latest > (session.last_read_agent_event_seq ?? 0)
+  if (options.includeCronInUnread === true || session.manual_unread) return true
+  const latest = session.latest_non_job_agent_event_seq
+  // Older servers cannot separate human replies from scheduled output. Their
+  // registered jobs still identify cron chats without inspecting transcripts.
+  if (latest == null) return !options.jobSessionIds?.has(session.id)
+  return latest > (session.last_read_agent_event_seq ?? 0)
 }
 
 export function sidebarSessionGroups(sessions: Session[], activeSessionIds: ReadonlySet<string>, options: SidebarGroupingOptions = {}) {
@@ -27,7 +29,7 @@ export function sidebarSessionGroups(sessions: Session[], activeSessionIds: Read
     if (!session.archived && activeSessionIds.has(session.id)) {
       groups[options.groupRunningChats === false ? 'ordinary' : 'running'].push(session)
     }
-    else if (options.groupUnreadChats !== false && !session.archived && promotesUnread(session, options.includeCronInUnread === true)) groups.unread.push(session)
+    else if (options.groupUnreadChats !== false && !session.archived && promotesUnread(session, options)) groups.unread.push(session)
     else groups.ordinary.push(session)
   }
   return groups

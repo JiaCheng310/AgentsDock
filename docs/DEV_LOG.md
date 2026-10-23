@@ -1,5 +1,20 @@
 # Public development log
 
+## 2026-10-23 — Cron unread grouping on older servers
+
+- When cron inclusion is off and an older server omits output provenance, use
+  the existing scheduled-job list to keep registered cron chats in their folders
+  or pinned section. Visible ordering and keyboard navigation use the same rule.
+  No additional requests, transcript scans or polling are needed.
+- Preserve saved inclusion settings, manual unread overrides and unread dots.
+  Newer servers continue distinguishing ordinary replies from cron output.
+  Older servers cannot distinguish replies within a mixed-use scheduled chat;
+  their fallback applies to the registered chat until inclusion is enabled.
+- Four new regressions failed before the fix. All 281 focused sidebar, session
+  and store tests, TypeScript and production compilation pass. Native packaged
+  acceptance is recorded after the local build is checked.
+- Scope: app compatibility fix; no server update or live-state change required.
+
 ## 2026-10-23 — Tabbed chat workspaces and pane-local file tabs
 
 - Add named workspace tabs with one, two, three or four chat panes. Three panes
