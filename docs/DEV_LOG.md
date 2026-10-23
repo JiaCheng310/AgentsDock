@@ -13,10 +13,20 @@
   use Rename chat in the actions menu to rename it; keep the folder control
   accessible in the toolbar. Selecting a chat already assigned to a workspace
   returns to that workspace and focuses its pane instead of opening a duplicate.
-- Focused layout, resize ownership, persistence, file-tab, design-system and
-  store regressions pass, as do TypeScript and production compilation. Native
-  packaged acceptance is pending. This is an app-only local trial using existing
-  server contracts; no service update or public release is required.
+- Local macOS arm64 package: source `7187ce27`, development version 0.2.0/build
+  85. All 5,425 desktop tests passed (five skipped), followed by TypeScript,
+  production compilation, bundle audit, Developer ID signing, required
+  entitlements and deep strict signature checks.
+- Native offscreen acceptance used the packaged archive through production IPC
+  and authenticated HTTP against isolated services. Verified both three-pane
+  arrangements, both draggable dividers, keyboard resizing, workspace shortcuts,
+  sidebar jumps without duplicate placement, title consolidation and real rename,
+  pane-local file opening, retained drafts/layouts after reload, tab overflow and
+  narrow presentation. All 91 compiled assets matched; archive and signature
+  remained unchanged. No provider ran. Signed-executable/Gatekeeper launch was
+  not exercised; this remains a local, unnotarized trial.
+- Scope: app only, using existing server contracts. No server update is required;
+  no installed app, live service or published release was changed.
 
 ## 2026-10-23 — Cron unread grouping on older servers
 
