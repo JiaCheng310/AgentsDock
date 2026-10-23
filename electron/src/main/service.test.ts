@@ -6858,6 +6858,51 @@ describe('local session import', () => {
 })
 
 describe('workspace file scope safety', () => {
+  it('previews TIFF attachments and workspace files as PNG while saving the original TIFF bytes', async () => {
+    const tiff = Uint8Array.from(readFileSync(join(__dirname, 'test-fixtures/tiff/rgb.tiff')))
+    const original = async () => new Response(tiff, { headers: { 'Content-Type': 'image/tiff' } })
+    const client = fakeClient({
+      fileRequest: original,
+      workspacePreviewRequest: original,
+      workspaceDownloadRequest: original
+    })
+    const { service } = createProfileService({ 'http://a.test:7850': [client] })
+    const generation = (await service.bootstrap()).profileGeneration
+    const media = await service.mediaResponse('a', generation, 'chat', 'image', new Request('agentsdock-media://file/a/1/chat/image'))
+    const workspace = await service.workspaceMediaResponse('a', generation, 'chat', 'image.tiff', new Request('agentsdock-media://workspace/a/1/chat/image.tiff'))
+    for (const response of [media, workspace]) {
+      expect(response.headers.get('Content-Type')).toBe('image/png')
+      expect(Buffer.from(await response.arrayBuffer()).subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    }
+    const directory = mkdtempSync(join(tmpdir(), 'agentsdock-tiff-save-'))
+    try {
+      const destination = join(directory, 'image.tiff')
+      electronHarness.showSaveDialog.mockResolvedValueOnce({ canceled: false, filePath: destination })
+      expect(await service.saveFile('chat', { id: 'image', filename: 'image.tiff', content_type: 'image/tiff' })).toBe(destination)
+      expect(readFileSync(destination)).toEqual(Buffer.from(tiff))
+      expect(client.fileRequest).toHaveBeenLastCalledWith('chat', 'image')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('does not return a TIFF preview after switching the owning server during decoding', async () => {
+    let beginBody: (() => void) | undefined
+    const tiff = Uint8Array.from(readFileSync(join(__dirname, 'test-fixtures/tiff/rgb.tiff')))
+    const a = fakeClient({ fileRequest: () => Promise.resolve(new Response(new ReadableStream({
+      start(controller) { beginBody = () => { controller.enqueue(tiff); controller.close() } }
+    }), { headers: { 'Content-Type': 'image/tiff' } })) })
+    const b = fakeClient()
+    const { service } = createProfileService({ 'http://a.test:7850': [a], 'http://b.test:7850': [b] })
+    const generation = (await service.bootstrap()).profileGeneration
+    const pending = service.mediaResponse('a', generation, 'chat', 'image', new Request('agentsdock-media://file/a/1/chat/image'))
+    await vi.waitFor(() => expect(beginBody).toBeTypeOf('function'))
+    await service.switchServer('b')
+    beginBody?.()
+    await expect(pending).rejects.toThrow('superseded')
+    expect(b.fileRequest).not.toHaveBeenCalled()
+  })
+
   it('checks workspace preview availability through a scoped main-process HEAD request', async () => {
     const cancelled = vi.fn()
     const preview = vi.fn()
