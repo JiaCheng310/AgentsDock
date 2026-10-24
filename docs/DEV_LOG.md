@@ -1,5 +1,26 @@
 # Public development log
 
+## 2026-10-24 — Release mobile cross-chat route-limit correction
+
+- TestFlight 0.1.3 (192), source `c8bfdc042b4466cd3b938245591da016087ae9f8`,
+  is Apple-validated, unexpired and available to the existing internal tester
+  group. External beta review/submission is not included in this release.
+- The packaged iOS 27 Simulator app passed the actual native journey against
+  an isolated production server and real Codex: send with seventeen existing
+  grants, select and grant an eighteenth chat, then navigate away and reopen.
+  Both messages were accepted exactly once, received real provider replies,
+  and cleared the composer. All original grants remained usable.
+- Visual inspection of native screenshots confirmed enabled picker rows and
+  retained grants. The native client requested unlimited-route metadata;
+  no production chat or permission grant was modified. Physical-device
+  acceptance was not exercised.
+- All 35 focused route-policy/client/store regressions passed, along with
+  TypeScript, production JavaScript export, and 32 broader mobile source-check
+  groups. Those local checks supplement native acceptance, not replace it.
+  The hosted archive passed signature, metadata, native ABI and symbol checks.
+- Add the sixteen new route-limit regressions to continuous source verification.
+  No desktop app replacement or server deployment was performed.
+
 ## 2026-10-23 — Prepare mobile cross-chat route-limit correction
 
 - Match desktop's unlimited-route negotiation and nullable capacity metadata.

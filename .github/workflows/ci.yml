@@ -130,6 +130,9 @@ jobs:
           node scripts/run-history-tests.mjs src/lib/cross-chat-protocol.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/lib/timeline-async-messages.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/store/useAppStore.cross-chat-routes.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/agent-route-capacity.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/api/AgentServerClient.route-access.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.route-capacity.test.ts --native-mocks
         working-directory: mobile-react
       - name: Verify cross-chat rendering and control interactions
         run: >-
