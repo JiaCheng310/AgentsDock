@@ -1,5 +1,22 @@
 # Public development log
 
+## 2026-10-23 — Keep queued messages from crowding the split-pane draft
+
+- Give queued messages, attachments and notices a separate scrolling area above
+  the draft. Short panes can grow the composer instead of forcing everything
+  into a 75-pixel box. Keep the text field and Send/Stop toolbar visible together;
+  smaller panes retain a full editable line and scroll longer drafts internally.
+- Allocate the composer from the space remaining below the goal/context controls.
+  Preserve the same draft, focus and selection when queued messages arrive or
+  disappear. Single-pane queue behavior and sending contracts are unchanged.
+- Native offscreen baseline reproduced a queued message pushing the input fully
+  outside its visible area. Candidate checks use isolated server state and real
+  production IPC, authenticated HTTP and WebSockets with held fixture turns.
+  Source TypeScript and focused composer regressions pass; exact-package
+  acceptance will be recorded after the local build.
+- App-only local trial; this layout fix needs no server update. No live service,
+  installed app or published release is changed.
+
 ## 2026-10-23 — Reorder workspace tabs and preserve Claude tasks on Force Send
 
 - Replace boxed workspace tabs with a flat rail and an active underline. Drag

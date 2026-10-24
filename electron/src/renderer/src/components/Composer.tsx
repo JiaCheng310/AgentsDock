@@ -1908,6 +1908,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       {activeInboundDeliveryKind && activeInboundDeliveryKind !== 'unknown' && <span className="chat-reference-warning" role="status">{activeInboundDeliveryKind === 'secure_peer'
           ? 'An incoming encrypted peer delivery is running. Stop or Send now will interrupt it.'
           : t("ui.Composer.Composer.an_incoming_delivery_is_running_stop_or_se_92e6678", { "delivery": 'chat-to-chat' })}</span>}
+      </div>
+      <div className="composer-draft-region">
       <div className={`composer-editor${hasInlineReferences ? ' has-inline-references' : ''}${hasMessageLinks ? ' has-message-links' : ''}`}>
         {(hasInlineReferences || hasMessageLinks) && <ComposerEditorMirror
           ref={editorMirrorRef}
