@@ -36,6 +36,19 @@ permission prompts and platform language metadata require a rebuilt app; a JS
 reload alone cannot update them. App Store listing language is managed
 separately in App Store Connect.
 
+Settings -> Appearance -> **Show reasoning traces** controls live Claude thinking
+and Codex reasoning display. This device-local preference survives a restart;
+compact display is the default. When enabled, active traces expand automatically
+and completed traces return to compact display. Opening completed history loads
+the available detail with one bounded request. Long supplied text has selectable
+pages with Previous, Next and Close controls.
+
+Only text actually exposed by the provider is displayed. A provider may supply
+summaries rather than a separate plaintext reasoning channel; enabling this
+setting does not change the model's reasoning effort or generate missing text.
+Live display updates do not advance the durable history cursor or write each
+token into the chat cache.
+
 The pnpm patch for `expo@57.0.4` backports the platform-aware HMR reload from
 [Expo #48944](https://github.com/expo/expo/pull/48944). Without it, opening a lazy
 file viewer after Metro disconnects calls the browser-only `window.location`

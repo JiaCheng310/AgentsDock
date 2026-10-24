@@ -1,5 +1,33 @@
 # Public development log
 
+## 2026-10-24 — Release mobile reasoning-display parity
+
+- TestFlight 0.1.3 (193), source `8a3f822e6bd83b95a4e4cdb77bb4a5e730cdd9bf`,
+  is Apple-validated, unexpired and available to the existing internal tester
+  group. External beta review/submission is not included in this release.
+- Display received Claude thinking and Codex reasoning summaries with a saved
+  expansion preference, compact completed history and a bounded full-text
+  reader. Keep new live traces visible above the composer when following the
+  bottom, respect manual scrolling, and scope live updates to the selected
+  chat and server. Only provider-exposed text is displayed.
+- Independently exercised real Claude and Codex through the packaged iOS 27
+  Simulator app and an isolated production server: live visibility, preference
+  persistence after cold launch, historical disclosure controls, navigation
+  during active work, and Stop with retained reasoning. Native screenshots and
+  recordings were visually inspected on the accepted package.
+- A separate synthetic 72,000-character Unicode fixture verified reader
+  pagination, content preservation, Previous/Next/Close and reopen controls,
+  and English/Simplified Chinese in light/dark themes. This is reader coverage,
+  not evidence of provider emission.
+- Focused transport, ownership, overlay, preference, history, rendering and
+  scroll regressions passed, along with TypeScript and hosted source CI. The
+  release archive passed signature, metadata, native ABI and symbol checks.
+- Native acceptance did not independently establish transient-only visibility
+  before durable arrival, separate Codex plaintext-reasoning emission, or
+  partial-text cancellation. Automated tests cover those data paths. Physical
+  iPhone and Android acceptance remain untested. No desktop app replacement or
+  server deployment was performed; no server update is required for this fix.
+
 ## 2026-10-24 — Prepare mobile reasoning-display parity
 
 - Receive Codex's provider-exposed live reasoning on the selected chat's
