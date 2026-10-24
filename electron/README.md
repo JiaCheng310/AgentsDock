@@ -206,6 +206,11 @@ that preference. Opening or selecting a file tab (including attachment and
 image/PDF previews) automatically opens the right panel on Files. Cancelling
 the file picker does not change the panel. In split chat, Files follows the focused chat and browsing
 does not cover the conversations until a file editor or dialog is needed.
+Opening a file waits for saved editor tabs to restore, so the requested file
+becomes selected instead of leaving the split-chat return screen visible.
+TIFF attachments and workspace images use a PNG preview of the first page in
+the desktop media viewer; downloading or opening the original keeps the TIFF
+file unchanged. Preview decoding runs outside the app's main thread.
 
 Chat remains the pinned default tab. Use `Cmd+O` to search
 and open a UTF-8 source file, switch explicitly from read-only to edit mode,

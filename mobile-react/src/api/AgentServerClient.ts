@@ -664,7 +664,7 @@ export class AgentServerClient {
     )).handoff
   }
   agentHandoffRoutes(sessionId: string): Promise<AgentCrossChatRoutesSnapshot> {
-    return this.get(`/api/sessions/${encodeURIComponent(sessionId)}/agent-handoff-routes`)
+    return this.get(`/api/sessions/${encodeURIComponent(sessionId)}/agent-handoff-routes?unlimited_routes=true`)
   }
   deleteAgentHandoffRoute(sessionId: string, routeId: string, expectedRevision: string): Promise<DeleteAgentCrossChatRouteResponse> {
     if (!expectedRevision.trim()) throw new Error('Refresh this grant before revoking it.')
@@ -1110,6 +1110,9 @@ export class AgentServerClient {
       if (error instanceof Error && (error.name === 'AbortError'
         || /^fetch failed:\s*(?:FetchRequestCanceledException:\s*)?Fetch request has been cancel(?:l)?ed\b/i.test(error.message))) {
         throw new AgentServerRequestInterruptedError()
+      }
+      if (error instanceof Error && /^fetch failed:\s*The request timed out\.?$/i.test(error.message)) {
+        throw new AgentServerRequestTimeoutError()
       }
       throw error
     } finally {

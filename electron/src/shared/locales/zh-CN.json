@@ -1657,7 +1657,7 @@
   "ui.Composer.QueuedRow.skip_incoming_delivery_1e74c78": "跳过传入投递",
   "ui.Composer.QueuedRow.skipping_3aaedc1": "正在跳过…",
   "ui.Composer.QueuedRow.starting_bbe5fc3": "正在启动…",
-  "ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965": "正在启动… · 已交给 Provider",
+  "ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965": "正在启动… · 等待 Provider",
   "ui.Composer.QueuedRow.starting_provider_handoff_e476e2a": "{label}，正在启动 Provider 交接",
   "ui.Composer.QueuedRow.starting_provider_handoff_e6a29ff": "正在启动 Provider 交接",
   "ui.Composer.QueuedRow.update_agentsserver_to_safely_skip_this_de_7c9afa2": "更新 AgentsServer 以安全跳过此投递。",

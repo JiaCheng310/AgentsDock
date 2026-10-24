@@ -1,5 +1,117 @@
 # Public development log
 
+## 2026-10-23 — Prepare mobile cross-chat route-limit correction
+
+- Match desktop's unlimited-route negotiation and nullable capacity metadata.
+  Share the same capacity policy between the mobile picker and send validation;
+  ordinary messages and existing grants do not require another access slot.
+  Older servers' genuine finite limits still apply to explicit new grants.
+- Preserve the previously released native goal/queue fixes while integrating
+  main's paused-queue recovery and notification updates. This is a mobile
+  candidate; no desktop app replacement or server deployment is included.
+- Reproduced the original failure in the installed production-style iOS
+  Simulator app against an isolated real server with seventeen persisted
+  grants: an ordinary Send was rejected before transport and the eighteenth
+  target was disabled. No user chat or permission grant was changed.
+- Focused policy, HTTP-client and store tests cover unlimited and finite
+  limits, ordinary sends, existing and repeated grants, preserved drafts,
+  authentication failures, and exact request encoding. These tests use mocked
+  transport and do not substitute for native candidate acceptance.
+- Candidate 0.1.3 (192) requires packaged native acceptance before TestFlight
+  publication. Release availability will be recorded after Apple verification.
+
+## 2026-10-22 — TIFF previews and split-chat file opening
+
+- Desktop attachment and workspace viewers render TIFF files through a PNG
+  preview of the first page. Portable background workers decode the image;
+  downloads and native Open preserve the original file. Failed previews retain
+  download recovery. Queued previews retain stream backpressure instead of
+  buffering every visible TIFF, and remote transfers gain no new timeout.
+- Split chat delivers a fresh file-open event: Chromium otherwise drops the
+  replay of the original stopped event. Delivery also waits for saved workspace
+  tabs and mount effects, so restoration cannot select the prior tab over the
+  clicked file. Both conversations and their drafts remain in place.
+- Validation: the full desktop Vitest suite passed (5,340 tests; five skipped),
+  followed by 42 media tests and 201 split/workspace tests on the final changes.
+  Eight build/license script tests, TypeScript and production compilation passed.
+- Native macOS offscreen acceptance reproduced both failures before the fix and
+  passed the final production-compiled candidate through real authenticated
+  server routes. Checks covered attachment/workspace TIFF rendering, unchanged
+  original download bytes, split file links and Files browsing, repeat opens,
+  focus, chat/file draft preservation, navigation, light/dark and narrow views.
+  Typing and idle checks observed no workspace requests or long tasks.
+  Test chats were synthetic; no provider was invoked. Native Linux/Windows
+  execution remains untested.
+- Local macOS arm64 package: source `541f60a17d42573c97048323dd2f9ea7152a9b60`,
+  development version 0.2.0/build 85, Developer ID signed. Bundle, entitlements
+  and deep strict signature checks passed. All 91 packaged compiled assets
+  match the accepted outputs; TIFF worker, dependencies and notices are present.
+  The same native journeys passed loading main/preload/renderer and TIFF worker
+  from the signed app archive under stock Electron 43.1.1 offscreen. Archive
+  bytes and signature remained unchanged. The signed executable's own launch
+  and Gatekeeper acceptance were not exercised; this is not a notarized release.
+- Availability: local Mac app package. This desktop fix requires no server
+  update; nothing was installed, published or deployed.
+
+## 2026-10-21 — Recover held mobile messages after a stopped queue handoff
+
+- Handle bulk Stop events on mobile, clear obsolete promotion flags and retain
+  delivery-uncertainty warnings. If a promoted row has already left the mobile
+  shelf, recover it through the existing guarded authoritative queue read.
+  Recovery never resends messages or introduces polling.
+- Preserve a message held by Stop even when its earlier Run now request succeeds;
+  show an informational paused status instead of a misleading send failure.
+  Add reducer and live-store regressions to CI, including stale navigation reads.
+- Make the server cancellation test's startup barrier tolerate busy CI workers;
+  cancellation and slot-ownership assertions remain unchanged.
+- Verification: the new mobile regressions fail before the correction and pass
+  afterward. Mobile type checking, iOS JavaScript export, related store suites,
+  46 interaction contracts and 121 targeted server tests pass. The broader local
+  server shard is not clean in this environment and is not a passing CI result.
+- Native offscreen Electron against the exact test-server source and real Claude
+  exercised Run now immediately followed by Stop: both messages returned paused
+  in order, one explicit retry started exactly once and the other stayed held.
+  Editing, navigation, renderer reconnect and removal used production IPC/HTTP.
+- Native iOS Dev with the patched bundle observed the same real cross-client
+  handoff race and restored both held rows. A native Run now tap completed one
+  real Claude request exactly once while the other stayed paused. Editing,
+  removal, navigation and cold relaunch retained the expected queue state;
+  relaunch did not resend the held message. The queue area scrolls to reveal
+  actions when its content exceeds the available height. Android native
+  acceptance was not exercised. No release or deployment to users is included.
+- Follow-up manual testing in the visible native desktop was accepted by the
+  user against the patched test service. A message already admitted before Stop
+  remains interrupted in history; only an unadmitted promotion returns to the
+  held queue. This distinction prevents automatic duplicate execution.
+- Pre-review recheck: 280 targeted desktop tests, 126 targeted server tests,
+  mobile queue reducer/store regressions and both client type checks pass.
+  Full hosted CI remains a separate merge gate.
+
+## 2026-10-21 — Restore queued messages after Stop interrupts a handoff
+
+- When Stop pauses a message that was about to start, return it to the held
+  queue immediately and clear the obsolete Starting state. Retain its text,
+  attachments and order, and restore Send now, edit and remove controls.
+- Treat paused snapshots from older servers as paused even if they still carry
+  a promotion flag. Preserve a paused message when a successful Send now
+  response is followed by a newer Stop; do not filter it out of the cache.
+- Describe pending admission as waiting for the provider instead of claiming
+  that the message was already handed over. Explicit Stop still prevents
+  automatic delivery; retry uses the existing authenticated queue operation.
+- Verification: five new queue/projection/UI regressions fail before the fix;
+  190 focused server tests and 964 related desktop tests pass. TypeScript,
+  Python compilation, production Electron compilation and entry verification
+  pass. Native offscreen Electron reproduces the stale Starting row before
+  the fix and restores retry afterward, through production IPC, authenticated
+  HTTP, websocket events and server queue admission. Each of two messages
+  starts exactly once on explicit retry; the other stays paused and ordered.
+  Chat navigation, renderer reconnect and full app reopen retain the queue.
+  This initial race was seeded and Claude replies were simulated; the subsequent
+  real-provider and native-client acceptance is recorded in the follow-up above.
+  No live service was modified during that initial simulated check.
+- Availability: source only; the complete correction includes app and server
+  changes. No release, installation, deployment or restart is included.
+
 ## 2026-10-20 — Prepare mobile goal-follow-up reliability candidate
 
 - Show authoritative native Codex goal follow-ups as user messages within the
@@ -21,6 +133,63 @@
 - Add a manually dispatched, exact-source TestFlight workflow with build-number,
   archive metadata, native ABI, symbol and tester-group verification. Source
   preparation only; no TestFlight publication or server deployment in this entry.
+
+## 2026-10-20 — Recover Codex model-switch compaction without replacing history
+
+- Address the remaining compaction path in #89; authentication-aware model
+  retirement/default handling remains covered by #92. A compaction failure no
+  longer triggers a bounded-memory replacement thread.
+- Attempt at most one same-thread continuation only after a full native failed
+  turn proves no execution occurred. If the original input was already accepted,
+  continue with empty native input instead of inserting the user message again.
+  Unknown acceptance, output/tool activity, cancellation and lost ownership all
+  prevent automatic replay.
+- Close failed/interrupted automatic-compaction status without reporting success.
+  Explain the selected model and failure stage while retaining the native error;
+  do not invent diagnostics for a fallback error the provider did not expose.
+- Verification: 137 targeted runner, retirement, resume, restart and compaction
+  status tests pass, along with Python source compilation and the dependency
+  lock check. Two new regression tests fail on unmodified main. A wider controls
+  sweep encounters an existing idle-thread-load mock failure, also reproduced
+  on unmodified main; it is not fixed by this change.
+- The first CI run exposed three isolated lifecycle tests whose AST fixture
+  omitted the runner's compaction helpers. Load those real pure helpers in the
+  fixture; all 60 follow-up, child-continuation and provider-session checks pass
+  locally afterward. No production behavior changes in this follow-up.
+- Personally exercised the actual native Electron client through mouse/keyboard
+  input and production IPC/HTTP against an authorized test server with Codex
+  CLI 0.156.1. Disposable old-model fixtures and a local fault-injection endpoint
+  cover persistent compaction failure, the one-retry limit, native fallback,
+  visible failure status and Stop. After removing the fault injection and
+  restarting the test server, the same native conversation produced a real
+  OpenAI reply recalling its earlier marker. A separate real native continuation
+  confirmed that empty input adds no duplicate user message.
+- The retired-model seed and failures are controlled fixtures, not a claim to
+  reproduce an uncontrolled upstream outage. Cancellation during recovery proof
+  and abandoned-run restart cleanup have deterministic test coverage. No new
+  CLI version, mobile change, public release or production deployment is included;
+  this source fix requires a server update.
+
+## 2026-10-20 — Fix Claude running-chat fork timestamp precision
+
+- Fix #94: recognize millisecond native timestamps within a second-truncated
+  completion event when the completed reply has an exact provider message UUID.
+  Keep text matching, provider identity, tool-call exclusion and future-second
+  rejection intact. Legacy replies without UUIDs retain the strict cutoff;
+  imported-history checkpoint handling is unchanged.
+- The new regressions fail on the original implementation. All 72 focused
+  live-fork and session-fork tests pass with the correction, as do Python
+  source compilation and the dependency lock check.
+- Personally exercised the visible native Electron app through mouse/keyboard
+  input, production IPC/HTTP and real Claude against an authorized test server
+  running 1.0.11-beta.11 with the narrow source patch. A same-second native
+  completion successfully forked while its parent continued running. The
+  native child preserved earlier tool-result context, excluded the in-flight
+  parent request and completed a contextual follow-up; the parent completed
+  normally. An idle fork was also checked after the parent finished.
+- Availability: source branch and local test-server patch only. A server
+  update is required; no Electron UI change, public release or deployment to
+  other servers is included. This does not establish broader provider parity.
 
 ## 2026-10-20 — Verify history repair in the local desktop
 

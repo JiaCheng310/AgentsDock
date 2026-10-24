@@ -97,6 +97,7 @@ try {
 
   await test('Queue during a goal is one ordinary send, with no Stop or goal mutation', async () => {
     await reset([], first.prompt)
+    useAppStore.setState({ error: 'Stale route-limit notice in this chat' })
     respond = async request => {
       assert.equal(request.path, `/api/sessions/${session.id}/turns`)
       assert.equal(request.method, 'POST')
@@ -109,6 +110,7 @@ try {
     assert.equal(await send(), true)
     assert.deepEqual(queuedIds(), [first.queued_id])
     assert.equal(useAppStore.getState().drafts[session.id], '')
+    assert.equal(useAppStore.getState().error, null, 'a successful send clears the selected chat notice')
     assert.equal(useAppStore.getState().activeSessionIds.has(session.id), true)
     assert.deepEqual(useAppStore.getState().sessions[0].codex_goal, session.codex_goal)
     assert.equal(requests.length, 1)
@@ -311,6 +313,8 @@ try {
     useAppStore.setState({
       sessions: [session, other], selectedSessionId: other.id,
       drafts: { [session.id]: 'New draft in the original chat', [other.id]: 'Draft in the other chat' },
+      error: 'Existing notice in the other chat',
+      pendingServerUpdate: { profileId: 'uninitialized', profileGeneration: 0, canCancel: false },
     })
     publicQueue = [first]
     pendingResponse.resolve(json({ session, queued: true, queued_id: first.queued_id,
@@ -320,6 +324,8 @@ try {
     assert.equal(useAppStore.getState().selectedSessionId, other.id)
     assert.equal(useAppStore.getState().drafts[session.id], 'New draft in the original chat')
     assert.equal(useAppStore.getState().drafts[other.id], 'Draft in the other chat')
+    assert.equal(useAppStore.getState().error, 'Existing notice in the other chat')
+    assert.equal(useAppStore.getState().pendingServerUpdate, null, 'successful admission still clears its matching server-update notice')
     assert.equal(requests.length, 1)
   })
 

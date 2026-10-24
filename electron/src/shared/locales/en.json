@@ -1657,7 +1657,7 @@
   "ui.Composer.QueuedRow.skip_incoming_delivery_1e74c78": "Skip incoming delivery",
   "ui.Composer.QueuedRow.skipping_3aaedc1": "Skipping…",
   "ui.Composer.QueuedRow.starting_bbe5fc3": "Starting…",
-  "ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965": "Starting… · handed to the provider",
+  "ui.Composer.QueuedRow.starting_handed_to_the_provider_6aa0965": "Starting… · waiting for the provider",
   "ui.Composer.QueuedRow.starting_provider_handoff_e476e2a": "{label}, starting provider handoff",
   "ui.Composer.QueuedRow.starting_provider_handoff_e6a29ff": "Starting provider handoff",
   "ui.Composer.QueuedRow.update_agentsserver_to_safely_skip_this_de_7c9afa2": "Update AgentsServer to safely skip this delivery.",

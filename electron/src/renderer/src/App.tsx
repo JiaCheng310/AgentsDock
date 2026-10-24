@@ -333,9 +333,19 @@ function AppWorkspace() {
     const pending = pendingWorkspaceOpenEvent.current
     if (!pending || pending.targetKey !== expectedTargetKey) return
     pendingWorkspaceOpenEvent.current = null
-    replayingWorkspaceOpenEvent.current = pending.event
+    // Chromium retains the propagation stop on a dispatched event. Recreate
+    // the request so the newly mounted editor can receive it exactly once.
+    const eventOptions = {
+      bubbles: pending.event.bubbles,
+      cancelable: pending.event.cancelable,
+      composed: pending.event.composed
+    }
+    const replay = pending.event instanceof CustomEvent
+      ? new CustomEvent(pending.event.type, { ...eventOptions, detail: pending.event.detail })
+      : new Event(pending.event.type, eventOptions)
+    replayingWorkspaceOpenEvent.current = replay
     try {
-      window.dispatchEvent(pending.event)
+      window.dispatchEvent(replay)
     } finally {
       replayingWorkspaceOpenEvent.current = null
     }

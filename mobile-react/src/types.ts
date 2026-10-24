@@ -425,6 +425,10 @@ export interface Session {
   last_read_agent_event_seq?: number | null
   last_read_agent_event_at?: string | null
   manual_unread?: boolean | null
+  unread_notification_level?: 'normal' | 'important' | 'emergency' | null
+  unread_notification_seq?: number | null
+  latest_notification_level?: 'normal' | 'important' | 'emergency' | null
+  latest_notification_message?: string | null
   emergency_alert?: EmergencyAlert | null
   unacknowledged_emergency_count?: number | null
 }
@@ -625,7 +629,7 @@ export interface AgentCrossChatRoute {
 
 export interface AgentCrossChatRoutesSnapshot {
   routes: AgentCrossChatRoute[]
-  max_routes: number
+  max_routes: number | null
 }
 
 export interface DeleteAgentCrossChatRouteResponse {
@@ -890,6 +894,7 @@ export interface Event {
   text?: string | null
   result_text?: string | null
   message?: string | null
+  notification_level?: 'normal' | 'important' | 'emergency' | null
   error?: JsonValue
   emergency_alert?: EmergencyAlert | null
   emergency_alert_id?: string | null
@@ -1154,7 +1159,7 @@ export interface CrossChatHandoffsCapability extends ServerCapability {
     }
     client_capability?: string
     policy?: 'default_deny'
-    max_routes_per_chat?: number
+    max_routes_per_chat?: number | null
     transcript_access?: boolean
     actions?: Array<'instruction' | 'request_reply'>
     [key: string]: JsonValue | Array<'instruction' | 'request_reply'> | undefined

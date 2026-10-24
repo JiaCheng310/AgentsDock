@@ -28,6 +28,7 @@
   "The agent needs your input.": "Agent 需要你的回应。",
   "The agent completed its goal.": "Agent 已完成目标。",
   "You got a new message.": "你收到一条新消息。",
+  "Notification": "通知",
   "Server model": "default",
   "Pinned": "置顶",
   "Assistant": "AI",
