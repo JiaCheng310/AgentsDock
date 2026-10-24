@@ -95,11 +95,17 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
     return next
   }, [projection.rows])
   // A live packet only overlays the bounded activity rows. It never invalidates
-  // the durable history projection, changes a read cursor, or seeks the list.
+  // the durable history projection or changes a read cursor. A new overlay-only
+  // trace gets one bottom alignment below; text growth never seeks the list.
   const rows = useMemo(() => activeHistoryWindow?.detached
     ? durableRows
     : overlayReasoningStream(durableRows, projection.owners, reasoningStream?.items, sessionId),
   [activeHistoryWindow?.detached, durableRows, projection.owners, reasoningStream, sessionId])
+  const liveOnlyTraceRuns = useMemo(() => {
+    const durableKeys = new Set(durableRows.map(row => row.key))
+    return JSON.stringify([...new Set(rows.flatMap(row => row.kind === 'trace'
+      && row.runActive && row.runId && !durableKeys.has(row.key) ? [row.runId] : []))])
+  }, [durableRows, rows])
   const latestLiveSeq = liveSnapshot?.latestSeq ?? liveSnapshot?.events.at(-1)?.seq ?? 0
   const lastSession = useRef(sessionId)
   const lastKeyboardVisible = useRef(keyboardVisible)
@@ -112,9 +118,12 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   const olderRequestInFlight = useRef(false)
   const olderRequestToken = useRef(0)
   const scrollInteractionToken = useRef(0)
+  const firstTraceScroll = useRef({
+    sessionId, profileGeneration, seenRuns: new Set<string>(), frame: null as number | null,
+  })
   const explicitScroll = useRef({
     sessionId, profileGeneration, observedRequest: 0, pending: false,
-    interactionToken: 0, frame: null as number | null,
+    interactionToken: 0, frame: null as number | null, nonAnimated: false,
   })
   const momentumInteractionToken = useRef<number | null>(null)
   const scrollSettleFrame = useRef<number | null>(null)
@@ -204,7 +213,7 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
       // ChatScreen's counter may survive navigation. Its old revision belongs
       // only to the previous chat/server, never to a newly mounted list.
       explicitScroll.current = { sessionId, profileGeneration, observedRequest: scrollRequest,
-        pending: false, interactionToken: scrollInteractionToken.current, frame: null }
+        pending: false, interactionToken: scrollInteractionToken.current, frame: null, nonAnimated: false }
       return
     }
     if (request.observedRequest !== scrollRequest) {
@@ -212,6 +221,13 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
       request.observedRequest = scrollRequest
       request.pending = scrollRequest > 0
       request.interactionToken = scrollInteractionToken.current
+      const firstTrace = firstTraceScroll.current
+      request.nonAnimated = firstTrace.sessionId === sessionId && firstTrace.profileGeneration === profileGeneration
+        && firstTrace.frame != null
+      if (request.nonAnimated) {
+        cancelAnimationFrame(firstTrace.frame!)
+        firstTrace.frame = null
+      }
     }
     if (activeHistoryWindow || userScrolling.current || request.interactionToken !== scrollInteractionToken.current) {
       cancel()
@@ -231,12 +247,53 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
         || current.selectedSessionId !== sessionId
         || current.profileGeneration !== profileGeneration
         || history?.sessionId === sessionId && history.profileGeneration === profileGeneration) return
-      list.current?.scrollToEnd({ animated: true })
+      list.current?.scrollToEnd({ animated: !request.nonAnimated })
     })
   }, [activeHistoryWindow, profileGeneration, rows.length, scrollRequest, sessionId])
   useEffect(() => () => {
     if (explicitScroll.current.frame != null) cancelAnimationFrame(explicitScroll.current.frame)
   }, [])
+  useEffect(() => {
+    let alignment = firstTraceScroll.current
+    if (alignment.sessionId !== sessionId || alignment.profileGeneration !== profileGeneration) {
+      if (alignment.frame != null) cancelAnimationFrame(alignment.frame)
+      alignment = { sessionId, profileGeneration, seenRuns: new Set<string>(), frame: null }
+      firstTraceScroll.current = alignment
+    }
+    const runIds = JSON.parse(liveOnlyTraceRuns) as string[]
+    const firstInsertion = runIds.some(runId => !alignment.seenRuns.has(runId))
+    for (const runId of runIds) alignment.seenRuns.add(runId)
+    // A first stream can create a row without advancing the durable cursor.
+    // Follow that insertion once, but never text growth, reconnect, or a user
+    // who was already reading elsewhere when this run first appeared.
+    if (!firstInsertion || activeHistoryWindow || loadingOlder || olderRequestInFlight.current
+      || !nearBottomRef.current || userScrolling.current) return
+    const explicit = explicitScroll.current
+    if (explicit.sessionId === sessionId && explicit.profileGeneration === profileGeneration
+      && (explicit.pending || explicit.frame != null)) {
+      explicit.nonAnimated = true
+      return
+    }
+    const interactionToken = scrollInteractionToken.current
+    alignment.frame = requestAnimationFrame(() => {
+      alignment.frame = null
+      const current = useAppStore.getState()
+      const history = current.historyWindow
+      // Eligibility captured the pre-insertion bottom position. The new row
+      // can itself make native distance-from-bottom exceed the threshold before
+      // this frame; only a real interaction/owner change revokes that intent.
+      if (firstTraceScroll.current !== alignment
+        || interactionToken !== scrollInteractionToken.current
+        || userScrolling.current || olderRequestInFlight.current
+        || current.selectedSessionId !== sessionId || current.profileGeneration !== profileGeneration
+        || history?.sessionId === sessionId && history.profileGeneration === profileGeneration) return
+      list.current?.scrollToEnd({ animated: false })
+    })
+    return () => {
+      if (alignment.frame != null) cancelAnimationFrame(alignment.frame)
+      alignment.frame = null
+    }
+  }, [activeHistoryWindow, liveOnlyTraceRuns, loadingOlder, profileGeneration, sessionId])
   useEffect(() => {
     if (activeHistoryWindow?.detached) {
       // The search sheet's keyboard can finish hiding after the detached

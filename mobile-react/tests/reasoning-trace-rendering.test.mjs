@@ -239,6 +239,7 @@ for (const backend of ['codex', 'claude']) {
       assert.equal(byID(tree, 'trace-open-trace-run').props.accessibilityState.expanded, false)
       await act(async () => preferences.setState({ preference: 'expanded' }))
       assert.equal(byID(tree, 'trace-open-trace-run').props.accessibilityState.expanded, true)
+      assert.equal(byID(tree, 'trace-event-preview-thought').props.collapsable, false, 'native acceptance measures the actual text preview, not only the disclosure label')
       assert.ok(tree.root.findAll(node => node.type === 'MarkdownContent').some(node => node.props.value === 'Live supplied thinking.'))
       assert.deepEqual(reads, [])
       await act(async () => preferences.setState({ preference: 'compact' }))

@@ -11,6 +11,10 @@
   live expanded and completed compact behavior for Claude and Codex. The first
   explicit historical disclosure loads one bounded detail page. Longer supplied
   text has selectable, paged reading controls and truthful truncation notices.
+- Keep a newly appearing live trace in view when already at the bottom, without
+  replaying send-scroll animations on token updates or reconnects. Native
+  acceptance measures the text preview above the composer, not just a hittable
+  disclosure label; reading older history retains control of the viewport.
 - Reproduced missing Codex live text in the packaged previous release through
   its actual native transport and a real provider. Claude has an independent
   real-provider journey; neither provider's visibility is evidence of the

@@ -43,6 +43,7 @@ const input = (patch = {}) => ({ sessionId: 'chat', scrollRequest: 0, keyboardVi
 const view = props => React.createElement(Timeline, props)
 const list = tree => tree.root.findByType('FlashList')
 const animatedScrolls = () => fixture.scrolls.filter(value => value.animated)
+const automaticScrolls = () => fixture.scrolls.filter(value => value.animated === false)
 async function flushFrames() { await act(async () => { for (const [id, callback] of [...frames]) { if (frames.delete(id)) callback(0) } }) }
 async function render(events) {
   frames.clear(); fixture.scrolls.length = 0
@@ -138,4 +139,116 @@ test('unmount cancels a pending explicit frame', async () => {
   assert.equal(frames.size, 0)
   await flushFrames()
   assert.equal(animatedScrolls().length, 0)
+})
+
+test('first overlay-only trace aligns the bottom once, without following tokens or reconnects', async () => {
+  const tree = await render()
+  try {
+    await act(async () => tree.update(view(input({ scrollRequest: 1 }))))
+    await flushFrames()
+    fixture.scrolls.length = 0
+    const durable = store.getState().snapshots.chat
+    await act(async () => reasoning.setState({ selected: stream() }))
+    assert.ok(list(tree).props.data.some(row => row.kind === 'trace'))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'the actual first overlay row has its own one-time nonanimated alignment')
+    for (let revision = 2; revision <= 300; revision += 1) {
+      await act(async () => reasoning.setState({ selected: stream(revision) }))
+      await flushFrames()
+    }
+    await act(async () => reasoning.setState({ selected: null }))
+    await flushFrames()
+    await act(async () => reasoning.setState({ selected: stream(301) }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'text growth and reconnect cannot replay the alignment')
+    assert.equal(store.getState().snapshots.chat, durable)
+  } finally { await unmount(tree) }
+})
+
+test('the first overlay keeps its bottom intent when native row growth changes geometry before its frame', async () => {
+  const tree = await render()
+  try {
+    await act(async () => list(tree).props.onScroll({ nativeEvent: {
+      contentOffset: { y: 200 }, contentSize: { height: 1000 }, layoutMeasurement: { height: 800 },
+    } }))
+    await act(async () => reasoning.setState({ selected: stream() }))
+    // Native content remeasurement can report the larger row before RAF.
+    // The person did not drag: this is the insertion being aligned, not a
+    // new request to read older content that should revoke bottom intent.
+    await act(async () => list(tree).props.onScroll({ nativeEvent: {
+      contentOffset: { y: 200 }, contentSize: { height: 1260 }, layoutMeasurement: { height: 800 },
+    } }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }])
+    await act(async () => reasoning.setState({ selected: stream(2) }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'geometry-only growth does not permit repeated token scrolling')
+  } finally { await unmount(tree) }
+})
+
+test('first overlay coalesces with a pending explicit send frame as one nonanimated scroll', async () => {
+  const tree = await render()
+  try {
+    await act(async () => tree.update(view(input({ scrollRequest: 1 }))))
+    await act(async () => reasoning.setState({ selected: stream() }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }])
+  } finally { await unmount(tree) }
+})
+
+test('a new explicit send arriving before the first-overlay frame coalesces without two scrolls', async () => {
+  const tree = await render()
+  try {
+    await act(async () => reasoning.setState({ selected: stream() }))
+    await act(async () => tree.update(view(input({ scrollRequest: 1 }))))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }])
+  } finally { await unmount(tree) }
+})
+
+for (const cancellation of ['away', 'drag', 'history', 'profile', 'chat', 'unmount']) {
+  test(`${cancellation} prevents a first-overlay alignment from moving the reader`, async () => {
+    const tree = await render()
+    let mounted = true
+    try {
+      if (cancellation === 'away') await act(async () => list(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 500 }, contentSize: { height: 4000 }, layoutMeasurement: { height: 800 } } }))
+      await act(async () => reasoning.setState({ selected: stream() }))
+      if (cancellation === 'drag') await dragAway(tree)
+      if (cancellation === 'history') await act(async () => store.setState({ historyWindow: { sessionId: 'chat', profileGeneration: 1, snapshot: snapshot(), detached: true } }))
+      if (cancellation === 'profile') await act(async () => store.setState({ profileGeneration: 2 }))
+      if (cancellation === 'chat') await act(async () => { store.setState({ selectedSessionId: 'other', snapshots: { other: snapshot('other') } }); tree.update(view(input({ sessionId: 'other' }))) })
+      if (cancellation === 'unmount') { await unmount(tree); mounted = false }
+      await flushFrames()
+      assert.equal(automaticScrolls().length, 0)
+    } finally { if (mounted) await unmount(tree) }
+  })
+}
+
+test('reasoning added to an existing durable trace does not count as a first-overlay insertion', async () => {
+  const tree = await render([start(), { ...start(), id: 'tool', seq: 2, type: 'tool_started', tool: { id: 'tool', name: 'exec', input: {} } }])
+  try {
+    await act(async () => reasoning.setState({ selected: stream() }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [])
+  } finally { await unmount(tree) }
+})
+
+test('a genuinely new run can receive its own single first-overlay alignment', async () => {
+  const tree = await render()
+  try {
+    await act(async () => reasoning.setState({ selected: stream() }))
+    await flushFrames()
+    assert.equal(automaticScrolls().length, 1)
+    await act(async () => {
+      reasoning.setState({ selected: null })
+      store.setState({ snapshots: { chat: snapshot('chat', [start(), { ...start(), id: 'done', seq: 2, type: 'turn_finished' }, { ...start(), id: 'second', seq: 3, run_id: 'run-two' }]) } })
+    })
+    await flushFrames()
+    const before = fixture.scrolls.length
+    const second = stream(2); second.snapshot.items[0] = { ...second.snapshot.items[0], run_id: 'run-two', after_seq: 3 }
+    await act(async () => reasoning.setState({ selected: second }))
+    await flushFrames()
+    assert.equal(fixture.scrolls.length, before + 1)
+    assert.deepEqual(fixture.scrolls.at(-1), { animated: false })
+  } finally { await unmount(tree) }
 })

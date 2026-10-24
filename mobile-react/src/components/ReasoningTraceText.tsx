@@ -46,9 +46,11 @@ export function ReasoningTraceText({ event, fontScale, profileGeneration }: { ev
       <Pressable testID={`trace-event-close-${event.id}`} accessibilityRole="button" accessibilityLabel={t('Close full {label}', { label: t(label).toLocaleLowerCase() })} accessibilityState={{ expanded: true }} onPress={() => { setOpen(false); setPage(0) }} style={buttonStyle}><Text style={buttonText} localize>Close full text</Text></Pressable>
     </> : <>
       {hasHiddenText ? <Pressable testID={`trace-event-full-${event.id}`} accessibilityRole="button" accessibilityLabel={t('Read full available {label}', { label: t(label).toLocaleLowerCase() })} accessibilityState={{ expanded: false }} onPress={() => { setPage(0); setOpen(true) }} style={buttonStyle}><Text style={buttonText} localize>Read full available text</Text></Pressable> : null}
-      {preview.trim() ? event.type === 'reasoning_text' || event.phase === 'reasoning'
-        ? <Text selectable style={[styles.fullText, { color: colors.text }]}>{preview}</Text>
-        : <MarkdownContent value={preview} fontScale={fontScale} /> : null}
+      {preview.trim() ? <View testID={`trace-event-preview-${event.id}`} collapsable={false}>
+        {event.type === 'reasoning_text' || event.phase === 'reasoning'
+          ? <Text selectable style={[styles.fullText, { color: colors.text }]}>{preview}</Text>
+          : <MarkdownContent value={preview} fontScale={fontScale} />}
+      </View> : null}
     </>}
     {reasoningTraceWindowTruncated(event) ? <Text testID={`trace-event-window-${event.id}`} style={[styles.page, { color: colors.muted }]} localize>Only the available text window is shown. Some provider text was omitted.</Text> : null}
   </View>
