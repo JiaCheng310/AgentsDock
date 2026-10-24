@@ -9,11 +9,22 @@
 - Allocate the composer from the space remaining below the goal/context controls.
   Preserve the same draft, focus and selection when queued messages arrive or
   disappear. Single-pane queue behavior and sending contracts are unchanged.
+- Source `6175fb76`, local macOS arm64 package 0.2.0/build 85. All 5,455
+  desktop tests passed (five skipped), with TypeScript, production compilation,
+  bundle audit, Developer ID signing and deep strict signature verification.
+  An existing asynchronous file-picker focus assertion now waits for focus;
+  its targeted rerun also passed after the initial full-suite timing failure.
 - Native offscreen baseline reproduced a queued message pushing the input fully
-  outside its visible area. Candidate checks use isolated server state and real
-  production IPC, authenticated HTTP and WebSockets with held fixture turns.
-  Source TypeScript and focused composer regressions pass; exact-package
-  acceptance will be recorded after the local build.
+  outside its visible area. The exact packaged archive then passed queue
+  submission, edit/save with authoritative readback, removal and repeat use,
+  retained multiline drafts, goal/alert pressure, three/four panes, divider
+  dragging, light/dark and narrow-window checks. Draft and queue scroll
+  independently; Send/Stop remain inside the tested panes.
+- These exercised production IPC, authenticated HTTP and WebSockets in isolated
+  server state with synthetic held turns; no provider ran. All 91 compiled
+  assets matched the package, and its archive and signature remained unchanged.
+  The archive ran through stock Electron offscreen; signed-executable launch
+  and Gatekeeper were not exercised.
 - App-only local trial; this layout fix needs no server update. No live service,
   installed app or published release is changed.
 
