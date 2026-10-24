@@ -65,6 +65,7 @@ import {
 } from '../lib/chat-references'
 import { agentRouteCapacityError, isAgentRouteRevisionConflict } from '../lib/agent-route-policy'
 import { publishProviderRuntimeChanged } from '../lib/provider-runtime-events'
+import { useReasoningStreamStore } from './useReasoningStreamStore'
 import { reconcileTeamReferences, requireTeamReferenceSupport, restoreFailedTeamReferences, teamMessagesAvailable, teamReferenceContractSupported, teamReferencesEqual, teamReferenceTokenPresent, validTeamReferences } from '../lib/team-references'
 import { awaitAllCodexPermissionUpdates, awaitCodexPermissionUpdates } from '../lib/codex-permission-updates'
 import { awaitAllClaudePermissionUpdates, awaitClaudePermissionUpdates } from '../lib/claude-permission-updates'
@@ -85,6 +86,7 @@ import {
   historicalTimelineEvents,
   liveTimelineEventsWereTrimmed,
   sanitizeTimelineEvent,
+  sanitizeTraceDetailEvent,
   sanitizeTimelineFile,
   snapshotMapWith,
 } from '../lib/timeline-memory'
@@ -198,6 +200,7 @@ const SESSION_METADATA_PASSIVE_EVENT_TYPES = new Set([
   ...TIMELINE_INTERNAL_EVENT_TYPES,
   'raw_event',
   'reasoning_summary',
+  'reasoning_text',
   'tool_started',
   'tool_finished',
   'codex_thread_status',
@@ -1937,7 +1940,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       return {
         ...page,
-        events: page.events.map(sanitizeTimelineEvent),
+        events: page.events.map(sanitizeTraceDetailEvent),
       }
     } catch (error) {
       if (
@@ -4487,6 +4490,9 @@ function applyLiveEvent(scope: ConnectionScope, event: Event, set: (value: Parti
       ...selectedSync,
     }
   })
+  // Publish durable completion before retiring its presentation-only stream.
+  // A later stale packet is also rejected by the timeline's terminal owner.
+  if (terminalEvent && event.run_id) useReasoningStreamStore.getState().finishRun(sessionId, event.run_id)
   if ([
     'turn_finished',
     'artifact_created',
@@ -4524,6 +4530,7 @@ function scheduleReadReceipt(scope: ConnectionScope, sessionId: string, get: () 
 
 function stopSelectedStream(): void {
   streamGeneration += 1
+  useReasoningStreamStore.getState().clear()
   void flushPendingLiveSnapshotSave()
   const stop = streamStop
   streamStop = null
@@ -4560,6 +4567,7 @@ function startSelectedStream(
     },
     (connected, detail) => {
       if (!connectionIsCurrent(scope) || generation !== streamGeneration || epoch !== selectionEpoch || get().selectedSessionId !== sessionId) return
+      if (!connected) useReasoningStreamStore.getState().clear()
       if (connected) {
         cancelSyncRecovery(set)
         set({
@@ -4608,6 +4616,20 @@ function startSelectedStream(
         profileId: scope.profileId,
         profileGeneration: scope.generation,
         event,
+      })
+    },
+    snapshot => {
+      if (
+        !connectionIsCurrent(scope)
+        || generation !== streamGeneration
+        || epoch !== selectionEpoch
+        || get().selectedSessionId !== sessionId
+        || snapshot.session_id !== sessionId
+      ) return
+      useReasoningStreamStore.getState().replace({
+        profileGeneration: scope.generation,
+        sessionId,
+        snapshot,
       })
     },
   )

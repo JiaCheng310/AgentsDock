@@ -3,11 +3,14 @@ import { messageText } from './format'
 import { foldMarkdownSource } from './math'
 import { importedCrossChatDelivery, type ImportedCrossChatDelivery } from './imported-cross-chat-delivery'
 import { isNativeGoalSteerEvent } from './native-goal-steering'
+import { reasoningEventSequence, reasoningItemKey, reasoningWithinBounds, type ReasoningProjectionOwner } from './timeline-reasoning-stream'
 
 export type TimelineRow = MessageRow | TraceRow | ProgressRow | MediaRow | SystemRow | JobRow
 export interface MessageRow { kind: 'message'; key: string; seq: number; role: 'user' | 'assistant'; events: Event[]; files: AgentFile[] }
 export interface TraceRow {
   kind: 'trace'; key: string; seq: number; events: Event[]; promotedCommentaryIds: string[]; runId?: string | null; active: boolean
+  /** Native run liveness is independent of whether assistant text has arrived. */
+  runActive?: boolean
   /** Display-only bounds within a native run shared by multiple goal inputs. */
   afterSeq?: number
   throughSeq?: number
@@ -34,6 +37,8 @@ export interface JobRow { kind: 'job'; key: string; seq: number; title: string; 
 
 interface Turn {
   key: string
+  sessionId: string
+  imported: boolean
   runId?: string | null
   seq: number
   user?: Event
@@ -87,7 +92,7 @@ const hidden = new Set([
   'codex_compaction_started',
 ])
 const traces = new Set([
-  'reasoning_summary', 'tool_started', 'tool_finished', 'raw_event', 'process_started',
+  'reasoning_summary', 'reasoning_text', 'tool_started', 'tool_finished', 'raw_event', 'process_started',
   'provider_session', 'cwd_fallback', 'history_imported', 'backend_changed', 'artifact_error',
   'session_created', 'idle_warning', 'code_diff',
 ])
@@ -118,7 +123,7 @@ interface JobProjectionAssignment {
  * IDs/occurrence identities route late or recycled-run packets precisely.
  */
 function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProjectionAssignment> {
-  const ordered = [...events].sort((left, right) => left.seq - right.seq)
+  const ordered = [...events].sort((left, right) => reasoningEventSequence(left) - reasoningEventSequence(right))
   const occurrenceByEvent = new Map<Event, Map<string, string>>()
   const currentOccurrenceByRun = new Map<string, { key: string; started: boolean }>()
   for (const event of ordered) {
@@ -240,7 +245,13 @@ function jobProjectionAssignments(events: readonly Event[]): Map<Event, JobProje
   return assignments
 }
 
-export function projectTimeline(events: Event[], knownFiles: AgentFile[]): TimelineRow[] {
+export function projectTimeline(events: Event[], knownFiles: AgentFile[], reasoningOwners?: ReasoningProjectionOwner[]): TimelineRow[] {
+  const ownerStart = reasoningOwners?.length ?? 0
+  // Only the additive retained-reasoning field changes ledger presentation.
+  // Existing ordered snapshots keep their array and established projection path.
+  if (events.some(event => reasoningEventSequence(event) !== event.seq)) {
+    events = [...events].sort((a, b) => reasoningEventSequence(a) - reasoningEventSequence(b))
+  }
   const filesById = new Map(knownFiles.map(file => [file.id, file]))
   const items: Array<Turn | SystemRow | JobRow> = []
   const turns = new Map<string, Turn>()
@@ -269,8 +280,10 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
   const createTurn = (event: Event, key: string): Turn => {
     const turn: Turn = {
       key,
+      sessionId: event.session_id,
+      imported: event.imported === true || event.run_id?.startsWith('import_') === true,
       runId: event.run_id,
-      seq: event.seq,
+      seq: reasoningEventSequence(event),
       assistant: [],
       assistantNormalizedSet: new Set(),
       trace: [],
@@ -640,7 +653,11 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
     return arrived ? [{ ...item, seq: arrived.seq, anchorTs: arrived.ts, crossChatMessage: true }] : []
   })
   for (const item of displayItems.sort((a, b) => a.seq - b.seq)) {
-    if ('kind' in item) { rows.push(item); continue }
+    if ('kind' in item) {
+      rows.push(item)
+      if (reasoningOwners && item.kind === 'job') collectJobReasoningOwners(item, reasoningOwners)
+      continue
+    }
     const inputFileIds = new Set(item.user?.file_ids ?? [])
     const inputFiles = item.files.filter(file => inputFileIds.has(file.id)
       && (!item.user || !isNativeGoalSteerEvent(item.user) || nativeGoalFileBelongsToSession(file, item.user.session_id)))
@@ -700,6 +717,14 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
       }
     }
     const traceActive = !item.finishedAt && item.assistant.length === 0
+    const runActive = !item.imported && !item.finishedAt && !item.failedAt && !item.stoppedAt
+    if (reasoningOwners && item.runId) reasoningOwners.push({
+      kind: 'turn', sessionId: item.sessionId, runId: item.runId, key: item.key,
+      traceKey: `${item.key}:trace`, seq: item.seq, runActive, traceActive,
+      afterSeq: item.afterSeq, throughSeq: item.throughSeq,
+      promotedCommentaryIds: item.promotedCommentaryIds,
+      durableReasoningKeys: new Set(item.trace.filter(event => event.type === 'reasoning_summary' || event.type === 'reasoning_text').map(reasoningItemKey)),
+    })
     // Commentary is public assistant progress while a turn is active. Private
     // reasoning stays in the trace, and commentary returns to the settled
     // trace after completion unless it was promoted into durable output.
@@ -710,11 +735,12 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
       rows.push({
         kind: 'trace',
         key: `${item.key}:trace`,
-        seq: traceEvents[0].seq,
+        seq: reasoningEventSequence(traceEvents[0]),
         events: traceEvents,
         promotedCommentaryIds: item.promotedCommentaryIds,
         runId: item.runId,
         active: traceActive,
+        runActive,
         ...(item.afterSeq !== undefined ? { afterSeq: item.afterSeq } : {}),
         ...(item.throughSeq !== undefined ? { throughSeq: item.throughSeq } : {}),
       })
@@ -742,6 +768,18 @@ export function projectTimeline(events: Event[], knownFiles: AgentFile[]): Timel
   // artifact emitted before turn_finished cannot float above its answer.
   // Keys and anchor sequences stay unchanged for stable FlashList recycling.
   const orderedRows = placeCompletedAssistantRows(rows, completedAssistantRows)
+  if (reasoningOwners) {
+    const previousByRun = new Map<string, ReasoningProjectionOwner>()
+    for (const owner of reasoningOwners.slice(ownerStart).sort((a, b) => a.seq - b.seq)) {
+      const identity = `${owner.sessionId}\0${owner.runId}`
+      const previous = previousByRun.get(identity)
+      if (previous && previous.key !== owner.key) {
+        previous.runActive = false
+        previous.throughSeq = Math.min(previous.throughSeq ?? Infinity, owner.seq - 1)
+      }
+      previousByRun.set(identity, owner)
+    }
+  }
 
   // Live commentary belongs at the physical edge of the active turn. Keeping
   // it after lifecycle markers and already-positioned completed answers mirrors
@@ -756,8 +794,28 @@ function nativeGoalFileBelongsToSession(file: AgentFile, sessionId: string): boo
 /** Full-run lazy detail must not cross an accepted goal input's display slice. */
 export function traceEventsWithinRow(row: TraceRow, events: readonly Event[]): Event[] {
   if (row.afterSeq === undefined && row.throughSeq === undefined) return events as Event[]
-  return events.filter(event => (row.afterSeq === undefined || event.seq > row.afterSeq)
-    && (row.throughSeq === undefined || event.seq <= row.throughSeq))
+  return events.filter(event => reasoningWithinBounds(reasoningEventSequence(event), row))
+}
+
+function collectJobReasoningOwners(row: JobRow, owners: ReasoningProjectionOwner[]): void {
+  const byRun = new Map<string, Event[]>()
+  for (const event of row.events) for (const runId of jobLinkedRunIds(event)) {
+    const events = byRun.get(runId) ?? []
+    events.push(event)
+    byRun.set(runId, events)
+  }
+  for (const [runId, events] of byRun) {
+    const status = latestJobStatusEvent(events)
+    const latestStart = events.findLast(event => event.type === 'turn_started')
+    const runActive = status != null && jobRunStatus(status).tone === 'running'
+    owners.push({ kind: 'job', sessionId: events[0].session_id, runId, key: row.key,
+      traceKey: row.key, seq: latestStart?.seq ?? Math.min(...events.map(reasoningEventSequence)),
+      runActive, traceActive: runActive, afterSeq: latestStart?.seq,
+      promotedCommentaryIds: [],
+      durableReasoningKeys: new Set(events.filter(event => (!latestStart || reasoningEventSequence(event) > latestStart.seq)
+        && (event.type === 'reasoning_summary' || event.type === 'reasoning_text')).map(reasoningItemKey)),
+    })
+  }
 }
 
 function jobOccurrenceIdentity(event: Event): string {
@@ -842,8 +900,8 @@ function promoteInterruptedCommentary(turn: Turn): void {
 }
 
 /** Empty transport-only history must never replace a displayable live tail. */
-export function projectPresentableHistory(events: Event[], knownFiles: AgentFile[]): TimelineRow[] | null {
-  const rows = projectTimeline(events, knownFiles)
+export function projectPresentableHistory(events: Event[], knownFiles: AgentFile[], reasoningOwners?: ReasoningProjectionOwner[]): TimelineRow[] | null {
+  const rows = projectTimeline(events, knownFiles, reasoningOwners)
   return rows.length ? rows : null
 }
 
@@ -1369,7 +1427,7 @@ export function codexLifecycleSemanticKey(
 
 function traceHasContent(events: Event[]): boolean {
   return events.some(event => [
-    'reasoning_summary', 'tool_started', 'tool_finished', 'idle_warning', 'artifact_error', 'code_diff',
+    'reasoning_summary', 'reasoning_text', 'tool_started', 'tool_finished', 'idle_warning', 'artifact_error', 'code_diff',
   ].includes(event.type) || messageText(event).trim())
 }
 

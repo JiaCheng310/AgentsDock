@@ -7,6 +7,11 @@ import {
   TRACE_TEXT_LIMIT,
   boundLoadedTraceEvents,
   boundedTraceText,
+  isReasoningTraceEvent,
+  reasoningTraceLabel,
+  reasoningTracePages,
+  reasoningTraceText,
+  reasoningTraceWindowTruncated,
   reasoningTraceHeadline,
   reasoningTracePreview,
   selectTraceDetailRenderEvents,
@@ -49,9 +54,14 @@ assert(
 )
 const oversized = boundLoadedTraceEvents([event(399, 'x'.repeat(1_100_000))])
 assert(
-  oversized.limited && oversized.events.length === 0,
-  'one oversized trace event must not bypass the loaded-state memory ceiling',
+  oversized.limited && oversized.events.length === 1 && oversized.events[0].text!.length < 1_000_000
+    && oversized.events[0].reasoning_text_truncated === true,
+  'one oversized reasoning event keeps a useful honest window within the loaded-state memory ceiling',
 )
+const exactLimit = boundLoadedTraceEvents([{ ...event(398, 'x'.repeat(999_743) + '😀tail'.repeat(60)), reasoning_text_truncated: true, reasoning_text_chars: 2_000_000 }])
+assert(exactLimit.events[0].text!.length + 256 <= 1_000_000, 'retained text accounts for per-event overhead')
+assert(!/[\uD800-\uDBFF]$/.test(exactLimit.events[0].text!), 'oversized windows cannot split surrogate pairs')
+assert(exactLimit.events[0].reasoning_text_chars === 2_000_000, 'trimming preserves the original upstream source size')
 
 const renderWindow = selectTraceDetailRenderEvents(numerous)
 assert(renderWindow.limited, 'large trace views should report hidden events')
@@ -67,6 +77,8 @@ assert(formulaText.includes('characters hidden'), 'reasoning truncation should r
 const fenced = `before\n${'b'.repeat(3_970)}\n\`\`\`ts\n${'const x = 1\\n'.repeat(30)}\`\`\`\nafter`
 const fencedText = boundedTraceText(event(401, fenced))
 assert(!fencedText.includes('```'), 'reasoning truncation must not expose a partial fenced-code block')
+const plainReasoning = boundedTraceText(event(407, fenced, 'reasoning_text'))
+assert(plainReasoning.startsWith(fenced.slice(0, TRACE_TEXT_LIMIT).trimEnd()), 'plain supplied reasoning preserves its literal prefix rather than treating delimiters as Markdown')
 
 const plainTool = boundedTraceText(event(402, 'z'.repeat(5_000), 'tool_finished'))
 assert(plainTool.startsWith('z'.repeat(TRACE_TEXT_LIMIT)), 'plain tool text should retain a direct prefix')
@@ -113,3 +125,21 @@ assert(
 )
 
 console.log('trace detail bounds passed')
+
+for (const type of ['reasoning_summary', 'reasoning_text']) {
+  const source = `Received provider text. ${'long detail 😀 '.repeat(2_000)}AVAILABLE_END`
+  const thought = event(500, source, type)
+  const pages = reasoningTracePages(reasoningTraceText(thought))
+  assert(isReasoningTraceEvent(thought), 'both visible provider reasoning channels are recognized')
+  assert(pages.join('') === source, 'the reader must preserve every available character in order')
+  assert(pages.every(page => page.length <= 12_000), 'every reader page stays bounded')
+  assert(pages.every(page => !/[\uD800-\uDBFF]$/.test(page)), 'reader pages cannot split surrogate pairs')
+}
+const plaintext = { ...event(501, 'Supplied text.', 'reasoning_text'), phase: 'reasoning', partial: true }
+assert(reasoningTraceLabel(plaintext) === 'Partial provider-supplied reasoning', 'plaintext and partial status must be truthful')
+assert(reasoningTraceLabel({ ...event(502, 'Summary'), partial: true }) === 'Partial thinking summary', 'partial summaries keep their own label')
+const hiddenSources = { ...event(503, ''), text: undefined, prompt: 'Must stay hidden', raw: { text: 'Must stay hidden' }, result_text: 'Not reasoning' }
+assert(reasoningTraceText(hiddenSources) === '' && boundedTraceText(hiddenSources) === '', 'reasoning never falls back to prompts, raw packets, or answers')
+assert(reasoningTraceWindowTruncated({ ...event(504, 'Available window'), reasoning_text_truncated: true }), 'server/mobile omission metadata must remain visible')
+assert(reasoningTraceWindowTruncated({ ...event(505, 'Window'), reasoning_text_chars: 999 }), 'reported source length beyond available text means an incomplete window')
+assert(!reasoningTraceWindowTruncated({ ...event(506, 'Partial but fully received'), partial: true }), 'interruption is not the same as omitted supplied text')

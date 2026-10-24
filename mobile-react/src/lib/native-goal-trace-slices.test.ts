@@ -73,3 +73,13 @@ await test('lazy full-run trace detail stays within both complete and ack-only h
   assert.deepEqual(partial.map(row => row.key), full.slice(1).map(row => row.key))
   assert.deepEqual(partial.map(row => traceEventsWithinRow(row, source).map(event => event.seq)), [[6], [9]])
 })
+
+await test('retained reasoning at the predecessor edge never leaks into a later goal input', () => {
+  const before = event(10, 'reasoning_text', { item_id: 'before', phase: 'reasoning', reasoning_after_seq: 4, text: 'Previous slice' })
+  const after = event(11, 'reasoning_text', { item_id: 'after', phase: 'reasoning', reasoning_after_seq: 5, text: 'Current slice' })
+  const rows = projectTimeline([event(1, 'turn_started', { prompt: 'Original' }), acknowledgement(5), before, after], [])
+    .filter((row): row is TraceRow => row.kind === 'trace')
+  assert.deepEqual(rows.map(row => row.events.map(value => value.id)), [[before.id], [after.id]])
+  assert.deepEqual(rows.map(row => traceEventsWithinRow(row, [before, after]).map(value => value.id)), [[before.id], [after.id]])
+  assert.deepEqual(rows.map(row => row.runActive), [false, true])
+})

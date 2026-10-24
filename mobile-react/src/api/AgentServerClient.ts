@@ -38,6 +38,7 @@ import type {
   ProcessSnapshot,
   ProviderReloadResult,
   ProviderRuntimeChanged,
+  ReasoningSummaryStreamSnapshot,
   QueuedRunNowResponse,
   QueuedTurn,
   RuntimeCatalog,
@@ -65,6 +66,7 @@ import type {
 import { normalizeServerURL } from '../lib/format'
 import { createUploadFormData } from '../lib/upload-form'
 import { teamNetworkRequestPath } from '../lib/team-network'
+import { isReasoningSummaryStream, normalizedReasoningStream } from '../lib/reasoning-stream'
 
 interface SessionResponse {
   session: Session
@@ -769,6 +771,7 @@ export class AgentServerClient {
     onEvent: (event: Event) => void,
     onState: (connected: boolean, detail?: WebSocketStateDetail) => void,
     onProviderRuntime?: (event: ProviderRuntimeChanged) => void,
+    onReasoningStream?: (snapshot: ReasoningSummaryStreamSnapshot) => void,
   ): () => void {
     const scope = this.captureScope()
     const endpoint = new URL(buildURL(scope.configuration.baseURL, `/api/sessions/${encodeURIComponent(sessionId)}/events`))
@@ -811,6 +814,10 @@ export class AgentServerClient {
       const url = new URL(endpoint)
       url.searchParams.set('after', String(lastSeq))
       url.searchParams.set('visible', 'true')
+      if (onReasoningStream) {
+        url.searchParams.set('reasoning_stream', 'true')
+        url.searchParams.set('reasoning_text', 'true')
+      }
       if (token) url.searchParams.set('token', token)
       try {
         socket = new WebSocket(url.toString())
@@ -820,6 +827,10 @@ export class AgentServerClient {
         return
       }
       const connectingSocket = socket
+      // A reconnect can enter a newly started server instance at revision zero.
+      // Bind revisions to this socket, not the client's durable replay cursor.
+      let reasoningInstance = ''
+      let reasoningRevision = -1
       connectTimeout = setTimeout(() => {
         if (stopped || socket !== connectingSocket || connectingSocket.readyState !== WebSocket.CONNECTING) return
         reportState(false)
@@ -845,15 +856,33 @@ export class AgentServerClient {
         if (stopped || socket !== connectingSocket) return
         try {
           const packet = JSON.parse(String(message.data)) as unknown
+          if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return
+          if ('type' in packet && packet.type === 'reasoning_summary_stream') {
+            if (onReasoningStream && isReasoningSummaryStream(packet)
+              && packet.session_id === sessionId
+              && (!reasoningInstance || packet.instance_id === reasoningInstance)
+              && packet.revision > reasoningRevision) {
+              onReasoningStream(normalizedReasoningStream(packet))
+              reasoningInstance = packet.instance_id
+              reasoningRevision = packet.revision
+            }
+            // Even malformed/unsolicited control packets must never poison
+            // the durable cursor if they happen to contain a seq property.
+            return
+          }
           if (isProviderRuntimeChanged(packet)) {
             if (packet.session_id === sessionId) onProviderRuntime?.(packet)
             return
           }
           const event = packet as Event
-          if (Number.isFinite(event.seq) && event.seq > lastSeq) { lastSeq = event.seq; onEvent(event) }
+          if (Number.isSafeInteger(event.seq) && event.seq > lastSeq && event.session_id === sessionId) {
+            onEvent(event)
+            lastSeq = event.seq
+          }
         } catch { /* malformed packets are ignored */ }
       }
       socket.onclose = event => {
+        if (stopped || socket !== connectingSocket) return
         clearConnectTimeout()
         clearStableConnectionTimer()
         if (socket === connectingSocket) socket = null
@@ -875,7 +904,7 @@ export class AgentServerClient {
         }
         scheduleRetry()
       }
-      socket.onerror = () => { if (!stopped) reportState(false) }
+      socket.onerror = () => { if (!stopped && socket === connectingSocket) reportState(false) }
     }
     const stop = () => {
       if (stopped) {

@@ -21,6 +21,7 @@ import { MAX_SCHEDULED_CHAT_REFERENCES, normalizeScheduledJobChatReferences, sch
 import { client, useAppStore } from '../store/useAppStore'
 import { useAppearanceStore, type ThemePreference } from '../store/useAppearanceStore'
 import { useLanguageStore } from '../store/useLanguageStore'
+import { useReasoningDisplayStore } from '../store/useReasoningDisplayStore'
 import { t } from '../i18n'
 import type { LanguagePreference } from '../i18n/locale'
 import { radius, spacing, typography, usePalette } from '../theme'
@@ -101,6 +102,9 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
   const languagePreference = useLanguageStore(state => state.preference)
   const languageError = useLanguageStore(state => state.error)
   const setLanguagePreference = useLanguageStore(state => state.setPreference)
+  const reasoningDisplay = useReasoningDisplayStore(state => state.preference)
+  const reasoningDisplayError = useReasoningDisplayStore(state => state.error)
+  const setReasoningDisplay = useReasoningDisplayStore(state => state.setPreference)
   const [page, setPage] = useState<SettingsPage>('home')
   const [defaultFolder, setDefaultFolder] = useState(chatDefaults.folder)
   const [defaultCwd, setDefaultCwd] = useState(chatDefaults.cwd)
@@ -169,6 +173,14 @@ export function SettingsDialog({ visible, onClose, onOpenServers, onDidDismiss }
       <IconButton icon={Plus} disabled={fontScale >= APP_FONT_SCALE_MAX} label="Increase app text size" onPress={() => setFontScale(fontScale + APP_FONT_SCALE_STEP)} />
     </View>
     <Text style={[styles.help, { color: colors.muted }]} localize>Applies to chats, navigation, settings, server management, and terminal text.</Text>
+    <View style={[styles.settingsRow, { borderColor: colors.border }]}>
+      <View style={styles.settingsNetworkCopy}>
+        <Text style={[typography.body, { color: colors.text }]} localize>Show reasoning traces</Text>
+        <Text style={[typography.caption, { color: colors.muted }]} localize>Expand available reasoning during active turns. Completed turns stay compact.</Text>
+      </View>
+      <Switch testID="settings-reasoning-display" accessibilityLabel={t('Show reasoning traces')} value={reasoningDisplay === 'expanded'} onValueChange={expanded => void setReasoningDisplay(expanded ? 'expanded' : 'compact')} />
+    </View>
+    {reasoningDisplayError ? <Text accessibilityRole="alert" style={[styles.help, { color: colors.red }]}>{t(reasoningDisplayError)}</Text> : null}
     </> : null}
     {page === 'language' ? <View accessibilityRole="radiogroup" style={styles.settingsCategories}>
       {languageOptions.map(({ value, label }) => <Pressable key={value} testID={`settings-language-${value}`} accessibilityRole="radio" accessibilityLabel={t(label)} accessibilityState={{ checked: languagePreference === value }} onPress={() => void setLanguagePreference(value)} style={({ pressed }) => [styles.settingsRow, { borderColor: colors.border, backgroundColor: pressed ? colors.raised : 'transparent' }]}>

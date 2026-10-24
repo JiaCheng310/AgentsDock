@@ -1,5 +1,23 @@
 # Public development log
 
+## 2026-10-24 — Prepare mobile reasoning-display parity
+
+- Receive Codex's provider-exposed live reasoning on the selected chat's
+  dedicated transient stream, without writing tokens into durable history,
+  reprojecting history, or advancing its acknowledgement cursor. Clear that
+  presentation state on disconnect, navigation and completion; retain the
+  provider's durable summaries and partial traces in their chronological slice.
+- Add the device-local Show reasoning traces preference, matching desktop's
+  live expanded and completed compact behavior for Claude and Codex. The first
+  explicit historical disclosure loads one bounded detail page. Longer supplied
+  text has selectable, paged reading controls and truthful truncation notices.
+- Reproduced missing Codex live text in the packaged previous release through
+  its actual native transport and a real provider. Claude has an independent
+  real-provider journey; neither provider's visibility is evidence of the
+  other's content parity. No hidden or unsupplied reasoning is generated.
+- Candidate 0.1.3 (193) remains pending packaged native acceptance and TestFlight
+  publication. No desktop app replacement or server deployment is included.
+
 ## 2026-10-24 — Release mobile cross-chat route-limit correction
 
 - TestFlight 0.1.3 (192), source `c8bfdc042b4466cd3b938245591da016087ae9f8`,
