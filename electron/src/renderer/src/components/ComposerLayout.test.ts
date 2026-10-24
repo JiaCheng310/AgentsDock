@@ -49,7 +49,7 @@ describe('composer queue layout', () => {
     expect(styles).toMatch(/\.chat-workspace \{[^}]*grid-template-rows: minmax\(0, 1fr\) auto auto auto;[^}]*overflow: hidden;/s)
     expect(styles).toMatch(/\.chat-workspace-shelves \{[^}]*max-height: min\(44vh, 460px\);[^}]*overflow-y: auto;/s)
     expect(readFileSync(resolve(process.cwd(), 'src/renderer/src/components/GoalDialog.css'), 'utf8')).toMatch(/\.goal-summary-bar \{[^}]*margin: 0 auto var\(--space-3\);/s)
-    expect(styles).toMatch(/\.chat-split-view\.stacked \.composer,\s*\.chat-split-view\.short \.composer \{[^}]*max-height: clamp\(90px, 65cqh, 240px\);[^}]*grid-template-rows: minmax\(0, 1fr\) auto auto;[^}]*margin-bottom: 3px;/s)
+    expect(styles).toMatch(/\.chat-split-view\.stacked \.composer,\s*\.chat-split-view\.short \.composer \{[^}]*max-height: clamp\(90px, 65cqh, 240px\);[^}]*grid-template-rows: minmax\(auto, 1fr\) minmax\(32px, auto\) auto;[^}]*margin-bottom: 3px;/s)
     expect(styles).toMatch(/\.chat-split-view\.stacked \.emergency-timeline-dock,\s*\.chat-split-view\.short \.emergency-timeline-dock \{[^}]*height: 40px;[^}]*margin-bottom: 1px;[^}]*overflow: hidden;/s)
   })
 

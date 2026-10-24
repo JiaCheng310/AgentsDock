@@ -1466,15 +1466,23 @@ button.tool-event-toggle:hover { background: #242424; }
 .chat-split-view.stacked .goal-summary-bar,
 .chat-split-view.short .goal-summary-bar { flex-shrink: 0; }
 .chat-split-view.stacked .composer,
-.chat-split-view.short .composer { min-height: 75px; max-height: clamp(90px, 65cqh, 240px); flex: 0 1 auto; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; margin-bottom: 3px; padding: 5px 8px 4px; }
+.chat-split-view.short .composer { min-height: 75px; max-height: clamp(90px, 65cqh, 240px); flex: 0 1 auto; display: grid; grid-template-rows: minmax(auto, 1fr) minmax(32px, auto) auto; margin-bottom: 3px; padding: 5px 8px 4px; }
+.chat-split-view.stacked .composer:has(.queue-shelf),
+.chat-split-view.short .composer:has(.queue-shelf) { min-height: 107px; }
+.chat-split-view.stacked .composer-scroll-region:has(.queue-shelf),
+.chat-split-view.short .composer-scroll-region:has(.queue-shelf) { min-height: 32px; }
 .chat-split-view.stacked .composer-scroll-region,
 .chat-split-view.short .composer-scroll-region { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.chat-split-view.stacked .composer-draft-region,
+.chat-split-view.short .composer-draft-region { min-height: 32px; display: flex; flex-direction: column; }
+.chat-split-view.stacked .composer-draft-region > .composer-editor,
+.chat-split-view.short .composer-draft-region > .composer-editor { min-height: 32px; display: flex; flex-direction: column; flex: 1 1 auto; }
 .chat-split-view.stacked .composer-draft-region > .composer-editor > textarea,
 .chat-split-view.stacked .composer-draft-region > .composer-editor > .composer-editor-mirror,
 .chat-split-view.short .composer-draft-region > .composer-editor > textarea,
-.chat-split-view.short .composer-draft-region > .composer-editor > .composer-editor-mirror { min-height: 46px; padding-block: 7px; }
+.chat-split-view.short .composer-draft-region > .composer-editor > .composer-editor-mirror { min-height: 32px; padding-block: 4px; }
 .chat-split-view.stacked .composer-draft-region > .composer-editor > textarea,
-.chat-split-view.short .composer-draft-region > .composer-editor > textarea { max-height: 88px; }
+.chat-split-view.short .composer-draft-region > .composer-editor > textarea { flex: 1 1 auto; max-height: 88px; }
 .chat-split-view.stacked .composer-bar,
 .chat-split-view.short .composer-bar { height: 32px; }
 @container chat-workspace (max-height: 260px) {

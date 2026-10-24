@@ -210,7 +210,7 @@ describe('App split workspace files', () => {
     const view = render(<StrictMode><App /></StrictMode>)
     act(() => handleMenuCommand('open-workspace-file', useAppStore.getState, value => useAppStore.setState(value)))
     const search = await screen.findByRole('combobox', { name: 'Find a workspace file' })
-    expect(search).toHaveFocus()
+    await waitFor(() => expect(search).toHaveFocus())
     fireEvent.click(screen.getByRole('button', { name: 'Close file picker' }))
     expect(screen.getByRole('textbox', { name: 'Draft chat-a' })).toBeVisible()
     expect(view.container.querySelector('.split-workspace-overlay')).toBeNull()
