@@ -1,5 +1,41 @@
 # Public development log
 
+## 2026-10-23 — Reorder workspace tabs and preserve Claude tasks on Force Send
+
+- Replace boxed workspace tabs with a flat rail and an active underline. Drag
+  tabs to reorder, or use Alt-Shift-Left/Right. Remember order per server without
+  changing selection, drafts, files or pane layouts. Keep the active tab visible
+  after resizing and retain the adjacent new-workspace button during overflow.
+- Claude Force Send uses native queued-input acknowledgement and Send now,
+  preserving the same process, logical run, tool authority and tracked children.
+  It no longer falls through Stop for ordinary user follow-ups. Explicit Stop
+  keeps its cancellation behavior. Unsupported native protocols leave input
+  queued; uncertain delivery is never replayed or treated as permission to
+  terminate children. Proven prewrite cancellation restores the unsent input.
+- Accepted follow-ups appear once in desktop/shared history, including during
+  scheduled work. Recovery consumes only acknowledged input and retains a
+  truncated delivery record without resending it. New route grants/provider
+  actions still require their own turn; Force Send retains its original owner.
+- Source `be4b6806`, local macOS arm64 package 0.2.0/build 85. All 5,457 desktop
+  tests passed (five skipped), with TypeScript, compilation, bundle audit,
+  Developer ID signing and deep strict verification. The scoped server SDK,
+  runner, queue, goal, history and projection suites passed 518 tests.
+- Real Claude Code 2.1.296 and 2.1.303 probes submitted Force Send during a
+  foreground Bash command. An existing native Agent survived, completed and
+  woke the parent; acknowledgement took approximately 0.7 and 1.2 seconds.
+  A separate explicit Stop probe observed killed/stopped child receipts.
+  These exercised the candidate SDK adapter in disposable state; server queue
+  races and workflow receipts used isolated fixtures, not live user chats.
+- The exact packaged archive passed native offscreen drag/keyboard, rename,
+  close/add, draft/file/layout retention, per-server persistence, full restart,
+  narrow overflow, resize and light/dark checks through real authenticated
+  HTTP/WebSockets and production IPC. All 91 compiled assets matched; archive
+  and signature remained unchanged. This ran stock Electron with the packaged
+  archive, not the signed executable or Gatekeeper.
+- Local trial only: no app installation, service update/restart or publication.
+  Workspace tabs work with the existing server; the Claude Force Send fix
+  requires installing the paired server source.
+
 ## 2026-10-23 — Readable syncing status in compact chat panes
 
 - Place the neutral syncing status beside the working-directory control, outside
