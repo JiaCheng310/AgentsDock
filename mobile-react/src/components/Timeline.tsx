@@ -127,7 +127,7 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   })
   const momentumInteractionToken = useRef<number | null>(null)
   const scrollSettleFrame = useRef<number | null>(null)
-  const lastObservedLiveSeq = useRef(latestLiveSeq)
+  const lastObservedLive = useRef({ sessionId, profileGeneration, seq: latestLiveSeq })
   const consumedSeekRevision = useRef<number | null>(null)
   const seekAlignmentToken = useRef(0)
   const seekAlignmentTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
@@ -164,40 +164,50 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
       keyboardBottomAnchor.current = false
       dragStartedWithKeyboard.current = false
       userScrolling.current = false
-      lastObservedLiveSeq.current = latestLiveSeq
+      lastObservedLive.current = { sessionId, profileGeneration, seq: latestLiveSeq }
       consumedSeekRevision.current = null
       cancelSeekAlignment()
       setSearchTargetAlignmentLocked(false)
     }
-  }, [cancelSeekAlignment, latestLiveSeq, sessionId])
+  }, [cancelSeekAlignment, latestLiveSeq, profileGeneration, sessionId])
   useEffect(() => cancelSeekAlignment, [cancelSeekAlignment])
   useEffect(() => {
     // FlashList preserves the viewport while rows above it resize, which is
     // essential for older-page loading. At the live edge we want the inverse:
     // follow new progress/final output, but only while the user is already at
     // the bottom and has not taken control of the scroll.
-    const previousLiveSeq = lastObservedLiveSeq.current
-    lastObservedLiveSeq.current = latestLiveSeq
+    const previousLive = lastObservedLive.current
+    const previousLiveSeq = previousLive.seq
+    lastObservedLive.current = { sessionId, profileGeneration, seq: latestLiveSeq }
     if (
-      activeHistoryWindow?.detached
+      previousLive.sessionId !== sessionId || previousLive.profileGeneration !== profileGeneration
+      || activeHistoryWindow?.detached
       || loadingOlder
       || olderRequestInFlight.current
       || !liveTimelineAdvanced(previousLiveSeq, latestLiveSeq)
       || !nearBottomRef.current
       || userScrolling.current
     ) return
+    const interactionToken = scrollInteractionToken.current
     const frame = requestAnimationFrame(() => {
+      const current = useAppStore.getState()
+      const history = current.historyWindow
+      // Keep the eligible pre-growth bottom intent. Native row remeasurement
+      // can change distance-from-bottom before this frame without a gesture.
+      // A new gesture or chat/server owner still revokes the pending follow.
       if (
-        !loadingOlder
+        interactionToken === scrollInteractionToken.current
+        && current.selectedSessionId === sessionId && current.profileGeneration === profileGeneration
+        && !(history?.sessionId === sessionId && history.profileGeneration === profileGeneration && history.detached)
+        && !current.loadingOlder[sessionId]
         && !olderRequestInFlight.current
-        && nearBottomRef.current
         && !userScrolling.current
       ) {
         list.current?.scrollToEnd({ animated: false })
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [activeHistoryWindow, latestLiveSeq, loadingOlder])
+  }, [activeHistoryWindow, latestLiveSeq, loadingOlder, profileGeneration, sessionId])
   useEffect(() => {
     if (matchingHistoryWindow && !loadingOlder && !projectedHistoryRows) exitHistory()
   }, [exitHistory, loadingOlder, matchingHistoryWindow, projectedHistoryRows])

@@ -38,6 +38,10 @@ after(async () => { await unlink(outfile); delete globalThis.__timelineExplicitS
 const { Timeline } = await import(pathToFileURL(outfile).href)
 const start = (id = 'chat') => ({ id: `${id}-start`, session_id: id, run_id: 'run', seq: 1, type: 'turn_started', prompt: 'A task', ts: '2026-10-24T00:00:00Z' })
 const snapshot = (id = 'chat', events = [start(id)]) => ({ session: { id, backend: 'codex' }, events, files: [], queuedTurns: [], latestSeq: events.length ? 1 : 0, total: events.length, hasMore: false })
+const claudeSnapshot = (id = 'chat', latestSeq = 2) => ({ ...snapshot(id, [
+  { ...start(id), backend: 'claude' },
+  { ...start(id), id: `${id}-thinking`, seq: 2, type: 'reasoning_summary', backend: 'claude', text: 'Provider-supplied thinking.' },
+]), session: { id, backend: 'claude' }, latestSeq })
 const stream = (revision = 1) => ({ profileGeneration: 1, sessionId: 'chat', snapshot: { type: 'reasoning_summary_stream', session_id: 'chat', instance_id: 'server', revision, items: [{ run_id: 'run', item_id: 'thought', phase: 'summary', backend: 'codex', text: `Provider supplied ${revision}`, after_seq: 1, ts: '2026-10-24T00:00:00Z' }] } })
 const input = (patch = {}) => ({ sessionId: 'chat', scrollRequest: 0, keyboardVisible: false, keyboardSettleRequest: 0, bottomInset: 0, onReview() {}, ...patch })
 const view = props => React.createElement(Timeline, props)
@@ -250,5 +254,80 @@ test('a genuinely new run can receive its own single first-overlay alignment', a
     await flushFrames()
     assert.equal(fixture.scrolls.length, before + 1)
     assert.deepEqual(fixture.scrolls.at(-1), { animated: false })
+  } finally { await unmount(tree) }
+})
+
+test('durable Claude trace growth keeps the captured bottom intent without following unchanged cursors', async () => {
+  const tree = await render()
+  try {
+    await act(async () => list(tree).props.onScroll({ nativeEvent: {
+      contentOffset: { y: 200 }, contentSize: { height: 1000 }, layoutMeasurement: { height: 800 },
+    } }))
+    await act(async () => store.setState({ snapshots: { chat: claudeSnapshot() } }))
+    assert.ok(list(tree).props.data.some(row => row.kind === 'trace'))
+    await act(async () => list(tree).props.onScroll({ nativeEvent: {
+      contentOffset: { y: 200 }, contentSize: { height: 1260 }, layoutMeasurement: { height: 800 },
+    } }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'Native row height changes cannot cancel the eligible durable follow')
+    await act(async () => store.setState({ snapshots: { chat: claudeSnapshot() } }))
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'Replacing unchanged durable content cannot replay the follow')
+  } finally { await unmount(tree) }
+})
+
+for (const change of ['chat', 'profile']) for (const cursor of [2, 30]) {
+  test(`${change} selection cancels durable follow without inheriting old-owner cursor ${cursor}`, async () => {
+    const tree = await render()
+    try {
+      await act(async () => store.setState({ snapshots: { chat: claudeSnapshot() } }))
+      const sessionId = change === 'chat' ? 'other' : 'chat'
+      await act(async () => {
+        store.setState({ selectedSessionId: sessionId, profileGeneration: change === 'profile' ? 2 : 1,
+          snapshots: { [sessionId]: claudeSnapshot(sessionId, cursor) } })
+        tree.update(view(input({ sessionId })))
+      })
+      await flushFrames()
+      assert.deepEqual(fixture.scrolls, [], 'Changing the owner establishes its own baseline, not a live advance')
+      await act(async () => store.setState({ snapshots: { [sessionId]: claudeSnapshot(sessionId, cursor + 1) } }))
+      await flushFrames()
+      assert.deepEqual(fixture.scrolls, [{ animated: false }], 'A later real cursor advance still follows the new owner')
+    } finally { await unmount(tree) }
+  })
+}
+
+for (const cancellation of ['away', 'drag', 'history', 'older', 'selection-only', 'unmount']) {
+  test(`${cancellation} prevents a pending durable follow from moving the reader`, async () => {
+    const tree = await render()
+    let mounted = true
+    try {
+      if (cancellation === 'away') await act(async () => list(tree).props.onScroll({ nativeEvent: {
+        contentOffset: { y: 200 }, contentSize: { height: 2000 }, layoutMeasurement: { height: 800 },
+      } }))
+      await act(async () => store.setState({ snapshots: { chat: claudeSnapshot() } }))
+      if (cancellation === 'drag') await dragAway(tree)
+      if (cancellation === 'history') await act(async () => store.setState({ historyWindow: {
+        sessionId: 'chat', profileGeneration: 1, snapshot: claudeSnapshot(), detached: true,
+      } }))
+      if (cancellation === 'older') await act(async () => store.setState({ loadingOlder: { chat: true } }))
+      if (cancellation === 'selection-only') await act(async () => store.setState({ selectedSessionId: 'other' }))
+      if (cancellation === 'unmount') { await unmount(tree); mounted = false }
+      await flushFrames()
+      assert.deepEqual(fixture.scrolls, [])
+    } finally { if (mounted) await unmount(tree) }
+  })
+}
+
+test('a completed native scroll gesture revokes the older durable frame before its own bottom settlement', async () => {
+  const tree = await render()
+  try {
+    await act(async () => store.setState({ snapshots: { chat: claudeSnapshot() } }))
+    await act(async () => {
+      list(tree).props.onScrollBeginDrag({ nativeEvent: { contentOffset: { y: 200 } } })
+      list(tree).props.onMomentumScrollBegin()
+      list(tree).props.onMomentumScrollEnd()
+    })
+    await flushFrames()
+    assert.deepEqual(fixture.scrolls, [{ animated: false }], 'Only the completed gesture owns this settlement, not the pre-drag durable frame too')
   } finally { await unmount(tree) }
 })
