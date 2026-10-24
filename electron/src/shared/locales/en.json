@@ -3283,6 +3283,8 @@
   "claudeControls.notLoaded": "Not loaded",
   "claudeControls.disconnected": "Connect to the server to use Claude controls.",
   "chatWorkspace.untitled": "Workspace",
+  "chatWorkspace.reorderHint": "Drag to reorder, or press Alt+Shift+Left or Right.",
+  "chatWorkspace.moved": "Moved {name} to position {position} of {count}.",
   "chatWorkspace.threeColumns": "Three columns",
   "chatWorkspace.resizeFirstColumn": "Resize first column",
   "chatWorkspace.resizeLastColumn": "Resize last column",

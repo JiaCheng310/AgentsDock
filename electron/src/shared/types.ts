@@ -1226,6 +1226,8 @@ export interface Event extends SharedChatAttribution {
   native_steer?: boolean | null
   /** Accepted user input on the existing native goal owner; not a new turn or Stop. */
   native_goal_steer?: boolean | null
+  /** Accepted human follow-up on the existing Claude SDK run, without interruption. */
+  native_followup?: boolean | null
   superseded_by_run_id?: string | null
   steer_interrupted_run_id?: string | null
   codex_thread_status?: CodexThreadStatus | null

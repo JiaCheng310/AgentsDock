@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
-import { Columns2, Columns3, Grid2X2, PanelLeft, Plus, Square, X } from 'lucide-react'
+import { Columns2, Columns3, Grid2X2, PanelLeft, Square } from 'lucide-react'
 import type { Session } from '@shared/types'
 import { t, useLocale } from '../lib/i18n'
 import { CHAT_PANE_IDS, type ChatPane as ChatPaneId } from '../lib/chat-panes'
 import { notifyTimelineViewportLayout } from '../lib/workspace-layout'
 import { useAppStore } from '../store/app-store'
 import { ChatPane } from './ChatPane'
+import { ChatWorkspaceTabs } from './ChatWorkspaceTabs'
 import './ChatWorkspaceGrid.css'
 
 type ResizeAxis = 'column' | 'row' | 'first' | 'second'
@@ -31,29 +32,13 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
   const sessions = useAppStore(state => state.sessions)
   const active = workspaces.find(workspace => workspace.id === activeId)
   const threeColumns = count === 3 && active?.threePaneLayout === 'columns'
-  const [renaming, setRenaming] = useState<string | null>(null)
-  const [name, setName] = useState('')
   const [ratios, setRatios] = useState({
     column: (active?.columnRatio ?? 0.5) * 100, row: (active?.rowRatio ?? 0.5) * 100,
     first: (active?.threeColumnRatios?.[0] ?? 1 / 3) * 100, second: (active?.threeColumnRatios?.[1] ?? 2 / 3) * 100
   })
   const ratioRef = useRef(ratios)
   const gridRef = useRef<HTMLDivElement>(null)
-  const tabsRef = useRef<HTMLDivElement>(null)
   const finishResizeRef = useRef<(() => void) | null>(null)
-  const title = (workspace: (typeof workspaces)[number]) => workspace.title
-    || sessions.find(session => session.id === workspace.panes.primary)?.title
-    || t('chatWorkspace.untitled')
-
-  useEffect(() => {
-    const tabs = tabsRef.current
-    const selected = tabs?.querySelector<HTMLElement>('.chat-workspace-tab.active')
-    if (!tabs || !selected) return
-    const viewport = tabs.getBoundingClientRect()
-    const tab = selected.getBoundingClientRect()
-    if (tab.left < viewport.left) tabs.scrollLeft += tab.left - viewport.left
-    else if (tab.right > viewport.right) tabs.scrollLeft += tab.right - viewport.right
-  }, [activeId, workspaces.length])
 
   useEffect(() => {
     const next = {
@@ -163,25 +148,7 @@ export function ChatWorkspaceGrid({ sidebarVisible, terminalOpen, onSidebarToggl
   return <div className="chat-grid-workspace">
     <header className="workspace-tabs-bar">
       {!sidebarVisible && <button type="button" className="icon-button" onClick={onSidebarToggle} aria-label={t('chatWorkspace.showSidebar')}><PanelLeft size={16} /></button>}
-      <div className="workspace-tab-controls">
-        <div ref={tabsRef} className="chat-workspace-tabs" role="tablist" aria-label={t('chatWorkspace.tabs')}>
-          {workspaces.map(workspace => <div className={`chat-workspace-tab${workspace.id === activeId ? ' active' : ''}`} key={workspace.id}>
-            {renaming === workspace.id
-              ? <input autoFocus aria-label={t('chatWorkspace.name')} value={name} onChange={event => setName(event.target.value)}
-                onBlur={() => { useAppStore.getState().renameChatWorkspace(workspace.id, name.trim()); setRenaming(null) }}
-                onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.preventDefault(); setRenaming(null) } }} />
-              : <button type="button" role="tab" aria-selected={workspace.id === activeId} title={title(workspace)}
-                onClick={() => void useAppStore.getState().selectChatWorkspace(workspace.id)}
-                onDoubleClick={() => { setName(title(workspace)); setRenaming(workspace.id) }}>
-                <span>{title(workspace)}</span><small>{workspace.paneCount}</small>
-              </button>}
-            {workspaces.length > 1 && <button type="button" className="workspace-tab-close" aria-label={t('chatWorkspace.close', { name: title(workspace) })}
-              onClick={() => void useAppStore.getState().closeChatWorkspace(workspace.id)}><X size={12} /></button>}
-          </div>)}
-        </div>
-        <button type="button" className="icon-button workspace-add" aria-label={t('chatWorkspace.new')} title={t('chatWorkspace.new')}
-          onClick={() => void useAppStore.getState().createChatWorkspace()}><Plus size={16} /></button>
-      </div>
+      <ChatWorkspaceTabs key={JSON.stringify([profileId, profileGeneration, serverIdentity])} />
       <div className="workspace-layout-picker" role="group" aria-label={t('chatWorkspace.layout')}>
         {([1, 2, 3, 'columns', 4] as const).map(value => <button key={value} type="button" className="icon-button"
           aria-label={value === 'columns' ? t('chatWorkspace.threeColumns') : t('chatWorkspace.paneCount', { count: value })} title={value === 'columns' ? t('chatWorkspace.threeColumns') : t('chatWorkspace.paneCount', { count: value })}

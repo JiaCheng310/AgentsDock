@@ -4,13 +4,21 @@
 .workspace-tabs-bar button, .workspace-tabs-bar input { -webkit-app-region: no-drag; }
 .workspace-tab-controls { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
 .workspace-add { flex-shrink: 0; }
-.chat-workspace-tabs { display: flex; min-width: 0; flex: 0 1 auto; gap: 3px; overflow-x: auto; scrollbar-width: thin; }
-.chat-workspace-tab { display: flex; align-items: center; flex-shrink: 0; max-width: 220px; border: 1px solid transparent; border-radius: 6px; }
-.chat-workspace-tab.active { border-color: var(--border); background: var(--surface-2); }
-.chat-workspace-tab > button { display: flex; align-items: center; min-width: 0; gap: 8px; padding: 6px 8px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; }
+.chat-workspace-tabs { display: flex; min-width: 0; flex: 0 1 auto; gap: 2px; overflow-x: auto; scrollbar-width: thin; -webkit-app-region: no-drag; }
+.chat-workspace-tab { position: relative; display: flex; align-items: center; flex-shrink: 0; height: 32px; max-width: 220px; border: 0; border-radius: 0; }
+.chat-workspace-tab::after { position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; content: ""; background: transparent; pointer-events: none; }
+.chat-workspace-tab.active::after { background: var(--accent); }
+.chat-workspace-tab > button { display: flex; align-items: center; min-width: 0; gap: 7px; padding: 6px 8px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: var(--text-size-label); }
+.chat-workspace-tab.active > button, .chat-workspace-tab:hover > button { color: var(--text); }
+.chat-workspace-tab > [role="tab"] { touch-action: none; cursor: grab; }
+.chat-workspace-tab.dragging { z-index: 1; opacity: .65; }
+.chat-workspace-tab.dragging > [role="tab"] { cursor: grabbing; }
+.chat-workspace-tab > button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .chat-workspace-tab > button > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.chat-workspace-tab small { color: var(--muted); }
-.chat-workspace-tab > .workspace-tab-close { padding: 5px; flex-shrink: 0; }
+.chat-workspace-tab small { color: var(--muted); font-size: var(--text-size-caption); font-variant-numeric: tabular-nums; }
+.chat-workspace-tab > .workspace-tab-close { width: 22px; height: 22px; justify-content: center; margin-right: 3px; padding: 0; flex-shrink: 0; border-radius: var(--radius-icon); opacity: .55; }
+.chat-workspace-tab:is(.active, :hover, :focus-within) > .workspace-tab-close { opacity: 1; }
+.chat-workspace-tab > .workspace-tab-close:hover { background: var(--interaction-hover); }
 .chat-workspace-tab input { width: 140px; padding: 4px 6px; }
 .workspace-layout-picker { display: flex; flex-shrink: 0; gap: 1px; border-left: 1px solid var(--border); padding-left: 6px; }
 .workspace-layout-picker .icon-button { width: 27px; height: 27px; }

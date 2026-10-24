@@ -3283,6 +3283,8 @@
   "claudeControls.notLoaded": "未加载",
   "claudeControls.disconnected": "连接服务器后即可使用 Claude 控制面板。",
   "chatWorkspace.untitled": "工作区",
+  "chatWorkspace.reorderHint": "拖动以调整顺序，或按 Alt+Shift+左箭头或右箭头。",
+  "chatWorkspace.moved": "已将 {name} 移至第 {position} 位，共 {count} 个工作区。",
   "chatWorkspace.threeColumns": "三列布局",
   "chatWorkspace.resizeFirstColumn": "调整第一列宽度",
   "chatWorkspace.resizeLastColumn": "调整最后一列宽度",

@@ -268,6 +268,7 @@ interface AppState {
   selectChatWorkspace(workspaceId: string): Promise<void>
   closeChatWorkspace(workspaceId: string): Promise<void>
   renameChatWorkspace(workspaceId: string, title: string): void
+  moveChatWorkspace(workspaceId: string, targetWorkspaceId: string): void
   setChatPaneCount(count: ChatPaneCount): void
   setChatThreePaneLayout(layout: ChatThreePaneLayout): void
   setChatWorkspaceRatios(ratios: { columnRatio?: number; rowRatio?: number; threeColumnRatios?: [number, number] }): void
@@ -1643,6 +1644,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const current = currentChatWorkspaceState(get())
     set({ chatWorkspaces: current.workspaces.map(workspace => workspace.id === workspaceId
       ? { ...workspace, title: title.trim() || undefined } : workspace) })
+    persistChatPaneState(get())
+  },
+
+  moveChatWorkspace(workspaceId, targetWorkspaceId) {
+    if (get().switchingProfileId || workspaceId === targetWorkspaceId) return
+    const current = currentChatWorkspaceState(get())
+    const from = current.workspaces.findIndex(workspace => workspace.id === workspaceId)
+    const to = current.workspaces.findIndex(workspace => workspace.id === targetWorkspaceId)
+    if (from < 0 || to < 0) return
+    const workspaces = [...current.workspaces]
+    workspaces.splice(to, 0, workspaces.splice(from, 1)[0])
+    // Ordering never selects a different workspace or remounts its panes.
+    set({ chatWorkspaces: workspaces })
     persistChatPaneState(get())
   },
 

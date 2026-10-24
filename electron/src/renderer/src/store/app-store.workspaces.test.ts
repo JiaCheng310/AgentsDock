@@ -62,6 +62,68 @@ beforeEach(async () => {
 })
 
 describe('tabbed chat workspaces', () => {
+  it('persists reordered workspaces without changing active panes, drafts, files or subscriptions', async () => {
+    const first = useAppStore.getState().activeChatWorkspaceId
+    for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
+    useAppStore.getState().setChatThreePaneLayout('columns')
+    useAppStore.getState().setChatWorkspaceRatios({ threeColumnRatios: [0.25, 0.7] })
+    useAppStore.getState().focusChatPane('secondary')
+    useAppStore.getState().setDraftForSession('b', 'unfinished draft')
+    await useAppStore.getState().createChatWorkspace('e')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace()
+    const third = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().selectChatWorkspace(first)
+    useAppStore.setState(state => ({ snapshots: { ...state.snapshots,
+      b: { ...state.snapshots.b, files: [{ id: 'b-file', filename: 'notes.txt', session_id: 'b' }], filesTotal: 1 }
+    } }))
+    const before = useAppStore.getState()
+    api.timeline.subscribe.mockClear()
+    api.timeline.unsubscribe.mockClear()
+    api.timeline.cached.mockClear()
+    api.timeline.open.mockClear()
+    useAppStore.getState().moveChatWorkspace(third, first)
+    useAppStore.getState().moveChatWorkspace(first, second)
+    const state = useAppStore.getState()
+    expect(state.chatWorkspaces.map(workspace => workspace.id)).toEqual([third, second, first])
+    expect(state.activeChatWorkspaceId).toBe(first)
+    expect(state.chatPanes).toBe(before.chatPanes)
+    expect(state.focusedChatPane).toBe('secondary')
+    expect(state.selectedSessionId).toBe('b')
+    expect(state.drafts).toBe(before.drafts)
+    expect(state.snapshots).toBe(before.snapshots)
+    expect(state.chatWorkspaces.find(workspace => workspace.id === first)).toMatchObject({
+      threePaneLayout: 'columns', threeColumnRatios: [0.25, 0.7], panes: { quaternary: 'd' }
+    })
+    expect(api.timeline.subscribe).not.toHaveBeenCalled()
+    expect(api.timeline.unsubscribe).not.toHaveBeenCalled()
+    expect(api.timeline.cached).not.toHaveBeenCalled()
+    expect(api.timeline.open).not.toHaveBeenCalled()
+    await useAppStore.getState().switchServer('two')
+    expect(useAppStore.getState().chatWorkspaces.map(workspace => workspace.id)).toEqual(['workspace-main'])
+    await useAppStore.getState().switchServer('one')
+    expect(useAppStore.getState().chatWorkspaces.map(workspace => workspace.id)).toEqual([third, second, first])
+    await initialize()
+    expect(useAppStore.getState().chatWorkspaces.map(workspace => workspace.id)).toEqual([third, second, first])
+    expect(useAppStore.getState().activeChatWorkspaceId).toBe(first)
+    expect(useAppStore.getState().chatPanes).toEqual(before.chatPanes)
+  })
+
+  it('ignores missing, unchanged and switching-profile reorder requests without persisting', async () => {
+    const first = useAppStore.getState().activeChatWorkspaceId
+    await useAppStore.getState().createChatWorkspace('e')
+    const second = useAppStore.getState().activeChatWorkspaceId
+    const before = useAppStore.getState().chatWorkspaces
+    api.preferences.setScoped.mockClear()
+    useAppStore.getState().moveChatWorkspace(first, first)
+    useAppStore.getState().moveChatWorkspace('deleted', first)
+    useAppStore.getState().moveChatWorkspace(first, 'deleted')
+    useAppStore.setState({ switchingProfileId: 'two' })
+    useAppStore.getState().moveChatWorkspace(first, second)
+    expect(useAppStore.getState().chatWorkspaces).toBe(before)
+    expect(api.preferences.setScoped).not.toHaveBeenCalled()
+  })
+
   it('forgets an ended subscription and reattaches only on explicit cached-chat selection', async () => {
     for (const id of ['b', 'c', 'd']) await useAppStore.getState().openSessionInSplit(id)
     const onSync = api.events.on.mock.calls.find(([event]) => event === 'server:sync')![1] as (event: ProfileSyncEvent) => void
