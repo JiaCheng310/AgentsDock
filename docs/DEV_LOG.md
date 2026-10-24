@@ -1,5 +1,16 @@
 # Public development log
 
+## 2026-10-23 — Quieter workspace selection
+
+- Replace persistent blue stripes on workspace/chat/file tabs and focused grid
+  panes with neutral selected-tab backgrounds and medium-weight titles. The
+  focused pane's selected tab has a slightly stronger neutral background.
+- Resize handles use a neutral hover treatment; keyboard focus retains a clear
+  outline. Tab order, drag/reorder, pane selection and file state are unchanged.
+- Local desktop presentation change only; package verification and native
+  light/dark selection checks will be recorded after the build. No server
+  change, installation or publication is included.
+
 ## 2026-10-23 — Keep queued messages from crowding the split-pane draft
 
 - Give queued messages, attachments and notices a separate scrolling area above
