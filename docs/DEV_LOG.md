@@ -7,9 +7,19 @@
   focused pane's selected tab has a slightly stronger neutral background.
 - Resize handles use a neutral hover treatment; keyboard focus retains a clear
   outline. Tab order, drag/reorder, pane selection and file state are unchanged.
-- Local desktop presentation change only; package verification and native
-  light/dark selection checks will be recorded after the build. No server
-  change, installation or publication is included.
+- Source `88372526`, local macOS arm64 package 0.2.0/build 85. TypeScript,
+  production compilation, all 5,455 desktop tests (five skipped), bundle audit,
+  Developer ID signing and deep strict signature checks passed.
+- Native offscreen checks exercised the exact packaged archive: select chat and
+  file tabs across three/four panes, retain open files while focusing another
+  pane, resize to the desktop minimum, and inspect dark/light appearance.
+  Native keyboard navigation retained a visible focus outline. Production IPC
+  and authenticated file reads used isolated server state; no provider ran.
+  All 91 compiled assets matched; archive/signature unchanged, no JavaScript
+  errors, and test processes/credentials cleaned up. Signed-executable launch
+  and Gatekeeper were not exercised.
+- Local desktop presentation change only. No server change, installed-app
+  replacement or publication is included.
 
 ## 2026-10-23 — Keep queued messages from crowding the split-pane draft
 
