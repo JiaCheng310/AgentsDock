@@ -60,6 +60,17 @@
   context retention and restart races. Cursor/OpenCode execution tests use
   real subprocess pipes with fixture CLIs; live provider acceptance for those
   adapters is not claimed. No live server deployment or public release.
+- App source `492360f7`, paired server source `1b07dbbe`; accepted local macOS
+  arm64 0.2.0/build 86. TypeScript, all 5,460 desktop tests (five skipped),
+  production compilation, bundle audit, Developer ID signing and strict
+  signature verification passed. The exact packaged archive repeated the live
+  Codex active-shell and subsequent-message journey through production IPC and
+  authenticated HTTP. All 91 compiled assets matched the archive, with no
+  renderer errors. Archive SHA-256 remained
+  `c71bd2ccee0c7fdc7387804ff075fd85c82f065dfb4ec929fbf042cd6250cc73`
+  before and after acceptance. Packaged code ran through an isolated native
+  Electron bootstrap; signed-executable launch and Gatekeeper were not tested.
+  No installed app or live server was replaced or restarted.
 
 ## 2026-10-25 — Set and replace Claude goals during active work
 
