@@ -1,5 +1,66 @@
 # Public development log
 
+## 2026-10-25 — Remove host-imposed provider restrictions
+
+- Allow native background shell commands and Claude scheduling tools. Remove
+  prompt rules forbidding detached work, full-history subagent forks, other
+  integrations and ordinary use of the chat terminal. Native permissions and
+  the exact authenticated owner of AgentsDock helpers remain intact.
+- Remove default execution silence deadlines and automatic retained-connection
+  eviction. Idle warnings remain informational; Stop and transport failures
+  still settle owned work. Explicit operator timeouts and retention limits
+  remain effective. Available-memory launch floors now default to disabled,
+  matching the existing opt-in concurrency limits.
+- Remove the internal Claude MCP two-call ceiling while preserving mutation
+  deduplication and checking authorization before replay. Allow Codex Side chat
+  subagents with verified native ancestry; inherited parent agents do not gain
+  side-chat authority. Retain idle side conversations until explicit cleanup,
+  and use the existing request-body bound instead of a separate 8,000-character
+  question limit in both desktop validation and the server. Older servers'
+  advertised limits remain honored by the desktop.
+- Allow background-terminal inspection and explicit termination during a Codex
+  turn without replacing its owner. Submit confirmed shell commands through
+  that same live owner and notification stream; native command receipts retain
+  the owner until accepted commands finish, including a late native shell turn.
+  Register requests at the actual transport write boundary and do not replay
+  uncertain delivery. A real service-managed source checkout can
+  restart without the official installer directory layout. Remove the normal
+  restart cooldown; in-flight request coalescing and exact service ownership
+  remain in place.
+- Real offscreen app/IPC/authenticated HTTP acceptance with Claude Code 2.1.303
+  verified native background Bash and detached workers continuing after the
+  reply, native schedule creation and retention through the next turn, exact
+  schedule deletion and reuse of the same native connection. This verifies
+  schedule retention, not delivery of a future scheduled wake into the app.
+- Native Codex 0.156.1 acceptance verified a saved Side chat's full-history
+  child, inherited context and file work while the parent completed normally;
+  original parent readback confirmed completion. Active terminal list,
+  terminate and clean used the exact original owner. Approval ancestry and
+  closed-owner rejection have regression coverage; an actual child approval
+  dialog was not required by the selected native permissions.
+- Actual offscreen app restart acceptance used a disposable named launchd
+  service and source checkout. Two confirmed requests 4.7 seconds apart each
+  returned acceptance and reconnected to a new process with the same durable
+  server identity. The previous source reproduced the disabled Restart button.
+  Test services, processes and credential copies were cleaned up.
+- Preserve native background task accounting after a Claude reply. Inspect
+  retained Side chat descendants when preparing an idle-update snapshot, and
+  check the same native generation before using that snapshot. Active work
+  delays an idle update; idle retained conversations do not. Cancelling an
+  optional Claude context sample leaves its live connection and tasks intact.
+- Actual offscreen app/IPC/HTTP acceptance with Codex verified a confirmed shell
+  command during an existing native tool, one normal completion of the original
+  turn and a successful follow-up. A separate Side chat journey verified a
+  full-history child, an immediate reply, a context-preserving follow-up, and
+  the child continuing after the main chat completed. The production idle-update
+  snapshot reported only that child until it finished, then cleared all work
+  labels. Original credentials were unchanged and isolated copies removed.
+- Focused server suites cover disabled deadlines, positive configured limits,
+  long-lived native connections, ownership, concurrent helper calls, side
+  context retention and restart races. Cursor/OpenCode execution tests use
+  real subprocess pipes with fixture CLIs; live provider acceptance for those
+  adapters is not claimed. No live server deployment or public release.
+
 ## 2026-10-25 — Set and replace Claude goals during active work
 
 - Remove the desktop busy-turn disable and route active goal requests through
