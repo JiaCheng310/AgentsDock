@@ -539,7 +539,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   const grantsLoading = useAppStore(state => selectedId ? state.agentRouteLoadingSessionIds.has(selectedId) : false)
   const grantsError = useAppStore(state => selectedId ? state.agentRouteErrorsBySession[selectedId] ?? null : null)
   const revokingAgentRouteIds = useAppStore(state => state.revokingAgentRouteIds)
-  const splitOpen = useAppStore(state => Boolean(state.chatPanes.primary && state.chatPanes.secondary))
+  const splitOpen = useAppStore(state => Object.values(state.chatPanes).filter(Boolean).length > 1)
   const codexRuntime = useCodexRuntime()
   const activeCodexGoal = session?.backend === 'codex'
     && (codexRuntime.runtime ? codexRuntime.runtime.goal : session.codex_goal)?.status === 'active'
@@ -1668,12 +1668,8 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   }
   const focusCommandSession = () => {
     const state = useAppStore.getState()
-    const pane = state.chatPanes.primary === session?.id
-      ? 'primary'
-      : state.chatPanes.secondary === session?.id
-        ? 'secondary'
-        : null
-    if (pane) state.focusChatPane(pane)
+    const pane = Object.entries(state.chatPanes).find(([, id]) => id === session?.id)?.[0]
+    if (pane) state.focusChatPane(pane as typeof state.focusedChatPane)
   }
   const replaceCommand = (replacement = '', restoreCaret = true) => {
     if (!commandTrigger) return
@@ -1879,8 +1875,9 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   if (!session) return <div className="composer disabled"><span>{t("ui.Composer.Composer.select_or_create_a_chat_to_begin_3a0c22a")}</span></div>
   return (
     <div className="composer-dock">
-      {!window.agentsDock.sharedChat && <div className="composer-context-row">
-        <WorkingDirectoryPopover session={session} />
+      {(!window.agentsDock.sharedChat || activeInboundDeliveryKind === 'unknown') && <div className="composer-context-row">
+        {!window.agentsDock.sharedChat && <WorkingDirectoryPopover session={session} />}
+        {activeInboundDeliveryKind === 'unknown' && <span className="composer-sync-status" role="status">{t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")}</span>}
       </div>}
       <fieldset className="composer-goal-controls" disabled={writeDisabled}><CodexGoalBar /></fieldset>
       <ClaudeGoalControls open={claudeGoalOpen} onOpenChange={setClaudeGoalOpen} disabled={writeDisabled} />
@@ -1908,11 +1905,25 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       {(uploads.length > 0 || uploadPaths.length > 0) && <AttachmentShelf sessionId={session.id} profileId={activeProfileId} profileGeneration={profileGeneration} files={uploads} pending={uploadPaths} />}
       <GeminiImportConnection key={`${activeProfileId}:${profileGeneration}:${session.id}`} session={session} />
       <RuntimeHealthNotice backend={session.backend} codexProvider={(session.provider_connection === 'custom' ? 'custom' : session.codex_provider)} sessionId={session.id} admissionError={(sendFailure?.context === sendContext ? cleanActionError(sendFailure.message) : undefined) || (geminiImportRecovery ? undefined : selectedRuntimeError) || undefined} />
-      {activeInboundDeliveryKind && <span className={activeInboundDeliveryKind === 'unknown' ? 'composer-sync-status' : 'chat-reference-warning'} role="status">{activeInboundDeliveryKind === 'unknown'
-        ? t("ui.Composer.Composer.an_active_turn_is_running_while_chat_sync__2265ac1")
-        : activeInboundDeliveryKind === 'secure_peer'
+      {activeInboundDeliveryKind && activeInboundDeliveryKind !== 'unknown' && <span className="chat-reference-warning" role="status">{activeInboundDeliveryKind === 'secure_peer'
           ? 'An incoming encrypted peer delivery is running. Stop or Send now will interrupt it.'
           : t("ui.Composer.Composer.an_incoming_delivery_is_running_stop_or_se_92e6678", { "delivery": 'chat-to-chat' })}</span>}
+        {hasReferenceFallback && <ComposerReferenceFallback
+          text={draft}
+          chatReferences={inlineReferenceSet.chatReferences}
+          teamReferences={inlineReferenceSet.teamReferences}
+          referenceSupported={referenceSupported}
+          teamReferencesSupported={composerTeamReferencesSupported}
+        />}
+        {!referencesSupported && <span className="chat-reference-warning">{!chatReferencesSupported
+          ? hasRemoteAgentReference
+            ? remoteAgentRouteUnavailable()
+            : t("ui.Composer.Composer.one_or_more_legacy_chat_references_cannot__cb2ccfa")
+          : unsupportedAllServersReference
+            ? allServersNativeUpdateRequired()
+            : t('teamNetwork.mention.referenceInvalid')}</span>}
+      </div>
+      <div className="composer-draft-region">
       <div className={`composer-editor${hasInlineReferences ? ' has-inline-references' : ''}${hasMessageLinks ? ' has-message-links' : ''}`}>
         {(hasInlineReferences || hasMessageLinks) && <ComposerEditorMirror
           ref={editorMirrorRef}
@@ -2172,20 +2183,6 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
           }}
         />
       </div>
-        {hasReferenceFallback && <ComposerReferenceFallback
-          text={draft}
-          chatReferences={inlineReferenceSet.chatReferences}
-          teamReferences={inlineReferenceSet.teamReferences}
-          referenceSupported={referenceSupported}
-          teamReferencesSupported={composerTeamReferencesSupported}
-        />}
-        {!referencesSupported && <span className="chat-reference-warning">{!chatReferencesSupported
-          ? hasRemoteAgentReference
-            ? remoteAgentRouteUnavailable()
-            : t("ui.Composer.Composer.one_or_more_legacy_chat_references_cannot__cb2ccfa")
-          : unsupportedAllServersReference
-            ? allServersNativeUpdateRequired()
-            : t('teamNetwork.mention.referenceInvalid')}</span>}
       </div>
       {commandPaletteVisible && <ComposerCommandPalette
         id={commandPaletteId}
@@ -2432,7 +2429,7 @@ function composerSessionIsCurrent(
     && activeIdentity(state) === serverIdentity
     && !state.switchingProfileId
     && draftContext.current.sessionId === sessionId
-    && (state.chatPanes.primary === sessionId || state.chatPanes.secondary === sessionId || state.selectedSessionId === sessionId)
+    && (Object.values(state.chatPanes).includes(sessionId) || state.selectedSessionId === sessionId)
     && state.sessions.some(session => session.id === sessionId && !session.archived)
 }
 

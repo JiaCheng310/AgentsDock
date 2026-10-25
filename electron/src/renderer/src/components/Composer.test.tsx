@@ -220,6 +220,42 @@ describe('Composer', () => {
     expect(view.container.querySelector('.queued-row.local-pending button')).toBeNull()
   })
 
+  it('keeps the focused draft outside queue scrolling when a queued turn arrives and leaves', () => {
+    const session: Session = { id: 'chat-1', title: 'Chat', backend: 'codex' }
+    const snapshot = {
+      session, events: [], queuedTurns: [] as QueuedTurn[], files: [],
+      hasMoreEvents: false, filesTotal: 0, cachedAt: 0
+    }
+    useAppStore.setState({ activeSessionIds: new Set(['chat-1']), snapshots: { 'chat-1': snapshot } })
+    const view = render(<Composer />)
+    const editor = screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement
+    const draft = 'First line of my draft\nSecond line stays editable\nFinal detail'
+    fireEvent.change(editor, { target: { value: draft } })
+    editor.focus()
+    editor.setSelectionRange(6, 10)
+
+    act(() => useAppStore.setState({ snapshots: { 'chat-1': { ...snapshot, queuedTurns: [{
+      queued_id: 'queued-other', session_id: 'chat-1', prompt: 'Previously queued message',
+      file_ids: [], position: 1
+    }] } } }))
+    const extras = view.container.querySelector('.composer-scroll-region')!
+    expect(extras).toContainElement(screen.getByText('Previously queued message'))
+    expect(extras).not.toContainElement(editor)
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBe(editor)
+    expect(editor).toHaveValue(draft)
+    expect(editor).toHaveFocus()
+    fireEvent.scroll(extras, { target: { scrollTop: 100 } })
+    expect([editor.selectionStart, editor.selectionEnd, editor.scrollTop]).toEqual([6, 10, 0])
+
+    act(() => useAppStore.setState({ snapshots: { 'chat-1': snapshot } }))
+    expect(screen.queryByText('Previously queued message')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBe(editor)
+    expect(editor).toHaveFocus()
+    fireEvent.change(editor, { target: { value: `${draft}\nContinue writing` } })
+    expect(editor).toHaveValue(`${draft}\nContinue writing`)
+    expect(view.container.querySelector('.composer-bar')).not.toBeNull()
+  })
+
   it('keeps an offline shared-chat draft editable while gating message and attachment writes', () => {
     const send = vi.fn()
     Object.defineProperty(window, 'agentsDock', { configurable: true, value: {
@@ -1778,6 +1814,8 @@ describe('Composer', () => {
       expect(notice).toHaveAttribute('role', 'status')
       expect(notice).toHaveClass('composer-sync-status')
       expect(notice).not.toHaveClass('chat-reference-warning')
+      expect(notice.closest('.composer-context-row')).not.toBeNull()
+      expect(notice.closest('.composer-scroll-region')).toBeNull()
       expect(screen.queryByText(/An active turn is running while chat sync is not live/)).not.toBeInTheDocument()
 
       act(() => useAppStore.setState({ syncBySession: { 'chat-1': { status: 'live', error: null } } }))
@@ -1786,6 +1824,24 @@ describe('Composer', () => {
       expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
     }
   )
+
+  it('keeps shared-chat sync status outside the compact input without exposing the folder control', () => {
+    Object.defineProperty(window, 'agentsDock', { configurable: true, value: { ...window.agentsDock, sharedChat: true } })
+    useAppStore.setState({
+      activeSessionIds: new Set(['chat-1']),
+      syncBySession: { 'chat-1': { status: 'syncing', error: null } }
+    })
+    const view = render(<Composer />)
+    const notice = screen.getByText('Syncing…')
+    expect(notice).toHaveAttribute('role', 'status')
+    expect(notice.closest('.composer-context-row')).not.toBeNull()
+    expect(notice.closest('.composer-scroll-region')).toBeNull()
+    expect(view.container.querySelector('.cwd-pill')).toBeNull()
+    expect(screen.getByPlaceholderText('Message')).toBeEnabled()
+
+    act(() => useAppStore.setState({ syncBySession: { 'chat-1': { status: 'live', error: null } } }))
+    expect(view.container.querySelector('.composer-context-row')).toBeNull()
+  })
 
   it('localizes the neutral unknown-origin sync status without inventing activity for an idle chat', () => {
     setLocale('zh-CN')
