@@ -1966,12 +1966,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChatReferencesForSession(sessionId, references, expectedGeneration) {
     if (captureConnection().namespaceAdopting) return
     if (expectedGeneration !== undefined && expectedGeneration !== get().profileGeneration) return
-    set(state => ({
-      chatReferencesBySession: {
-        ...state.chatReferencesBySession,
-        [sessionId]: references.map(reference => ({ ...reference })),
-      },
-    }))
+    set(state => {
+      const routeSnapshot = state.agentRoutesBySession[sessionId]
+      const previousCapacityError = agentRouteCapacityError(routeSnapshot, state.chatReferencesBySession[sessionId] ?? [])
+      const capacityStillExceeded = agentRouteCapacityError(routeSnapshot, references) !== null
+      return {
+        chatReferencesBySession: {
+          ...state.chatReferencesBySession,
+          [sessionId]: references.map(reference => ({ ...reference })),
+        },
+        error: state.selectedSessionId === sessionId && previousCapacityError !== null
+          && state.error === previousCapacityError && !capacityStillExceeded ? null : state.error,
+      }
+    })
     scheduleCurrentWorkspaceSave(get)
   },
 
