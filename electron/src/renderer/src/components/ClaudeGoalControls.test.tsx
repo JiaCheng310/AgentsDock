@@ -93,6 +93,7 @@ describe('Claude native goals', () => {
     const user = userEvent.setup()
     const field = screen.getByRole('textbox', { name: 'Completion condition' })
     await waitFor(() => expect(field).toBeEnabled())
+    await waitFor(() => expect(field).toHaveValue(initial.goal?.condition ?? ''))
     await user.clear(field)
     await user.type(field, 'All requested checks pass.')
     const submit = screen.getByRole('button', { name: label })
