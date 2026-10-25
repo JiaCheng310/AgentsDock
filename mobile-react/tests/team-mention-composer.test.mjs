@@ -420,6 +420,15 @@ test('route capacity blocks only new grants; existing and already-pending target
   }finally{await act(async()=>renderer.unmount())}
 })
 
+test('unlimited route metadata leaves new grants available',async()=>{
+  resetRoutes({agentRoutesBySession:{chat:{routes:[route()],max_routes:null}}})
+  const {renderer}=await renderChatPicker()
+  try{
+    assert.equal(byID(renderer,'chat-target-new')[0].props.disabled,false)
+    assert.equal(byID(renderer,'chat-route-capacity').length,0)
+  }finally{await act(async()=>renderer.unmount())}
+})
+
 test('detached unavailable grants can be revoked with exact opaque revision and no duplicate taps',async()=>{
   const detached=route('detached','archived');detached.target.available=false
   resetRoutes({agentRoutesBySession:{chat:{routes:[detached],max_routes:4}}})

@@ -629,7 +629,7 @@ export interface AgentCrossChatRoute {
 
 export interface AgentCrossChatRoutesSnapshot {
   routes: AgentCrossChatRoute[]
-  max_routes: number
+  max_routes: number | null
 }
 
 export interface DeleteAgentCrossChatRouteResponse {

@@ -213,6 +213,18 @@ try {
     assert.equal(useAppStore.getState().agentRoutesBySession.source.routes[0].route_id, route.route_id)
   })
 
+  await test('an unlimited route snapshot does not reject an otherwise valid send', async () => {
+    reset()
+    const reference = { session_id: 'target', display_title_snapshot: 'Target', source_text_start: 0, source_text_end: 7, action: 'route' as const, grant_intent: true as const }
+    useAppStore.setState({
+      drafts: { source: '@Target hello' },
+      chatReferencesBySession: { source: [reference] },
+      agentRoutesBySession: { source: { routes: [route], max_routes: null } },
+    })
+    assert.equal(await send(), true)
+    assert.equal(sends, 1)
+  })
+
   await test('removing an over-capacity chat reference clears only its stale send error', async () => {
     reset()
     const reference = { session_id: 'target', display_title_snapshot: 'Target', source_text_start: 0, source_text_end: 7, action: 'route' as const, grant_intent: true as const }
@@ -244,7 +256,7 @@ try {
     await api.agentHandoffRoutes('s /?')
     await api.deleteAgentHandoffRoute('s /?', 'r /?', 'revision /?&')
     await api.skipQueuedCrossChatDelivery('s /?', 'q /?', { cross_chat_envelope_id: 'envelope' })
-    assert.match(requests[0].url, /\/s%20%2F%3F\/agent-handoff-routes$/u)
+    assert.match(requests[0].url, /\/s%20%2F%3F\/agent-handoff-routes\?unlimited_routes=true$/u)
     assert.equal(requests[1].method, 'DELETE')
     assert.equal(new URL(requests[1].url).searchParams.get('expected_revision'), 'revision /?&')
     assert.deepEqual(requests[2].body, { cross_chat_envelope_id: 'envelope' })

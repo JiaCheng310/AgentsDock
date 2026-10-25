@@ -1208,7 +1208,8 @@ function routeActionLabel(route: AgentCrossChatRoute): string {
   return send && ask ? 'Send + Ask' : send ? 'Send' : ask ? 'Ask' : 'No actions'
 }
 
-function routeCapacityReached(routes: readonly AgentCrossChatRoute[], maximum: number, references: readonly ChatReference[], targetId?: string): boolean {
+function routeCapacityReached(routes: readonly AgentCrossChatRoute[], maximum: number | null, references: readonly ChatReference[], targetId?: string): boolean {
+  if (maximum === null) return false
   const granted = new Set(routes.map(route => route.target_session_id))
   const pending = new Set(references.filter(reference => reference.target_kind !== 'secure_peer' && reference.action === 'route' && reference.grant_intent === true && !granted.has(reference.session_id)).map(reference => reference.session_id))
   if (targetId && (granted.has(targetId) || pending.has(targetId))) return false
