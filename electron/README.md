@@ -121,6 +121,11 @@ offline servers fall back to the saved single address. Sharing does not switch
 the active server. The active card also contains restart controls.
 Persistent goals have no server-wide Settings toggle. Updated servers keep the
 capability available by default; each chat retains its own goal controls.
+With a matching server, Claude goals can be set or replaced during current
+work. The app shows the pending request until Claude applies it at its next
+native boundary; setting a goal does not interrupt the current tool or agents.
+Native refusals remain visible and leave the completion condition available
+for retry.
 The camera-enabled mobile app can scan it from **Servers > Add Server > Scan QR
 code** and authenticates before saving. Older mobile builds need an app update.
 The image does not make a loopback-only server reachable from a phone. See

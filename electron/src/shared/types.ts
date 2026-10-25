@@ -140,6 +140,8 @@ export interface ClaudeRuntimeSnapshot {
   goal?: ClaudeGoal | null
   /** Native command accepted; awaiting an authoritative goal status record. */
   goal_starting?: boolean
+  /** A native goal command was accepted but later rejected by Claude. */
+  goal_error?: string | null
   /** The initial provider transcript goal projection is still loading. */
   goal_loading?: boolean
 }
