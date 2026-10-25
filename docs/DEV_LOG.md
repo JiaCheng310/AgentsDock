@@ -1,5 +1,47 @@
 # Public development log
 
+## 2026-10-25 — Set and replace Claude goals during active work
+
+- Remove the desktop busy-turn disable and route active goal requests through
+  the owning Claude session. Native queue admission is acknowledged separately
+  from application of the goal. A running tool and its original subagents
+  continue, including when replacing a goal that is keeping Claude running.
+- Surface later native refusals in the dialog and beside the composer. Match
+  each pending goal to its exact run and native command receipt; stale history
+  and receipts from another request cannot settle it. Goal input remains
+  separate from the existing Force Send lane.
+- Explicit Stop withdraws the queued goal and uses native task controls for
+  owned commands that become background tasks during interruption. Wait for
+  their actual terminal receipts before retiring that provider connection.
+  Clear & stop then clears the native goal through the normal idle path.
+  Successful user-requested cancellation settles quietly; genuine refusals and
+  unconfirmed cancellation remain visible errors.
+- App source `e1cd724c`, server source `0392ba4c`; local macOS arm64
+  0.2.0/build 85. TypeScript, all 5,458 desktop tests (five skipped), production
+  compilation, bundle audit, Developer ID signing and strict signature checks
+  passed. The server SDK, runner, goal-route and goal-projection suites passed
+  226 tests. Focused regressions cover native refusal, uncertain delivery,
+  concurrent Force Send, stale results and cancellation-control failure.
+- The exact packaged archive passed native offscreen interaction through
+  production IPC and authenticated HTTP into an isolated server with real
+  Claude Code 2.1.303. Set a goal while parent and child tools were running,
+  replace it while the original child remained active, and observe the same
+  native session reach Goal achieved after both original tasks completed.
+  The archive and signature remained unchanged, with no JavaScript errors.
+- Native SDK Stop acceptance verified cancellation of the queued goal, original
+  process exit without completion outputs, and a successful subsequent tool
+  turn. Delayed superseded results and cancellation-control errors were checked
+  with focused fixtures after that native run. Actual app Stop and Clear & stop
+  also passed through production IPC/authenticated HTTP with real Claude:
+  original process IDs exited, pending goals disappeared, cleared native state
+  was read back, and each chat accepted a successful subsequent message without
+  reviving the stopped work. The final Clear run verified quiet cancellation.
+  Test profiles and processes were cleaned up. Signed-executable launch and
+  Gatekeeper were not exercised.
+- This is a paired app/server source fix and local package, not an installed
+  update or published release. Setting a goal before the provider has bound its
+  initial native session remains outside this active-session acceptance.
+
 ## 2026-10-23 — Quieter workspace selection
 
 - Replace persistent blue stripes on workspace/chat/file tabs and focused grid
