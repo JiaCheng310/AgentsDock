@@ -1,5 +1,21 @@
 # Public development log
 
+## 2026-10-25 - Android APK packaging configuration
+
+- Scope Chinese native privacy descriptions to iOS so Android release lint no
+  longer treats them as translations of missing Android resources. Preserve
+  the existing iOS strings and native configuration.
+- Keep camera permission available for server QR scanning when the image-picker
+  and camera plugins are composed. Microphone and broad media-read permissions
+  remain blocked. Update native verification to accept the existing media-save
+  write permission restricted to Android 9 and earlier.
+- Reproduced both locale and composed-camera regressions before the fixes;
+  all 50 focused configuration, connection and Android checks and TypeScript
+  passed afterward. Compared iOS introspected native configuration before and
+  after and confirmed it is unchanged. Android remains version 0.1.1, build 10.
+- Signed APK packaging and device acceptance remain pending. No iOS build,
+  upload, publication, installation or server change is part of this fix.
+
 ## 2026-10-25 - Mobile provider pre-merge validation
 
 - Integrated main `3ac069e`; only the development log required conflict
