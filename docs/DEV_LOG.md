@@ -25,6 +25,8 @@
   that historical idle-parent lifecycle was not recreated end-to-end.
 - Pre-merge validation: 1,190 focused desktop tests and 240 focused server tests passed;
   TypeScript and Electron production compilation passed.
+- Updated the compact-composer layout contract to recognize the shared Stop
+  label, including the idle-child label; action placement and sizing are unchanged.
 - Simplified Chinese consistently calls subagents “子 Agent” in the inspector,
   limits, lifecycle labels and Stop feedback. Localize the inspector heading and
   unnamed display fallback without changing provider names, identities or chat
