@@ -4987,6 +4987,50 @@ describe('subagent lifecycle hydration', () => {
 
     expect(refresh).toHaveBeenCalledWith(internals.scope, 'chat', 1)
   })
+
+  it('refreshes only the stopped chat with an existing subscription, once', async () => {
+    const client = Object.assign(fakeClient(), {
+      stopTurn: vi.fn(async () => ({ stopped: true }))
+    })
+    const { service } = createProfileService({ 'http://a.test:7850': [client] })
+    Object.assign(service, {
+      validatedGeneration: 1,
+      timelineSubscriptions: new Map([['chat', { lease: 7, stop: null, connected: false }]])
+    })
+    const internals = service as unknown as {
+      scope: unknown
+      scheduleSubagentSnapshotRefresh(scope: unknown, sessionId: string, lease: number): void
+    }
+    const refresh = vi.spyOn(internals, 'scheduleSubagentSnapshotRefresh').mockImplementation(() => {})
+
+    await expect(service.stopTurn('chat')).resolves.toEqual({ stopped: true })
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(internals.scope, 'chat', 7)
+    await service.stopTurn('unsubscribed-chat')
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh child state after the stop response crosses a server switch', async () => {
+    const response = deferred<{ stopped: boolean }>()
+    const client = Object.assign(fakeClient(), { stopTurn: vi.fn(() => response.promise) })
+    const { service } = createProfileService({
+      'http://a.test:7850': [client], 'http://b.test:7850': [fakeClient()]
+    })
+    Object.assign(service, { validatedGeneration: 1 })
+    const pending = service.stopTurn('chat')
+    const rejected = expect(pending).rejects.toThrow()
+    await settleBackgroundWork()
+    await service.switchServer('b')
+    Object.assign(service, {
+      timelineSubscriptions: new Map([['chat', { lease: 9, stop: null, connected: false }]])
+    })
+    const internals = service as unknown as {
+      scheduleSubagentSnapshotRefresh(scope: unknown, sessionId: string, lease: number): void
+    }
+    const refresh = vi.spyOn(internals, 'scheduleSubagentSnapshotRefresh').mockImplementation(() => {})
+    response.resolve({ stopped: true })
+    await rejected
+    expect(refresh).not.toHaveBeenCalled()
+  })
 })
 
 describe('semantic timeline paging', () => {

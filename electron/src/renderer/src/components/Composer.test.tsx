@@ -1803,6 +1803,27 @@ describe('Composer', () => {
     confirm.mockRestore()
   })
 
+  it.each(['codex_thread_id', 'session_id'] as const)('keeps idle Stop subagents with %s until a native terminal arrives, without queuing Send', async providerId => {
+    const owner = { id: 'chat-1', title: 'Chat', backend: 'codex' as const, [providerId]: 'root' }
+    const child = { id: 'child-event', seq: 1, session_id: owner.id, type: 'subagent_state',
+      backend: 'codex' as const, ts: '2026-10-25T10:00:00Z', subagent_id: 'child',
+      subagent_parent_thread_id: 'root', subagent_status: 'running' }
+    const snapshot = { session: owner, events: [child], queuedTurns: [], files: [], filesTotal: 0, hasMoreEvents: false, cachedAt: 0 }
+    const stop = vi.fn().mockResolvedValue({ stopped: true, subagents: { pending: ['child'] } })
+    window.agentsDock.turns = { stop } as unknown as AgentsDockAPI['turns']
+    useAppStore.setState({ sessions: [owner], snapshots: { [owner.id]: snapshot } })
+    render(<Composer />)
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Stop subagents' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Stop subagents' })).toBeEnabled())
+    expect(stop).toHaveBeenCalledExactlyOnceWith(owner.id)
+    expect(useAppStore.getState().error).toContain('subagents')
+    act(() => useAppStore.setState({ snapshots: { [owner.id]: { ...snapshot,
+      events: [child, { ...child, id: 'child-end', seq: 2, subagent_status: 'stopped' }] } } }))
+    expect(screen.queryByRole('button', { name: 'Stop subagents' })).not.toBeInTheDocument()
+    expect(useAppStore.getState().activeSessionIds.has(owner.id)).toBe(false)
+  })
+
   it.each(['idle', 'cached', 'syncing', 'reconnecting', 'offline', 'error'] as const)(
     'shows only a neutral sync status for an unknown active origin while chat sync is %s', status => {
       useAppStore.setState({
