@@ -1,5 +1,31 @@
 # Public development log
 
+## 2026-10-25 - iOS TestFlight 194 available for internal testing
+
+- Released 0.1.3 (194) from exact source
+  `6d503e2d7cd369ea8fd8865fabbcb2eff2b5d975` using authorized hosted workflow
+  [40279350226](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40279350226).
+  Apple reports `VALID` and `IN_BETA_TESTING`; read-only verification confirms
+  the exact build is associated with the existing internal testing group.
+  External testing remains `READY_FOR_BETA_SUBMISSION`; no external beta or
+  App Store review submission was performed.
+- Native QA workflow
+  [40277664726](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40277664726)
+  produced the same-source arm64 Release simulator app. Downloaded executable
+  and JavaScript hashes matched its manifest. The actual installed package
+  connected to an isolated server through the UI, exercised Settings, update
+  destinations, My agents, reasoning display and Gemini history, then created
+  an inherited Gemini Custom API chat with Default permissions. A real UI send
+  received the expected provider reply; server readback confirmed completion
+  and an empty queue. Cold launch retained the connection and reply history.
+- Initial connection automation needed the half-height sheet expanded; a stale
+  assertion expected the server list after successful Add had already closed
+  the sheet. These script failures are not passing checks. Subsequent actual
+  Release-package interaction and cold-launch flows completed successfully.
+- Production archive metadata, resources, signatures, native ABI and symbol
+  checks passed before upload. Android packaging remains separately owned;
+  this release did not publish an APK or deploy desktop/server changes.
+
 ## 2026-10-25 - iOS TestFlight 194 candidate integration
 
 - Prepare version 0.1.3 build 194 from main `eb16519`, retaining the mobile
