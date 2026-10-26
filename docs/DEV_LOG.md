@@ -13,8 +13,16 @@
   all 50 focused configuration, connection and Android checks and TypeScript
   passed afterward. Compared iOS introspected native configuration before and
   after and confirmed it is unchanged. Android remains version 0.1.1, build 10.
-- Signed APK packaging and device acceptance remain pending. No iOS build,
-  upload, publication, installation or server change is part of this fix.
+- Built the local ARM64 sideload release APK from `4b39badf`, based on main
+  `eb165198`. Native verification, Gradle release lint and assembly passed.
+  Verified the existing release signer, package/version, bundled JavaScript,
+  archive integrity and 16 KB alignment on the final APK. Its manifest includes
+  camera and sideload-install permissions, limits legacy storage writes to API
+  28, and excludes microphone and broad media-read permissions.
+- APK SHA-256: `baf47eb137a85d16cfe72d6c1a3bdfc824cd5de93d774f6adcb3981c7511c845`.
+  No Android device was connected; on-device launch and QR capture remain
+  untested. No iOS build, upload, publication, installation or server change
+  was part of this local APK build.
 
 ## 2026-10-25 - Mobile provider pre-merge validation
 
