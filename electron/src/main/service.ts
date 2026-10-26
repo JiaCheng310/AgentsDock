@@ -3784,6 +3784,8 @@ export class AppService {
     await this.ensureValidatedScope(scope)
     const result = await scope.client.stopTurn(sessionId)
     this.assertCurrentScope(scope)
+    const subscription = this.timelineSubscriptions.get(sessionId)
+    if (subscription) this.scheduleSubagentSnapshotRefresh(scope, sessionId, subscription.lease)
     return result
   }
 

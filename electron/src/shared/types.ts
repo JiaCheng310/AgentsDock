@@ -398,6 +398,11 @@ export interface TurnStopResult {
   native_interrupt?: boolean
   goal_paused?: boolean
   message?: string | null
+  subagents?: {
+    pending?: string[]
+    errors?: string[]
+    interrupted?: string[]
+  }
 }
 
 export interface CodexRollbackInput {
@@ -1168,6 +1173,10 @@ export interface Event extends SharedChatAttribution {
   subagent_summary?: string | null
   subagent_started_at?: string | null
   subagent_provider_ref?: string | null
+  subagent_parent_thread_id?: string | null
+  subagent_root_thread_id?: string | null
+  /** Copied history is not ownership of the source thread's native children. */
+  forked?: boolean
   subagent_log?: Array<{ ts: string; text: string }> | null
   file?: AgentFile | null
   artifact?: AgentFile | null

@@ -1,5 +1,38 @@
 # Public development log
 
+## 2026-10-25 — Codex child cancellation acknowledgement (#85)
+
+- Keep a localized Stop subagents action available for an idle Codex chat with
+  authoritative, owned live children, without changing Send into Queue. Ignore
+  forked history and unrelated roots; refresh the selected chat's child snapshot
+  once after stopping, fenced by the current server and timeline subscription.
+- Reconcile children already terminal when Stop reaches the native runtime.
+  Report pending children and interrupt errors instead of treating parent
+  completion as successful child cancellation. Recheck ownership after native
+  reads and preserve newer lifecycle transitions during stop confirmation.
+- Source: `fix/codex-subagent-stop-85`, based on `7d94b05b`; local development
+  build only. Both desktop and server changes are required; no release published.
+- Actual visible native Electron acceptance exercised composer submission,
+  native Codex child execution, Stop, reopening the chat, and repeated use.
+  Native provider records confirmed interrupted child turns; the stop control
+  cleared, an independently running control chat continued, and another pane's
+  draft was retained. The actual IPC/authenticated HTTP/native-provider boundary
+  was exercised without a stub provider.
+- The installed native provider retained the parent turn until child completion
+  or interruption, even after emitting its final reply. The fully idle-parent
+  case, stale terminal state, missing runtime, concurrent state/ownership changes,
+  pending errors and legacy response compatibility have regression coverage;
+  that historical idle-parent lifecycle was not recreated end-to-end.
+- Pre-merge validation: 1,190 focused desktop tests and 240 focused server tests passed;
+  TypeScript and Electron production compilation passed.
+- Simplified Chinese consistently calls subagents “子 Agent” in the inspector,
+  limits, lifecycle labels and Stop feedback. Localize the inspector heading and
+  unnamed display fallback without changing provider names, identities or chat
+  content. English remains unchanged. Actual native-app Settings language
+  switching verified the Chinese heading, empty state and per-chat limit text,
+  then restored English. The terminology follow-up passed 308 focused tests,
+  TypeScript checks and the Electron production build; no server restart required.
+
 ## 2026-10-25 — Remove host-imposed provider restrictions
 
 - Allow native background shell commands and Claude scheduling tools. Remove

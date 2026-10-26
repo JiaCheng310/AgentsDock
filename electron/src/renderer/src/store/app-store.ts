@@ -2228,14 +2228,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       set(state => {
         const stoppingSessionIds = new Set(state.stoppingSessionIds)
         stoppingSessionIds.delete(id)
-        if (result.stopped) {
+        const childStopPending = Boolean(result.subagents?.pending?.length || result.subagents?.errors?.length)
+        if (result.stopped && !result.pending && !childStopPending) {
           const activeSessionIds = new Set(state.activeSessionIds)
           activeSessionIds.delete(id)
           return { activeSessionIds, stoppingSessionIds }
         }
         return {
           stoppingSessionIds,
-          error: result.message?.trim() || (result.pending || result.deferred
+          error: childStopPending ? t('subagents.stopPending') : result.message?.trim() || (result.pending || result.deferred
             ? 'Stop is still pending. You can retry.'
             : 'The agent did not stop. You can retry.')
         }
