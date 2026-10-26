@@ -39,6 +39,7 @@ const mocks = {
   './CodexPermissionMenu': `export const CodexPermissionMenu=()=>null;`,
   './ClaudePermissionMenu': `export const ClaudePermissionMenu=()=>null;`,
   './CursorPermissionMenu': `export const CursorPermissionMenu=()=>null;`,
+  './OptionalAgentPermissionMenu': `export const OptionalAgentPermissionMenu=()=>null;`,
   './CodexGoalBar': `export const CodexGoalBar=()=>null;`,
   './CodexRuntimeContext': `export const useCodexRuntime=()=>({refresh:async()=>{}});`,
   './ClaudeRuntimeContext': `export const useClaudeRuntime=()=>({refresh:async()=>{}});`,

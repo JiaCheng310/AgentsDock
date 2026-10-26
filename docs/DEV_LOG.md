@@ -1,5 +1,116 @@
 # Public development log
 
+## 2026-10-25 - Mobile provider pre-merge validation
+
+- Integrated main `3ac069e`; only the development log required conflict
+  resolution, retaining both sets of entries. Updated older source-contract
+  tests and the composer fixture for the additional providers.
+- All 428 mobile MJS checks passed, with one generated-native-metadata check
+  skipped. Session creation, provider selection, recovery, optional permissions,
+  transport, cross-chat references, notifications and Android discovery tests
+  passed, along with TypeScript and iOS/Android production JavaScript exports.
+- Maestro operated the real iOS simulator through Settings, update destinations,
+  My agents and Gemini chat navigation. Home creation retained Gemini Custom API
+  and Default permissions, confirmed through authenticated server readback.
+  Initial scripted attempts missed a navigation tap and a keyboard-obscured
+  row; waiting for navigation and bringing the row fully into view completed
+  the flow. These failed attempts are not counted as passing acceptance.
+- The user confirmed the refreshed physical iPhone Dev build works. Existing
+  cross-agent receipt checks still show no duplicate mail or pending QA work.
+  Store handoff, signed APK installation and Android provider end-to-end checks
+  remain outside this validation. No release or TestFlight upload was performed.
+
+## 2026-10-25 - Mobile Gemini identity and recoverable new-chat defaults
+
+- Embed the desktop multicolor Gemini SVG in the mobile bundle, without a
+  network image dependency or monochrome tint. Light and dark iOS simulator
+  screenshots show the multicolor mark. The dark-mode scripted scroll to a
+  specific QA row timed out; direct screenshot inspection verified other
+  Gemini rows instead.
+- Home new-chat creation keeps an available inherited provider/mode, otherwise
+  randomly chooses from available choices across all five agents. Report no
+  available agent only when the candidate set is empty. Preserve model and permissions after
+  message failures; an earlier local fallback based on turn failure was too
+  broad and has been removed. On confirmed pre-creation API/workspace validation
+  failures, try remaining choices at most once each; never
+  retry ambiguous writes, authentication failures, or explicit provider forms.
+  Reset provider-specific defaults when switching; preserve existing chats.
+- Confirmed unavailable native diagnostics override stale credential presence;
+  Custom API and native modes retain independent availability. Regression
+  coverage includes every agent-to-agent fallback, all-unavailable cases,
+  same-agent API fallback, and bounded retries across rejected candidates.
+  Ten randomized session-creation runs passed; actual simulator creation also
+  verified fallback to OpenCode after a confirmed invalid-workspace rejection.
+- Actual iOS simulator testing against the isolated beta.12 server reproduced
+  a deleted Gemini workspace, then verified fallback creation and a real Claude
+  reply. Mobile mention selection granted routes to all five providers. Codex
+  sent mail to Claude, Cursor, and OpenCode and read their explicit replies.
+- Gemini cross-chat preflight was blocked by native workspace trust, while
+  ordinary replies worked. After explicit approval to trust only the isolated
+  QA directory, actual simulator mention/send flows exercised Gemini against
+  Codex, Claude, Cursor, and OpenCode in both initiating directions, with native
+  one-time tool approvals and explicit return acknowledgments. No permission
+  policy was disabled. Initial Claude initiation used a legacy target index
+  and failed; an explicit route-discovery retry succeeded. This first-attempt
+  provider tool-use failure remains a limitation, not a passing first attempt.
+  Receipt checks found exactly one request and one acknowledgment per initiating
+  direction, with no duplicate messages or pending QA turns/approvals.
+- Simulator acceptance also verified that after a Gemini communication error,
+  Home new-chat creation retained Gemini and received a real ordinary reply.
+  An intermediate retry at the server default directory exposed an API-auth
+  override; confirmed invalid-directory creation still falls back to another
+  provider rather than silently changing Gemini's authentication.
+- Session-creation and chat-reference regressions, 51 focused component/source
+  checks, TypeScript, and iOS production JS export passed. Availability is local
+  development only; no release or TestFlight build was published.
+
+## 2026-10-25 - Mobile optional agents and discoverable app updates
+
+- Add capability-gated OpenCode and Gemini choices, API-aware model catalogs,
+  saved selections, permissions, and new-chat inheritance. OpenCode free models
+  remain selectable without login credentials; Gemini uses configured APIs and
+  its required client protocol. Preserve bound API catalogs in chat details.
+- Add run-owned Gemini approvals with native-control authentication, duplicate
+  response protection, foreground/event invalidation, and server-generation
+  fencing. Do not expose unsupported provider reloads or Gemini forks.
+- Move App updates into the primary Settings categories on both platforms.
+  iOS opens App Store or TestFlight. Android discovery now reads bounded release
+  pages; desktop releases can no longer hide Android updates after page one.
+  Failed checks do not persist a successful up-to-date cache entry.
+- Actual iOS simulator acceptance against AgentsServer 1.0.11-beta.11 verified
+  OpenCode free-model and Custom API replies, Gemini replies and contextual
+  follow-ups, permission deny/allow-once with file readback, and OpenCode model
+  and Plan-permission inheritance. One default OpenCode model returned an empty
+  response in its native transcript too; an explicitly selected free model and
+  the configured API returned normally. No server code or deployment changed.
+- Settings/agent/approval/interaction component checks, provider and transport
+  regressions, TypeScript, iOS production JS export, and a local Android debug
+  APK build passed. Real public release discovery found an Android candidate on
+  page two. Android updater Settings, offline failure, and successful retry
+  were exercised on an emulator. iOS Settings retained both agents and update
+  destinations in dark mode.
+- Availability: local development builds only, based on main `7d94b05`.
+  iOS store installation is not testable on a simulator; physical-device
+  App Store/TestFlight handoff and a signed production APK upgrade remain
+  unverified. Android provider end-to-end acceptance remains pending.
+
+## 2026-10-25 - Mobile new-chat defaults follow the last open chat
+
+- Inherit the last open chat's agent, native or Custom API mode, model, effort,
+  and agent-specific permissions when creating a chat from Home. Keep saved
+  preferences as the fallback when no valid chat is selected on that server.
+- Resolve omitted permissions with a bounded detail read before creation;
+  failed reads remain retryable instead of silently resetting permissions.
+  Preserve duplicate-tap protection and connection-generation checks.
+- iOS simulator acceptance reproduced Claude reverting to Codex on the previous
+  client, then verified Claude Plan and Codex read-only/on-request inheritance
+  through the actual app with authenticated server readback. Temporary chats
+  were removed without starting provider runs.
+- Session-creation regressions, 39 interaction tests, TypeScript checks, and
+  iOS/Android production JS exports passed. Custom API selection, Cursor,
+  lookup failure, and server-switch races have automated coverage; Android
+  interaction and physical-device acceptance were not exercised for this change.
+
 ## 2026-10-25 — Codex child cancellation acknowledgement (#85)
 
 - Keep a localized Stop subagents action available for an idle Codex chat with
