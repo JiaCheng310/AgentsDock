@@ -1,4 +1,9 @@
 {
+  "subagents.title": "Subagents",
+  "subagents.singular": "subagent",
+  "subagents.providerName": "{provider} subagent",
+  "subagents.stop": "Stop subagents",
+  "subagents.stopPending": "Some subagents have not confirmed stopping. Retry Stop; other chats are unaffected.",
   "gemini.import.connect": "Connect Gemini API",
   "gemini.import.connecting": "Connecting…",
   "gemini.import.help": "Continue this imported chat with your saved Gemini API ({url}). Its existing history will be sent to this endpoint. Your terminal sign-in is unchanged.",
