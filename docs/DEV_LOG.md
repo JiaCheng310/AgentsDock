@@ -1,5 +1,25 @@
 # Public development log
 
+## 2026-10-25 - Mobile provider pre-merge validation
+
+- Integrated main `3ac069e`; only the development log required conflict
+  resolution, retaining both sets of entries. Updated older source-contract
+  tests and the composer fixture for the additional providers.
+- All 428 mobile MJS checks passed, with one generated-native-metadata check
+  skipped. Session creation, provider selection, recovery, optional permissions,
+  transport, cross-chat references, notifications and Android discovery tests
+  passed, along with TypeScript and iOS/Android production JavaScript exports.
+- Maestro operated the real iOS simulator through Settings, update destinations,
+  My agents and Gemini chat navigation. Home creation retained Gemini Custom API
+  and Default permissions, confirmed through authenticated server readback.
+  Initial scripted attempts missed a navigation tap and a keyboard-obscured
+  row; waiting for navigation and bringing the row fully into view completed
+  the flow. These failed attempts are not counted as passing acceptance.
+- The user confirmed the refreshed physical iPhone Dev build works. Existing
+  cross-agent receipt checks still show no duplicate mail or pending QA work.
+  Store handoff, signed APK installation and Android provider end-to-end checks
+  remain outside this validation. No release or TestFlight upload was performed.
+
 ## 2026-10-25 - Mobile Gemini identity and recoverable new-chat defaults
 
 - Embed the desktop multicolor Gemini SVG in the mobile bundle, without a
