@@ -21,7 +21,9 @@ function loadTypeScript(filename, imports = {}) {
 }
 
 const locale = loadTypeScript('src/i18n/locale.ts')
-const format = loadTypeScript('src/lib/format.ts')
+const format = loadTypeScript('src/lib/format.ts', {
+  './native-goal-steering': loadTypeScript('src/lib/native-goal-steering.ts'),
+})
 const chinese = JSON.parse(fs.readFileSync('src/i18n/zh-CN.json', 'utf8'))
 const translation = loadTypeScript('src/i18n/index.ts', {
   './zh-CN.json': chinese,

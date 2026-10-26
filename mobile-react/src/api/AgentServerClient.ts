@@ -40,6 +40,7 @@ import type {
   ProcessSnapshot,
   ProviderReloadResult,
   ProviderRuntimeChanged,
+  ReasoningSummaryStreamSnapshot,
   QueuedRunNowResponse,
   QueuedTurn,
   RuntimeCatalog,
@@ -67,6 +68,7 @@ import type {
 import { normalizeServerURL } from '../lib/format'
 import { createUploadFormData } from '../lib/upload-form'
 import { teamNetworkRequestPath } from '../lib/team-network'
+import { isReasoningSummaryStream, normalizedReasoningStream } from '../lib/reasoning-stream'
 
 interface SessionResponse {
   session: Session
@@ -137,6 +139,13 @@ export class AgentServerClientUnvalidatedError extends Error {
   constructor() {
     super('Agent server client has not passed server identity validation')
     this.name = 'AgentServerClientUnvalidatedError'
+  }
+}
+
+export class AgentServerTurnAcceptedError extends Error {
+  constructor(cause: unknown) {
+    super('The server accepted this message, but its response could not be reconciled. Refresh the chat before sending it again.', { cause })
+    this.name = 'AgentServerTurnAcceptedError'
   }
 }
 
@@ -491,7 +500,7 @@ export class AgentServerClient {
     return (await this.get<{ results?: TimelineSearchResult[] }>(`/api/search?${params}`)).results ?? []
   }
 
-  sendTurn(
+  async sendTurn(
     sessionId: string,
     prompt: string,
     fileIds: string[],
@@ -512,7 +521,15 @@ export class AgentServerClient {
     if (clientCapabilities.length) body.client_capabilities = [...clientCapabilities]
     if (chatReferences.length) body.chat_references = chatReferences.map(reference => ({ ...reference }))
     if (teamReferences.length) body.team_references = teamReferences.map(reference => ({ ...reference }))
-    return this.post(`/api/sessions/${encodeURIComponent(sessionId)}/turns`, body)
+    let accepted = false
+    try {
+      return await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`, {
+        method: 'POST', body: JSON.stringify(body),
+      }, 30_000, false, 'standard', () => { accepted = true })
+    } catch (error) {
+      if (accepted) throw new AgentServerTurnAcceptedError(error)
+      throw error
+    }
   }
   async stopTurn(sessionId: string): Promise<TurnStopResult> {
     const response = await this.post<Partial<TurnStopResult>>(`/api/sessions/${encodeURIComponent(sessionId)}/stop`, {})
@@ -769,6 +786,7 @@ export class AgentServerClient {
     onEvent: (event: Event) => void,
     onState: (connected: boolean, detail?: WebSocketStateDetail) => void,
     onProviderRuntime?: (event: ProviderRuntimeChanged) => void,
+    onReasoningStream?: (snapshot: ReasoningSummaryStreamSnapshot) => void,
   ): () => void {
     const scope = this.captureScope()
     const endpoint = new URL(buildURL(scope.configuration.baseURL, `/api/sessions/${encodeURIComponent(sessionId)}/events`))
@@ -811,6 +829,10 @@ export class AgentServerClient {
       const url = new URL(endpoint)
       url.searchParams.set('after', String(lastSeq))
       url.searchParams.set('visible', 'true')
+      if (onReasoningStream) {
+        url.searchParams.set('reasoning_stream', 'true')
+        url.searchParams.set('reasoning_text', 'true')
+      }
       if (token) url.searchParams.set('token', token)
       try {
         socket = new WebSocket(url.toString())
@@ -820,6 +842,10 @@ export class AgentServerClient {
         return
       }
       const connectingSocket = socket
+      // A reconnect can enter a newly started server instance at revision zero.
+      // Bind revisions to this socket, not the client's durable replay cursor.
+      let reasoningInstance = ''
+      let reasoningRevision = -1
       connectTimeout = setTimeout(() => {
         if (stopped || socket !== connectingSocket || connectingSocket.readyState !== WebSocket.CONNECTING) return
         reportState(false)
@@ -845,15 +871,33 @@ export class AgentServerClient {
         if (stopped || socket !== connectingSocket) return
         try {
           const packet = JSON.parse(String(message.data)) as unknown
+          if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return
+          if ('type' in packet && packet.type === 'reasoning_summary_stream') {
+            if (onReasoningStream && isReasoningSummaryStream(packet)
+              && packet.session_id === sessionId
+              && (!reasoningInstance || packet.instance_id === reasoningInstance)
+              && packet.revision > reasoningRevision) {
+              onReasoningStream(normalizedReasoningStream(packet))
+              reasoningInstance = packet.instance_id
+              reasoningRevision = packet.revision
+            }
+            // Even malformed/unsolicited control packets must never poison
+            // the durable cursor if they happen to contain a seq property.
+            return
+          }
           if (isProviderRuntimeChanged(packet)) {
             if (packet.session_id === sessionId) onProviderRuntime?.(packet)
             return
           }
           const event = packet as Event
-          if (Number.isFinite(event.seq) && event.seq > lastSeq) { lastSeq = event.seq; onEvent(event) }
+          if (Number.isSafeInteger(event.seq) && event.seq > lastSeq && event.session_id === sessionId) {
+            onEvent(event)
+            lastSeq = event.seq
+          }
         } catch { /* malformed packets are ignored */ }
       }
       socket.onclose = event => {
+        if (stopped || socket !== connectingSocket) return
         clearConnectTimeout()
         clearStableConnectionTimer()
         if (socket === connectingSocket) socket = null
@@ -875,7 +919,7 @@ export class AgentServerClient {
         }
         scheduleRetry()
       }
-      socket.onerror = () => { if (!stopped) reportState(false) }
+      socket.onerror = () => { if (!stopped && socket === connectingSocket) reportState(false) }
     }
     const stop = () => {
       if (stopped) {
@@ -1025,6 +1069,7 @@ export class AgentServerClient {
     timeoutMs = 30_000,
     allowUnvalidated = false,
     authentication: 'standard' | 'team-network' | 'native-control' = 'standard',
+    onAccepted?: () => void,
   ): Promise<T> {
     const scope = this.captureScope(allowUnvalidated)
     const headers = new Headers(init.headers)
@@ -1047,9 +1092,9 @@ export class AgentServerClient {
       const value = await response.json() as T
       this.assertScopeActive(scope)
       return value
-    })
+    }, onAccepted)
   }
-  private async fetchWithTimeout<T>(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response, signal: AbortSignal) => Promise<T>): Promise<T> {
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, timeoutMs: number, scopeSignal: AbortSignal, consume: (response: Response, signal: AbortSignal) => Promise<T>, onAccepted?: () => void): Promise<T> {
     const controller = new AbortController()
     const externalSignals = [scopeSignal, init.signal].filter((signal): signal is AbortSignal => Boolean(signal))
     const abortListeners: Array<{ signal: AbortSignal; listener: () => void }> = []
@@ -1080,6 +1125,7 @@ export class AgentServerClient {
       // Bound the entire read independently, while also aborting the transport.
       const value = await Promise.race([aborted, (async () => {
         const response = await fetch(url, { ...init, signal: controller.signal })
+        if (response.ok) onAccepted?.()
         throwIfAborted(controller.signal)
         receivedResponse = response
         return consume(response, controller.signal)

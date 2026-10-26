@@ -9,6 +9,7 @@ export const TRACE_DETAIL_RENDER_CHARACTER_LIMIT = 320_000
 export const TRACE_DETAIL_RENDER_TAIL_LIMIT = 40
 export const TRACE_HEADLINE_LIMIT = 180
 export const TRACE_PREVIEW_LIMIT = 480
+export const TRACE_READER_PAGE_LIMIT = 12_000
 
 export interface BoundedTraceEvents {
   events: Event[]
@@ -26,6 +27,21 @@ export function boundLoadedTraceEvents(events: Event[]): BoundedTraceEvents {
   for (const event of events) {
     const cost = traceEventCharacterCost(event)
     if (!bounded.length && cost > TRACE_DETAIL_LOADED_CHARACTER_LIMIT) {
+      if (isReasoningTraceEvent(event) && reasoningTraceText(event)) {
+        const source = reasoningTraceText(event)
+        let end = Math.min(source.length, TRACE_DETAIL_LOADED_CHARACTER_LIMIT - 256)
+        const last = source.charCodeAt(end - 1)
+        if (end < source.length && last >= 0xD800 && last <= 0xDBFF) end -= 1
+        // Preserve a useful supplied-text window, not an empty disclosure. The
+        // omitted payload fields are not reasoning and never belong in its reader.
+        const retained: Event = {
+          ...event, text: source.slice(0, end), prompt: undefined, result_text: undefined,
+          message: undefined, digest: undefined, output: undefined, error: undefined,
+          tool: undefined, interaction: undefined, reasoning_text_truncated: true,
+          reasoning_text_chars: Math.max(source.length, Number.isFinite(event.reasoning_text_chars) ? event.reasoning_text_chars! : 0),
+        }
+        return { events: [retained], limited: true }
+      }
       return { events: [], limited: true }
     }
     if (
@@ -83,7 +99,7 @@ export function selectTraceDetailRenderEvents(events: Event[]): BoundedTraceEven
 
 /** Bound Markdown reasoning without slicing through math or code delimiters. */
 export function boundedTraceText(event: Event): string {
-  const raw = traceTextSource(event)
+  const raw = isReasoningTraceEvent(event) ? reasoningTraceText(event) : traceTextSource(event)
   const text = typeof raw === 'string'
     ? raw
     : raw == null
@@ -98,13 +114,50 @@ export function boundedTraceText(event: Event): string {
     : text.length
   if (text.length <= TRACE_TEXT_LIMIT && reportedLength === text.length) return text
 
-  if (event.type === 'reasoning_summary') {
+  if (event.type === 'reasoning_summary' && event.phase !== 'reasoning') {
     const fold = foldMarkdownSource(text, TRACE_TEXT_LIMIT)
     const visible = fold.visible.trimEnd()
     return `${visible}\n\n… ${Math.max(0, reportedLength - fold.cutIndex)} characters hidden`
   }
   const visible = text.slice(0, TRACE_TEXT_LIMIT).trimEnd()
   return `${visible}\n… ${Math.max(0, reportedLength - visible.length)} characters hidden`
+}
+
+export function isReasoningTraceEvent(event: Pick<Event, 'type'>): boolean {
+  return event.type === 'reasoning_summary' || event.type === 'reasoning_text'
+}
+
+/** Display only the provider's supplied text channel, never prompt/raw payloads. */
+export function reasoningTraceText(event: Event): string {
+  if (!isReasoningTraceEvent(event)) return ''
+  if (typeof event.text === 'string' && event.text.trim()) return event.text
+  return typeof event.message === 'string' ? event.message : ''
+}
+
+export function reasoningTraceLabel(event: Event): string {
+  const label = event.type === 'reasoning_text' || event.phase === 'reasoning'
+    ? 'provider-supplied reasoning'
+    : event.phase === 'commentary' ? 'agent update' : 'thinking summary'
+  return event.partial === true ? `Partial ${label}` : label[0].toUpperCase() + label.slice(1)
+}
+
+export function reasoningTraceWindowTruncated(event: Event): boolean {
+  const length = reasoningTraceText(event).length
+  return event.reasoning_text_truncated === true || event.output_truncated === true
+    || typeof event.reasoning_text_chars === 'number' && event.reasoning_text_chars > length
+}
+
+/** Exact plain text pages preserve all available characters without a giant Markdown tree. */
+export function reasoningTracePages(text: string): string[] {
+  const pages: string[] = []
+  for (let offset = 0; offset < text.length;) {
+    let end = Math.min(text.length, offset + TRACE_READER_PAGE_LIMIT)
+    const last = text.charCodeAt(end - 1)
+    if (end < text.length && last >= 0xD800 && last <= 0xDBFF) end -= 1
+    pages.push(text.slice(offset, end))
+    offset = end
+  }
+  return pages.length ? pages : ['']
 }
 
 export function reasoningTraceHeadline(value?: string | null): string {

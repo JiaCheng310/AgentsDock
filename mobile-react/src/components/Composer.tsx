@@ -33,6 +33,7 @@ import {
   measuredComposerInputHeight,
 } from '../lib/composer-input-size'
 import { trackEvent } from '../lib/analytics'
+import { routeCapacityReached } from '../lib/agent-route-policy'
 import { backendLabel, formatBytes, isImage, isVideo } from '../lib/format'
 import { FULLSCREEN_HEADER_GUTTER, FULLSCREEN_HEADER_MIN_HEIGHT, fullscreenModalPadding } from '../lib/fullscreen-modal-layout'
 import { isAsyncQueuedChatMessage, isCrossChatDeliveryQueuedTurn, isUserQueuedTurn, isVisibleQueuedTurn, queuedDeliverySkipIdentity, queuedMoveCrossesDeliveryBarrier, queuedTurnHasEarlierDeliveryBarrier } from '../lib/queue'
@@ -1210,14 +1211,6 @@ function routeActionLabel(route: AgentCrossChatRoute): string {
   const send = route.actions.includes('instruction')
   const ask = route.actions.includes('request_reply')
   return send && ask ? 'Send + Ask' : send ? 'Send' : ask ? 'Ask' : 'No actions'
-}
-
-function routeCapacityReached(routes: readonly AgentCrossChatRoute[], maximum: number | null, references: readonly ChatReference[], targetId?: string): boolean {
-  if (maximum === null) return false
-  const granted = new Set(routes.map(route => route.target_session_id))
-  const pending = new Set(references.filter(reference => reference.target_kind !== 'secure_peer' && reference.action === 'route' && reference.grant_intent === true && !granted.has(reference.session_id)).map(reference => reference.session_id))
-  if (targetId && (granted.has(targetId) || pending.has(targetId))) return false
-  return routes.length + pending.size >= maximum
 }
 
 function sameChatReference(left: ChatReference, right: ChatReference): boolean {

@@ -1,6 +1,8 @@
 import type { AgentFile, CodexPendingInteraction, Event, JsonValue, Snapshot } from '../types'
 import { mergeEvents, mergeFiles, stripInjectedProviderAuthority } from './format'
 import { boundImportedCrossChatDeliveryPrompt } from './imported-cross-chat-delivery'
+import { isNativeGoalSteerEvent } from './native-goal-steering'
+import { reasoningEventSequence } from './timeline-reasoning-stream'
 
 export const LIVE_TIMELINE_EVENT_LIMIT = 720
 export const HISTORY_WINDOW_EVENT_LIMIT = 2_400
@@ -9,6 +11,7 @@ export const HISTORY_TIMELINE_CHARACTER_BUDGET = 16_000_000
 export const IN_MEMORY_SNAPSHOT_LIMIT = 4
 
 const MESSAGE_FIELD_LIMIT = 48_000
+export const TRACE_DETAIL_REASONING_TEXT_LIMIT = 1_000_000
 const TRACE_FIELD_LIMIT = 8_000
 const FILE_TEXT_LIMIT = 12_000
 const TIMELINE_LABEL_LIMIT = 1_000
@@ -21,6 +24,7 @@ const eventCharacterCosts = new WeakMap<Event, number>()
 const historicalTraceTypes = new Set([
   'raw_event',
   'reasoning_summary',
+  'reasoning_text',
   'tool_started',
   'tool_finished',
   'process_started',
@@ -36,6 +40,7 @@ const historicalTraceTypes = new Set([
 ])
 const historicalTraceAnchorTypes = new Set([
   'reasoning_summary',
+  'reasoning_text',
   'tool_started',
   'tool_finished',
   'code_diff',
@@ -48,6 +53,14 @@ const historicalTraceAnchorTypes = new Set([
 export function historicalTimelineEvents(events: Event[], contextEvents: readonly Event[] = []): Event[] {
   const successorSeqByRun = new Map<string, number>()
   const latestTraceAnchorByRun = new Map<string, Event>()
+  const goalInputsByRun = new Map<string, number[]>()
+  for (const event of [...contextEvents, ...events]) {
+    if (!isNativeGoalSteerEvent(event) || !event.run_id) continue
+    const boundaries = goalInputsByRun.get(event.run_id) ?? []
+    boundaries.push(event.seq)
+    goalInputsByRun.set(event.run_id, boundaries)
+  }
+  for (const boundaries of goalInputsByRun.values()) boundaries.sort((a, b) => a - b)
   const completedRunIds = new Set(
     [...contextEvents, ...events]
       .filter(event => ['turn_finished', 'turn_stopped', 'error'].includes(event.type))
@@ -67,9 +80,12 @@ export function historicalTimelineEvents(events: Event[], contextEvents: readonl
   for (const event of events) {
     const runId = event.run_id?.trim()
     if (!runId || !completedRunIds.has(runId) || !historicalTraceAnchorTypes.has(event.type)) continue
-    if (event.type === 'reasoning_summary' && !event.text?.trim()) continue
-    const current = latestTraceAnchorByRun.get(runId)
-    if (!current || event.seq > current.seq) latestTraceAnchorByRun.set(runId, event)
+    if ((event.type === 'reasoning_summary' || event.type === 'reasoning_text') && !event.text?.trim()) continue
+    const sequence = reasoningEventSequence(event)
+    const boundary = goalInputsByRun.get(runId)?.findLast(value => sequence > value)
+    const anchorKey = JSON.stringify([runId, boundary ?? null])
+    const current = latestTraceAnchorByRun.get(anchorKey)
+    if (!current || sequence > reasoningEventSequence(current)) latestTraceAnchorByRun.set(anchorKey, event)
   }
   const traceAnchorIds = new Set([...latestTraceAnchorByRun.values()].map(event => event.id))
 
@@ -94,6 +110,22 @@ export function historicalTimelineEvents(events: Event[], contextEvents: readonl
 
 /** Bound untrusted server text before it enters long-lived state or native views. */
 export function sanitizeTimelineEvent(event: Event): Event {
+  return sanitizeEvent(event, MESSAGE_FIELD_LIMIT)
+}
+
+/** Explicit trace reads have a larger text window, never the timeline cache. */
+export function sanitizeTraceDetailEvent(event: Event): Event {
+  return sanitizeEvent(event, TRACE_DETAIL_REASONING_TEXT_LIMIT)
+}
+
+function sanitizeEvent(event: Event, reasoningTextLimit: number): Event {
+  const reasoning = event.type === 'reasoning_summary' || event.type === 'reasoning_text'
+  const textLimit = reasoning ? reasoningTextLimit : MESSAGE_FIELD_LIMIT
+  const receivedCharacters = reasoning ? Math.max(event.text?.length ?? 0, event.result_text?.length ?? 0) : 0
+  const reportedCharacters = reasoning && Number.isSafeInteger(event.reasoning_text_chars) && event.reasoning_text_chars! >= 0
+    ? Math.max(receivedCharacters, event.reasoning_text_chars!) : receivedCharacters
+  const reasoningTruncated = reasoning && (receivedCharacters > textLimit || event.reasoning_text_truncated === true
+    || reportedCharacters > receivedCharacters)
   const next: Event = {
     ...event,
     // Remove launch-only provider authority while the complete suffix and its
@@ -102,8 +134,12 @@ export function sanitizeTimelineEvent(event: Event): Event {
     prompt: boundImportedCrossChatDeliveryPrompt(event, MESSAGE_FIELD_LIMIT, TRUNCATION_SUFFIX) ?? sanitizePromptText(event.prompt),
     request_prompt: sanitizePromptText(event.request_prompt),
     display_prompt: sanitizePromptText(event.display_prompt),
-    text: truncateText(event.text, MESSAGE_FIELD_LIMIT),
-    result_text: truncateText(event.result_text, MESSAGE_FIELD_LIMIT),
+    text: truncateText(event.text, textLimit),
+    result_text: truncateText(event.result_text, textLimit),
+    ...(reasoning ? {
+      reasoning_text_truncated: reasoningTruncated || undefined,
+      reasoning_text_chars: reasoningTruncated ? reportedCharacters : undefined,
+    } : {}),
     message: truncateText(event.message, MESSAGE_FIELD_LIMIT),
     digest: truncateText(event.digest, MESSAGE_FIELD_LIMIT),
     handoff_preview: truncateText(event.handoff_preview, MESSAGE_FIELD_LIMIT),
@@ -320,7 +356,9 @@ function sanitizePromptText(value: string | null | undefined): string | null | u
 
 function truncateRequiredText(value: string, limit: number): string {
   if (value.length <= limit) return value
-  const headLength = Math.max(0, limit - TRUNCATION_SUFFIX.length)
+  let headLength = Math.max(0, limit - TRUNCATION_SUFFIX.length)
+  const lastUnit = value.charCodeAt(headLength - 1)
+  if (lastUnit >= 0xD800 && lastUnit <= 0xDBFF) headLength -= 1
   return `${value.slice(0, headLength).trimEnd()}${TRUNCATION_SUFFIX}`
 }
 

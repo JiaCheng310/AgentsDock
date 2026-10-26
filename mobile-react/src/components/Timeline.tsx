@@ -7,7 +7,9 @@ import { shouldFinishTimelineKeyboardDismissal } from '../lib/keyboard-gesture'
 import { liveTimelineAdvanced, shouldShowInitialTimelineLoading, shouldShowTimelineLatest, timelineMaintainVisiblePosition, timelineTargetRowIndex } from '../lib/timeline-history-navigation'
 import { mergeHistoryWithLiveSnapshot } from '../lib/timeline-memory'
 import { reuseStableTimelineRows } from '../lib/timeline-row-reuse'
+import { overlayReasoningStream, type ReasoningProjectionOwner } from '../lib/timeline-reasoning-stream'
 import { useAppStore } from '../store/useAppStore'
+import { useReasoningStreamStore } from '../store/useReasoningStreamStore'
 import { radius, usePalette } from '../theme'
 import { Text } from './AppText'
 import { Loading } from './ui'
@@ -26,17 +28,24 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   const liveSnapshot = useAppStore(state => state.snapshots[sessionId])
   const selectedSession = useAppStore(state => state.sessions.find(session => session.id === sessionId))
   const profileGeneration = useAppStore(state => state.profileGeneration)
+  const reasoningStream = useReasoningStreamStore(state => state.selected?.sessionId === sessionId
+    && state.selected.profileGeneration === profileGeneration ? state.selected.snapshot : null)
   const historyWindow = useAppStore(state => state.historyWindow)
   const exitHistory = useAppStore(state => state.exitHistory)
   const matchingHistoryWindow = historyWindow?.profileGeneration === profileGeneration && historyWindow.sessionId === sessionId
     ? historyWindow
     : null
-  const projectedHistoryRows = useMemo(
-    () => matchingHistoryWindow
-      ? projectPresentableHistory(matchingHistoryWindow.snapshot.events, matchingHistoryWindow.snapshot.files)
-      : null,
+  const projectedHistory = useMemo(
+    () => {
+      const owners: ReasoningProjectionOwner[] = []
+      const rows = matchingHistoryWindow
+        ? projectPresentableHistory(matchingHistoryWindow.snapshot.events, matchingHistoryWindow.snapshot.files, owners)
+        : null
+      return { rows, owners }
+    },
     [matchingHistoryWindow?.snapshot.events, matchingHistoryWindow?.snapshot.files],
   )
+  const projectedHistoryRows = projectedHistory.rows
   // A compact/failed older-page request can contain transport events without
   // any rows a person can see. Never let that empty window mask a newer live
   // snapshot; the exact failure otherwise looks "Live" while the chat is blank.
@@ -66,20 +75,37 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   const nearBottomRef = useRef(true)
   const [viewportWidth, setViewportWidth] = useState(0)
   const stableRows = useRef<TimelineRow[]>([])
-  const projectedRows = useMemo(
-    () => activeHistoryWindow
-      && projectedHistoryRows
-      && snapshot?.events === activeHistoryWindow.snapshot.events
-      && snapshot?.files === activeHistoryWindow.snapshot.files
-      ? projectedHistoryRows
-      : projectTimeline(snapshot?.events ?? [], snapshot?.files ?? []),
-    [activeHistoryWindow, projectedHistoryRows, snapshot?.events, snapshot?.files],
+  const projection = useMemo(
+    () => {
+      if (activeHistoryWindow
+        && projectedHistory.rows
+        && snapshot?.events === activeHistoryWindow.snapshot.events
+        && snapshot?.files === activeHistoryWindow.snapshot.files) {
+        return { rows: projectedHistory.rows, owners: projectedHistory.owners }
+      }
+      const owners: ReasoningProjectionOwner[] = []
+      const rows = projectTimeline(snapshot?.events ?? [], snapshot?.files ?? [], owners)
+      return { rows, owners }
+    },
+    [activeHistoryWindow, projectedHistory, snapshot?.events, snapshot?.files],
   )
-  const rows = useMemo(() => {
-    const next = reuseStableTimelineRows(stableRows.current, projectedRows)
+  const durableRows = useMemo(() => {
+    const next = reuseStableTimelineRows(stableRows.current, projection.rows)
     stableRows.current = next
     return next
-  }, [projectedRows])
+  }, [projection.rows])
+  // A live packet only overlays the bounded activity rows. It never invalidates
+  // the durable history projection or changes a read cursor. A new overlay-only
+  // trace gets one bottom alignment below; text growth never seeks the list.
+  const rows = useMemo(() => activeHistoryWindow?.detached
+    ? durableRows
+    : overlayReasoningStream(durableRows, projection.owners, reasoningStream?.items, sessionId),
+  [activeHistoryWindow?.detached, durableRows, projection.owners, reasoningStream, sessionId])
+  const liveOnlyTraceRuns = useMemo(() => {
+    const durableKeys = new Set(durableRows.map(row => row.key))
+    return JSON.stringify([...new Set(rows.flatMap(row => row.kind === 'trace'
+      && row.runActive && row.runId && !durableKeys.has(row.key) ? [row.runId] : []))])
+  }, [durableRows, rows])
   const latestLiveSeq = liveSnapshot?.latestSeq ?? liveSnapshot?.events.at(-1)?.seq ?? 0
   const lastSession = useRef(sessionId)
   const lastKeyboardVisible = useRef(keyboardVisible)
@@ -92,9 +118,16 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
   const olderRequestInFlight = useRef(false)
   const olderRequestToken = useRef(0)
   const scrollInteractionToken = useRef(0)
+  const firstTraceScroll = useRef({
+    sessionId, profileGeneration, seenRuns: new Set<string>(), frame: null as number | null,
+  })
+  const explicitScroll = useRef({
+    sessionId, profileGeneration, observedRequest: 0, pending: false,
+    interactionToken: 0, frame: null as number | null, nonAnimated: false,
+  })
   const momentumInteractionToken = useRef<number | null>(null)
   const scrollSettleFrame = useRef<number | null>(null)
-  const lastObservedLiveSeq = useRef(latestLiveSeq)
+  const lastObservedLive = useRef({ sessionId, profileGeneration, seq: latestLiveSeq })
   const consumedSeekRevision = useRef<number | null>(null)
   const seekAlignmentToken = useRef(0)
   const seekAlignmentTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
@@ -131,47 +164,146 @@ export function Timeline({ sessionId, scrollRequest, keyboardVisible, keyboardSe
       keyboardBottomAnchor.current = false
       dragStartedWithKeyboard.current = false
       userScrolling.current = false
-      lastObservedLiveSeq.current = latestLiveSeq
+      lastObservedLive.current = { sessionId, profileGeneration, seq: latestLiveSeq }
       consumedSeekRevision.current = null
       cancelSeekAlignment()
       setSearchTargetAlignmentLocked(false)
     }
-  }, [cancelSeekAlignment, latestLiveSeq, sessionId])
+  }, [cancelSeekAlignment, latestLiveSeq, profileGeneration, sessionId])
   useEffect(() => cancelSeekAlignment, [cancelSeekAlignment])
   useEffect(() => {
     // FlashList preserves the viewport while rows above it resize, which is
     // essential for older-page loading. At the live edge we want the inverse:
     // follow new progress/final output, but only while the user is already at
     // the bottom and has not taken control of the scroll.
-    const previousLiveSeq = lastObservedLiveSeq.current
-    lastObservedLiveSeq.current = latestLiveSeq
+    const previousLive = lastObservedLive.current
+    const previousLiveSeq = previousLive.seq
+    lastObservedLive.current = { sessionId, profileGeneration, seq: latestLiveSeq }
     if (
-      activeHistoryWindow?.detached
+      previousLive.sessionId !== sessionId || previousLive.profileGeneration !== profileGeneration
+      || activeHistoryWindow?.detached
       || loadingOlder
       || olderRequestInFlight.current
       || !liveTimelineAdvanced(previousLiveSeq, latestLiveSeq)
       || !nearBottomRef.current
       || userScrolling.current
     ) return
+    const interactionToken = scrollInteractionToken.current
     const frame = requestAnimationFrame(() => {
+      const current = useAppStore.getState()
+      const history = current.historyWindow
+      // Keep the eligible pre-growth bottom intent. Native row remeasurement
+      // can change distance-from-bottom before this frame without a gesture.
+      // A new gesture or chat/server owner still revokes the pending follow.
       if (
-        !loadingOlder
+        interactionToken === scrollInteractionToken.current
+        && current.selectedSessionId === sessionId && current.profileGeneration === profileGeneration
+        && !(history?.sessionId === sessionId && history.profileGeneration === profileGeneration && history.detached)
+        && !current.loadingOlder[sessionId]
         && !olderRequestInFlight.current
-        && nearBottomRef.current
         && !userScrolling.current
       ) {
         list.current?.scrollToEnd({ animated: false })
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [activeHistoryWindow, latestLiveSeq, loadingOlder])
+  }, [activeHistoryWindow, latestLiveSeq, loadingOlder, profileGeneration, sessionId])
   useEffect(() => {
     if (matchingHistoryWindow && !loadingOlder && !projectedHistoryRows) exitHistory()
   }, [exitHistory, loadingOlder, matchingHistoryWindow, projectedHistoryRows])
   useEffect(() => {
-    if (!scrollRequest || !rows.length) return
-    requestAnimationFrame(() => list.current?.scrollToEnd({ animated: true }))
-  }, [rows.length, scrollRequest])
+    const request = explicitScroll.current
+    const cancel = () => {
+      if (request.frame != null) cancelAnimationFrame(request.frame)
+      request.frame = null
+      request.pending = false
+    }
+    if (request.sessionId !== sessionId || request.profileGeneration !== profileGeneration) {
+      cancel()
+      // ChatScreen's counter may survive navigation. Its old revision belongs
+      // only to the previous chat/server, never to a newly mounted list.
+      explicitScroll.current = { sessionId, profileGeneration, observedRequest: scrollRequest,
+        pending: false, interactionToken: scrollInteractionToken.current, frame: null, nonAnimated: false }
+      return
+    }
+    if (request.observedRequest !== scrollRequest) {
+      cancel()
+      request.observedRequest = scrollRequest
+      request.pending = scrollRequest > 0
+      request.interactionToken = scrollInteractionToken.current
+      const firstTrace = firstTraceScroll.current
+      request.nonAnimated = firstTrace.sessionId === sessionId && firstTrace.profileGeneration === profileGeneration
+        && firstTrace.frame != null
+      if (request.nonAnimated) {
+        cancelAnimationFrame(firstTrace.frame!)
+        firstTrace.frame = null
+      }
+    }
+    if (activeHistoryWindow || userScrolling.current || request.interactionToken !== scrollInteractionToken.current) {
+      cancel()
+      return
+    }
+    if (!request.pending || request.frame != null || !rows.length) return
+    // Wait for the first row if necessary, then consume this explicit action.
+    // Later stream-only insertions, disconnects and remeasurements cannot replay it.
+    request.pending = false
+    request.frame = requestAnimationFrame(() => {
+      request.frame = null
+      const current = useAppStore.getState()
+      const history = current.historyWindow
+      if (explicitScroll.current !== request
+        || request.interactionToken !== scrollInteractionToken.current
+        || userScrolling.current
+        || current.selectedSessionId !== sessionId
+        || current.profileGeneration !== profileGeneration
+        || history?.sessionId === sessionId && history.profileGeneration === profileGeneration) return
+      list.current?.scrollToEnd({ animated: !request.nonAnimated })
+    })
+  }, [activeHistoryWindow, profileGeneration, rows.length, scrollRequest, sessionId])
+  useEffect(() => () => {
+    if (explicitScroll.current.frame != null) cancelAnimationFrame(explicitScroll.current.frame)
+  }, [])
+  useEffect(() => {
+    let alignment = firstTraceScroll.current
+    if (alignment.sessionId !== sessionId || alignment.profileGeneration !== profileGeneration) {
+      if (alignment.frame != null) cancelAnimationFrame(alignment.frame)
+      alignment = { sessionId, profileGeneration, seenRuns: new Set<string>(), frame: null }
+      firstTraceScroll.current = alignment
+    }
+    const runIds = JSON.parse(liveOnlyTraceRuns) as string[]
+    const firstInsertion = runIds.some(runId => !alignment.seenRuns.has(runId))
+    for (const runId of runIds) alignment.seenRuns.add(runId)
+    // A first stream can create a row without advancing the durable cursor.
+    // Follow that insertion once, but never text growth, reconnect, or a user
+    // who was already reading elsewhere when this run first appeared.
+    if (!firstInsertion || activeHistoryWindow || loadingOlder || olderRequestInFlight.current
+      || !nearBottomRef.current || userScrolling.current) return
+    const explicit = explicitScroll.current
+    if (explicit.sessionId === sessionId && explicit.profileGeneration === profileGeneration
+      && (explicit.pending || explicit.frame != null)) {
+      explicit.nonAnimated = true
+      return
+    }
+    const interactionToken = scrollInteractionToken.current
+    alignment.frame = requestAnimationFrame(() => {
+      alignment.frame = null
+      const current = useAppStore.getState()
+      const history = current.historyWindow
+      // Eligibility captured the pre-insertion bottom position. The new row
+      // can itself make native distance-from-bottom exceed the threshold before
+      // this frame; only a real interaction/owner change revokes that intent.
+      if (firstTraceScroll.current !== alignment
+        || interactionToken !== scrollInteractionToken.current
+        || userScrolling.current || olderRequestInFlight.current
+        || current.selectedSessionId !== sessionId || current.profileGeneration !== profileGeneration
+        || history?.sessionId === sessionId && history.profileGeneration === profileGeneration) return
+      list.current?.scrollToEnd({ animated: false })
+    })
+    return () => {
+      if (alignment.frame != null) cancelAnimationFrame(alignment.frame)
+      alignment.frame = null
+    }
+  }, [activeHistoryWindow, liveOnlyTraceRuns, loadingOlder, profileGeneration, sessionId])
   useEffect(() => {
     if (activeHistoryWindow?.detached) {
       // The search sheet's keyboard can finish hiding after the detached

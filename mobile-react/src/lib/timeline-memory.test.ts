@@ -14,6 +14,8 @@ import {
   liveTimelineEventsWereTrimmed,
   mergeHistoryWithLiveSnapshot,
   sanitizeTimelineEvent,
+  sanitizeTraceDetailEvent,
+  TRACE_DETAIL_REASONING_TEXT_LIMIT,
   sanitizeTimelineFile,
   snapshotMapWith,
 } from './timeline-memory'
@@ -28,7 +30,7 @@ const event = (seq: number, type = 'assistant_text', text = `event ${seq}`): Eve
 })
 
 const omittedTypes = [
-  'raw_event', 'reasoning_summary', 'tool_started', 'tool_finished', 'process_started',
+  'raw_event', 'reasoning_summary', 'reasoning_text', 'tool_started', 'tool_finished', 'process_started',
   'provider_session', 'cwd_fallback', 'history_imported', 'backend_changed', 'artifact_error',
   'session_created', 'idle_warning', 'code_diff', 'codex_thread_status',
 ]
@@ -145,6 +147,41 @@ assert((sanitized.output?.length ?? 0) <= 8_000)
 assert.equal(sanitized.raw, undefined)
 assert.equal(typeof sanitized.tool?.input, 'string')
 assert(JSON.stringify(sanitized.tool?.input).length <= 8_100)
+
+const completeReasoning = `${'Provider detail. '.repeat(4_000)}REASONING_END`
+for (const type of ['reasoning_summary', 'reasoning_text']) {
+  const source = { ...event(200, type, completeReasoning), run_id: 'reasoning-owner' }
+  const timeline = sanitizeTimelineEvent(source)
+  assert((timeline.text?.length ?? 0) <= 48_000)
+  assert.equal(timeline.reasoning_text_truncated, true, 'timeline source windows must disclose truncation')
+  assert.equal(timeline.reasoning_text_chars, completeReasoning.length)
+  assert.equal(sanitizeTimelineEvent(timeline).reasoning_text_chars, completeReasoning.length, 're-sanitizing cannot erase original length')
+  const detail = sanitizeTraceDetailEvent(source)
+  assert.equal(detail.text, completeReasoning, 'explicit lazy detail preserves complete received reasoning below its larger bound')
+  assert.equal(detail.reasoning_text_truncated, undefined)
+  const large = sanitizeTraceDetailEvent({ ...source, text: 'x'.repeat(TRACE_DETAIL_REASONING_TEXT_LIMIT + 100) })
+  assert((large.text?.length ?? 0) <= TRACE_DETAIL_REASONING_TEXT_LIMIT)
+  assert.equal(large.reasoning_text_truncated, true)
+  assert.equal(large.reasoning_text_chars, TRACE_DETAIL_REASONING_TEXT_LIMIT + 100)
+  const upstream = sanitizeTraceDetailEvent({ ...source, text: 'Received prefix', reasoning_text_truncated: true, reasoning_text_chars: 99_000 })
+  assert.equal(upstream.reasoning_text_truncated, true, 'a larger local window cannot claim upstream-truncated text is complete')
+  assert.equal(upstream.reasoning_text_chars, 99_000)
+  assert.equal(source.text, completeReasoning)
+}
+const retainedPlaintext = { ...event(201, 'reasoning_text', 'Saved provider plaintext'), run_id: 'reasoning-owner' }
+assert.deepEqual(historicalTimelineEvents([retainedPlaintext, { ...event(202, 'turn_finished'), run_id: 'reasoning-owner' }]).map(value => value.id), [retainedPlaintext.id, 'event-202'], 'completed plaintext-only reasoning keeps its historical disclosure anchor')
+assert.equal(sanitizeTraceDetailEvent(huge).output?.length, sanitized.output?.length, 'full reasoning does not enlarge tool/raw payload bounds')
+
+const goalHistory = [
+  { ...event(300, 'turn_started', 'Original task'), run_id: 'same-goal' },
+  { ...event(305, 'turn_steered', 'Follow-up'), run_id: 'same-goal', backend: 'codex' as const,
+    native_goal_steer: true, native_steer: true, provider_user_authored: true, purpose: 'codex_goal_resume' },
+  { ...event(310, 'reasoning_text', 'Reasoning from first slice'), run_id: 'same-goal', reasoning_after_seq: 304, phase: 'reasoning' },
+  { ...event(311, 'reasoning_text', 'Reasoning from second slice'), run_id: 'same-goal', reasoning_after_seq: 306, phase: 'reasoning' },
+  { ...event(312, 'turn_finished', ''), run_id: 'same-goal' },
+]
+assert.deepEqual(projectTimeline(historicalTimelineEvents(goalHistory), []).filter(row => row.kind === 'trace').map(row => row.events.map(value => value.text)),
+  [['Reasoning from first slice'], ['Reasoning from second slice']], 'completed native goal history keeps a lazy disclosure for each accepted human input')
 
 const generatedAuthority = [
   '[AgentsDock provider authority]',

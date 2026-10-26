@@ -977,7 +977,15 @@ export interface Event {
   operation_id?: string | null
   turn_id?: string | null
   item_id?: string | null
+  /** Presentation anchor only; the durable sequence remains authoritative. */
+  reasoning_after_seq?: number | null
+  partial?: boolean | null
+  /** Preserve disclosure when the mobile detail safety limit bounds received text. */
+  reasoning_text_truncated?: boolean
+  reasoning_text_chars?: number
   native_steer?: boolean | null
+  native_goal_steer?: boolean | null
+  provider_user_authored?: boolean | null
   superseded_by_run_id?: string | null
   steer_interrupted_run_id?: string | null
   stopped?: boolean | null
@@ -1001,6 +1009,26 @@ export interface Event {
   context_window?: number | null
   context_tokens?: number | null
   context_percent?: number | null
+}
+
+/** Codex's native live channels; Claude thinking arrives as durable provider events. */
+export interface ReasoningSummaryStreamItem extends Omit<Partial<Event>, 'seq' | 'id' | 'session_id' | 'type' | 'run_id' | 'item_id' | 'backend' | 'phase' | 'text' | 'ts'> {
+  run_id: string
+  item_id: string
+  backend: 'codex'
+  phase: 'summary' | 'reasoning'
+  text: string
+  ts: string
+  after_seq: number
+}
+
+/** Transient presentation snapshot: never a durable event or replay/read cursor. */
+export interface ReasoningSummaryStreamSnapshot {
+  type: 'reasoning_summary_stream'
+  session_id: string
+  instance_id: string
+  revision: number
+  items: ReasoningSummaryStreamItem[]
 }
 
 export type JobScheduleKind = 'interval' | 'cron' | 'rrule'
@@ -1172,7 +1200,7 @@ export interface CrossChatHandoffsCapability extends ServerCapability {
     }
     client_capability?: string
     policy?: 'default_deny'
-    max_routes_per_chat?: number
+    max_routes_per_chat?: number | null
     transcript_access?: boolean
     actions?: Array<'instruction' | 'request_reply'>
     [key: string]: JsonValue | Array<'instruction' | 'request_reply'> | undefined

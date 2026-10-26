@@ -10,6 +10,7 @@ import { AppShell } from './src/components/AppShell'
 import { trackEvent } from './src/lib/analytics'
 import { useAppearanceStore } from './src/store/useAppearanceStore'
 import { useLanguageStore } from './src/store/useLanguageStore'
+import { useReasoningDisplayStore } from './src/store/useReasoningDisplayStore'
 import { usePalette } from './src/theme'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
   useEffect(() => {
     void useAppearanceStore.getState().hydrate()
     void useLanguageStore.getState().hydrate()
+    void useReasoningDisplayStore.getState().hydrate()
     trackEvent('app_launched')
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') useLanguageStore.getState().refreshSystemLocale()

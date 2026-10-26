@@ -70,6 +70,11 @@ assert.equal(
   'trace rows must invalidate when active commentary becomes complete',
 )
 assert.equal(
+  sameTimelineRow({ ...activeTrace, active: false, runActive: true }, { ...activeTrace, active: false, runActive: false }),
+  false,
+  'terminal run state must invalidate an already inactive assistant-backed trace',
+)
+assert.equal(
   sameTimelineRow(activeTrace, { ...activeTrace, promotedCommentaryIds: ['commentary'] }),
   false,
   'trace rows must invalidate when commentary is promoted out of the trace',

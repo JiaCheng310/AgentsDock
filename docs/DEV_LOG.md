@@ -1,5 +1,22 @@
 # Public development log
 
+## 2026-10-25 - iOS TestFlight 194 candidate integration
+
+- Prepare version 0.1.3 build 194 from main `eb16519`, retaining the mobile
+  goal queue, route capacity and reasoning display fixes shipped in build 193
+  (`8a3f822`). Desktop and server source remain unchanged from main.
+- Preserve OpenCode/Gemini support, inherited new-chat settings, provider
+  recovery, notification ownership and the existing Android cache safeguards.
+  Update a source-contract assertion for the safe-integer event sequence gate.
+- The integrated source passes TypeScript, 494 mobile MJS checks and 10 release
+  workflow guards. One generated-native-metadata check awaits native prebuild.
+  Focused goal queue, reasoning transport, route capacity and creation suites
+  pass. Maestro exercises the actual iOS Dev simulator through updates,
+  My agents, reasoning display, Gemini history and inherited permissions.
+- Publication remains pending: the authorized iOS workflow must verify the
+  exact committed candidate, native archive, Apple processing and internal
+  TestFlight availability. Android packaging is handled separately.
+
 ## 2026-10-25 - Mobile provider pre-merge validation
 
 - Integrated main `3ac069e`; only the development log required conflict
@@ -533,6 +550,69 @@
 - Availability: source changes for desktop and server; cron filtering requires
   both. No release, installation or live-server deployment is included.
 
+## 2026-10-24 — Prepare mobile reasoning-display parity
+
+- Receive Codex's provider-exposed live reasoning on the selected chat's
+  dedicated transient stream, without writing tokens into durable history,
+  reprojecting history, or advancing its acknowledgement cursor. Clear that
+  presentation state on disconnect, navigation and completion; retain the
+  provider's durable summaries and partial traces in their chronological slice.
+- Add the device-local Show reasoning traces preference, matching desktop's
+  live expanded and completed compact behavior for Claude and Codex. The first
+  explicit historical disclosure loads one bounded detail page. Longer supplied
+  text has selectable, paged reading controls and truthful truncation notices.
+- Keep a newly appearing live trace in view when already at the bottom, without
+  replaying send-scroll animations on token updates or reconnects. Native
+  acceptance measures the text preview above the composer, not just a hittable
+  disclosure label; reading older history retains control of the viewport.
+- Reproduced missing Codex live text in the packaged previous release through
+  its actual native transport and a real provider. Claude has an independent
+  real-provider journey; neither provider's visibility is evidence of the
+  other's content parity. No hidden or unsupplied reasoning is generated.
+- Candidate 0.1.3 (193) remains pending packaged native acceptance and TestFlight
+  publication. No desktop app replacement or server deployment is included.
+
+## 2026-10-24 — Release mobile cross-chat route-limit correction
+
+- TestFlight 0.1.3 (192), source `c8bfdc042b4466cd3b938245591da016087ae9f8`,
+  is Apple-validated, unexpired and available to the existing internal tester
+  group. External beta review/submission is not included in this release.
+- The packaged iOS 27 Simulator app passed the actual native journey against
+  an isolated production server and real Codex: send with seventeen existing
+  grants, select and grant an eighteenth chat, then navigate away and reopen.
+  Both messages were accepted exactly once, received real provider replies,
+  and cleared the composer. All original grants remained usable.
+- Visual inspection of native screenshots confirmed enabled picker rows and
+  retained grants. The native client requested unlimited-route metadata;
+  no production chat or permission grant was modified. Physical-device
+  acceptance was not exercised.
+- All 35 focused route-policy/client/store regressions passed, along with
+  TypeScript, production JavaScript export, and 32 broader mobile source-check
+  groups. Those local checks supplement native acceptance, not replace it.
+  The hosted archive passed signature, metadata, native ABI and symbol checks.
+- Add the sixteen new route-limit regressions to continuous source verification.
+  No desktop app replacement or server deployment was performed.
+
+## 2026-10-23 — Prepare mobile cross-chat route-limit correction
+
+- Match desktop's unlimited-route negotiation and nullable capacity metadata.
+  Share the same capacity policy between the mobile picker and send validation;
+  ordinary messages and existing grants do not require another access slot.
+  Older servers' genuine finite limits still apply to explicit new grants.
+- Preserve the previously released native goal/queue fixes while integrating
+  main's paused-queue recovery and notification updates. This is a mobile
+  candidate; no desktop app replacement or server deployment is included.
+- Reproduced the original failure in the installed production-style iOS
+  Simulator app against an isolated real server with seventeen persisted
+  grants: an ordinary Send was rejected before transport and the eighteenth
+  target was disabled. No user chat or permission grant was changed.
+- Focused policy, HTTP-client and store tests cover unlimited and finite
+  limits, ordinary sends, existing and repeated grants, preserved drafts,
+  authentication failures, and exact request encoding. These tests use mocked
+  transport and do not substitute for native candidate acceptance.
+- Candidate 0.1.3 (192) requires packaged native acceptance before TestFlight
+  publication. Release availability will be recorded after Apple verification.
+
 ## 2026-10-22 — TIFF previews and split-chat file opening
 
 - Desktop attachment and workspace viewers render TIFF files through a PNG
@@ -625,6 +705,28 @@
 - Availability: source only; the complete correction includes app and server
   changes. No release, installation, deployment or restart is included.
 
+
+## 2026-10-20 — Prepare mobile goal-follow-up reliability candidate
+
+- Show authoritative native Codex goal follow-ups as user messages within the
+  existing run, with chronological output and bounded reasoning-trace slices.
+  Reconcile queue membership independently of transcript cursors, and retain
+  live queue changes when an older history response arrives.
+- Keep acknowledged sends consumed when response decoding fails. Resolve
+  uncertain Run now delivery only from an exact acknowledgement, not merely
+  an absent queued item; preserve server/chat ownership and completed-run state.
+- Reproduced the missing bubble in an isolated Release iOS simulator through
+  the authenticated production transport and a real native Codex goal.
+  Queue and Run now succeeded, the original shell continued, and the provider
+  completed both requested markers, but the baseline transcript omitted the
+  follow-up. No production service or user chat was modified.
+- Focused queue, accepted-send, timeline-slice and adjacent recovery regressions
+  pass, including the existing large-history stress check. Candidate
+  0.1.3 (190) still requires packaged native acceptance before TestFlight upload.
+  The separately reported clipped-message rendering issue is not claimed fixed.
+- Add a manually dispatched, exact-source TestFlight workflow with build-number,
+  archive metadata, native ABI, symbol and tester-group verification. Source
+  preparation only; no TestFlight publication or server deployment in this entry.
 ## 2026-10-20 — Recover Codex model-switch compaction without replacing history
 
 - Address the remaining compaction path in #89; authentication-aware model

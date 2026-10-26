@@ -20,6 +20,7 @@ import {
   mergeJobHistoryEvents,
   providerInteractionAuditSummary,
   rowText,
+  traceEventsWithinRow,
 } from '../lib/timeline'
 import { formatDateTime, messageText } from '../lib/format'
 import { canQueryScheduledJobHistory } from '../lib/job-history'
@@ -34,18 +35,23 @@ import {
 import {
   boundLoadedTraceEvents,
   boundedTraceText,
+  isReasoningTraceEvent,
   reasoningTraceHeadline,
   reasoningTracePreview,
+  reasoningTraceText,
   selectTraceDetailRenderEvents,
   toolTraceHeadline,
 } from '../lib/trace-detail'
+import { reasoningEventSequence, reasoningItemKey } from '../lib/timeline-reasoning-stream'
 import { useAppStore } from '../store/useAppStore'
+import { useReasoningDisplayStore } from '../store/useReasoningDisplayStore'
 import { radius, spacing, typography, usePalette } from '../theme'
 import { Text } from './AppText'
 import { ChatReferenceChips, CrossChatExchangeCard, CrossChatHandoffCard, CrossChatMessageCard } from './CrossChatTimelineCards'
 import { ImportedCrossChatDeliveryCard } from './ImportedCrossChatDeliveryCard'
 import { IconButton } from './ui'
 import { MarkdownContent } from './MarkdownContent'
+import { ReasoningTraceText } from './ReasoningTraceText'
 import { MediaGrid } from './MediaGrid'
 
 // Keep the default recycled Markdown/UITextView tree bounded. Full text stays
@@ -238,78 +244,128 @@ function openInlineRoute(reference: ChatReference, sessionId: string, profileId:
 }
 
 function mergeTraceEvents(first: Event[], second: Event[]): Event[] {
-  return [...new Map([...first, ...second].map(event => [event.id, event])).values()]
-    .sort((left, right) => left.seq - right.seq)
+  const merged = new Map<string, Event>()
+  for (const event of [...first, ...second]) {
+    const key = isReasoningTraceEvent(event) ? reasoningItemKey(event) : event.id
+    const previous = merged.get(key)
+    // A full explicit detail page wins over a shorter timeline sample, but a
+    // stale transient item must never replace its durable completion.
+    if (previous) {
+      const previousLive = previous.id.startsWith('stream:')
+      const nextLive = event.id.startsWith('stream:')
+      if (!previousLive && nextLive) continue
+      if (previousLive === nextLive && (previous.seq > event.seq
+        || previous.seq === event.seq && reasoningTraceText(previous).length > reasoningTraceText(event).length)) continue
+    }
+    merged.set(key, event)
+  }
+  return [...merged.values()].sort((left, right) => reasoningEventSequence(left) - reasoningEventSequence(right))
 }
+
+interface TraceDetailState {
+  owner: string
+  loadedEvents: Event[] | null
+  nextAfter: number
+  hasMore: boolean
+  loadingMore: boolean
+  loadError: string | null
+  detailLimited: boolean
+}
+const emptyTraceDetail = (owner: string): TraceDetailState => ({
+  owner, loadedEvents: null, nextAfter: 0, hasMore: true, loadingMore: false, loadError: null, detailLimited: false,
+})
 
 function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeCommentary = false }: { row: Extract<TimelineRow, { kind: 'trace' }>; sessionId: string; onReview: (runId: string) => void; fontScale: number; anchorSeq?: number; includeCommentary?: boolean }) {
   const colors = usePalette()
   const profileGeneration = useAppStore(state => state.profileGeneration)
   const loadRunTrace = useAppStore(state => state.loadRunTrace)
-  const [open, setOpen] = useRecyclingState(false, [row.key])
-  const [loadedEvents, setLoadedEvents] = useState<Event[] | null>(null)
-  const [nextAfter, setNextAfter] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [detailLimited, setDetailLimited] = useState(false)
-  const loadGeneration = useRef(0)
-  const loadingMoreRef = useRef(false)
+  const sessionBackend = useAppStore(state => state.snapshots[sessionId]?.session.backend
+    ?? state.sessions.find(session => session.id === sessionId)?.backend)
+  const backend = sessionBackend ?? row.events.find(event => event.backend)?.backend
+  const reasoningDisplay = useReasoningDisplayStore(state => state.preference)
+  const runActive = row.runActive ?? row.active
+  const automaticallyExpanded = runActive && reasoningDisplay === 'expanded'
   const runId = useMemo(
     () => row.runId?.trim() || row.events.find(event => event.run_id?.trim())?.run_id?.trim() || null,
     [row.events, row.runId],
   )
+  const scopeKey = JSON.stringify([profileGeneration, sessionId, row.key, runId])
+  const [open, setOpen] = useRecyclingState(automaticallyExpanded, [profileGeneration, sessionId, row.key])
+  const previousActivity = useRef({ scopeKey, active: runActive, preference: reasoningDisplay })
+  useEffect(() => {
+    const previous = previousActivity.current
+    previousActivity.current = { scopeKey, active: runActive, preference: reasoningDisplay }
+    if (previous.scopeKey !== scopeKey || runActive && (!previous.active || previous.preference !== reasoningDisplay)) {
+      setOpen(automaticallyExpanded)
+    } else if (previous.active && !runActive) {
+      setOpen(false)
+    }
+    // A later preference change must not close manually expanded completed history.
+  }, [automaticallyExpanded, reasoningDisplay, runActive, scopeKey, setOpen])
+  const [detailState, setDetailState] = useState<TraceDetailState>(() => emptyTraceDetail(scopeKey))
+  // Scope the data synchronously: a recycled cell must not render another
+  // chat/profile's loaded text even before its cleanup effect has run.
+  const { loadedEvents, nextAfter, hasMore, loadingMore, loadError, detailLimited } = detailState.owner === scopeKey
+    ? detailState : emptyTraceDetail(scopeKey)
+  const patchDetail = useCallback((patch: Partial<TraceDetailState>) => {
+    setDetailState(previous => ({ ...(previous.owner === scopeKey ? previous : emptyTraceDetail(scopeKey)), ...patch }))
+  }, [scopeKey])
+  const loadGeneration = useRef(0)
+  const loadingMoreRef = useRef(false)
   const traceAnchor = useMemo(
     // Anchor with the newest sampled event. A caller with no real occurrence
     // passes an empty sample and lets the API omit anchor_seq entirely.
-    () => anchorSeq ?? (row.events.length ? Math.max(...row.events.map(event => event.seq)) : 0),
+    () => anchorSeq ?? (row.events.length ? Math.floor(Math.max(...row.events.map(event => event.seq))) : 0),
     [anchorSeq, row.events],
   )
   useEffect(() => {
     loadGeneration.current += 1
-    setLoadedEvents(null)
-    setNextAfter(0)
-    setHasMore(true)
-    setLoadingMore(false)
+    setDetailState(emptyTraceDetail(scopeKey))
     loadingMoreRef.current = false
-    setLoadError(null)
-    setDetailLimited(false)
     return () => { loadGeneration.current += 1 }
-  }, [profileGeneration, row.key, runId, sessionId])
+  }, [scopeKey])
   const displayEvents = useMemo(() => {
     const promotedIds = new Set(row.promotedCommentaryIds)
-    const merged = loadedEvents ? mergeTraceEvents(row.events, loadedEvents) : row.events
-    return merged.filter(event => (
+    const merged = mergeTraceEvents(row.events, loadedEvents ?? [])
+    return traceEventsWithinRow(row, merged).filter(event => (
       !promotedIds.has(event.id)
       // Commentary already owns the live assistant surface. Keep it out of
       // both sampled and remotely loaded active trace detail.
-      && (includeCommentary || !row.active || event.phase !== 'commentary')
+      && (includeCommentary || !runActive || event.type !== 'reasoning_summary' || event.phase !== 'commentary')
     ))
-  }, [includeCommentary, loadedEvents, row.active, row.events, row.promotedCommentaryIds])
+  }, [includeCommentary, loadedEvents, runActive, row.events, row.promotedCommentaryIds, row.afterSeq, row.throughSeq])
   const traceSummary = useMemo(() => {
     let toolEventCount = 0
     let thoughtCount = 0
+    let suppliedCount = 0
     let latestTool: Event | undefined
     let latestThought: Event | undefined
+    let latestSummary: Event | undefined
     let canonicalDiff: Event | null = null
     for (const event of displayEvents) {
       if (event.type === 'tool_started' || event.type === 'tool_finished') {
         toolEventCount += 1
         latestTool = event
-      } else if (event.type === 'reasoning_summary') {
-        thoughtCount += 1
+      } else if (isReasoningTraceEvent(event) && reasoningTraceText(event).trim()) {
+        if (event.type === 'reasoning_text' || event.phase === 'reasoning') suppliedCount += 1
+        else { thoughtCount += 1; latestSummary = event }
         latestThought = event
       } else if (event.type === 'code_diff') {
         canonicalDiff = event
       }
     }
+    // Compact Codex uses the supplied summary, not its separate plaintext lane.
+    const thought = backend === 'codex' ? latestSummary : latestSummary ?? latestThought
+    const toolIsLatest = latestTool && (!thought || reasoningEventSequence(latestTool) > reasoningEventSequence(thought))
     return {
       canonicalDiff,
-      preview: reasoningTracePreview(latestThought?.text) || toolTraceHeadline(latestTool),
+      preview: toolIsLatest ? toolTraceHeadline(latestTool)
+        : reasoningTracePreview(thought ? reasoningTraceText(thought) : '') || toolTraceHeadline(latestTool),
       thoughtCount,
+      suppliedCount,
       toolCount: Math.ceil(toolEventCount / 2),
     }
-  }, [displayEvents])
+  }, [backend, displayEvents])
   // Closed traces only need the one-pass summary above. Deferring the bounded
   // detail window avoids repeatedly filtering large lazy-loaded traces while
   // their recycled disclosure is collapsed.
@@ -328,19 +384,19 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
     [displayEvents, traceSummary.canonicalDiff],
   )
   const hasDiff = Boolean(traceSummary.canonicalDiff || structuredDiff?.filesChanged)
-  const { preview, thoughtCount, toolCount } = traceSummary
+  const { preview, thoughtCount, suppliedCount, toolCount } = traceSummary
   const metadata = [
     toolCount ? `${toolCount} ${toolCount === 1 ? 'tool' : 'tools'}` : '',
     thoughtCount ? `${thoughtCount} thinking ${thoughtCount === 1 ? 'summary' : 'summaries'}` : '',
+    suppliedCount ? `${suppliedCount} provider ${suppliedCount === 1 ? 'trace' : 'traces'}` : '',
   ].filter(Boolean).join(' · ')
   const toggleLabel = open ? 'Hide details' : 'Show details'
   const showMore = async () => {
     if (!runId || loadingMoreRef.current) return
     const generation = loadGeneration.current
-    const cursor = nextAfter
+    const cursor = Math.max(nextAfter, row.afterSeq ?? 0)
     loadingMoreRef.current = true
-    setLoadingMore(true)
-    setLoadError(null)
+    patchDetail({ loadingMore: true, loadError: null })
     try {
       const page = await loadRunTrace(sessionId, runId, traceAnchor, cursor, 160, profileGeneration)
       const current = useAppStore.getState()
@@ -350,11 +406,12 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
         || current.selectedSessionId !== sessionId
       ) return
       const nextCursor = page.next_after ?? cursor
-      const bounded = boundLoadedTraceEvents(mergeTraceEvents(loadedEvents ?? [], page.events))
-      setLoadedEvents(bounded.events)
-      setNextAfter(nextCursor)
-      setDetailLimited(bounded.limited)
-      setHasMore(page.has_more && nextCursor > cursor && !bounded.limited)
+      const bounded = boundLoadedTraceEvents(traceEventsWithinRow(row, mergeTraceEvents(loadedEvents ?? [], page.events)))
+      patchDetail({
+        loadedEvents: bounded.events, nextAfter: nextCursor, detailLimited: bounded.limited,
+        hasMore: page.has_more && nextCursor > cursor && !bounded.limited
+          && (row.throughSeq === undefined || nextCursor < row.throughSeq),
+      })
     } catch (error) {
       const current = useAppStore.getState()
       if (
@@ -362,38 +419,40 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
         || current.profileGeneration !== profileGeneration
         || current.selectedSessionId !== sessionId
       ) return
-      setLoadError(error instanceof Error ? error.message : String(error))
+      patchDetail({ loadError: error instanceof Error ? error.message : String(error) })
     } finally {
       if (generation === loadGeneration.current) {
         loadingMoreRef.current = false
-        setLoadingMore(false)
+        patchDetail({ loadingMore: false })
       }
     }
   }
   const showLess = () => {
     loadGeneration.current += 1
-    setLoadedEvents(null)
-    setNextAfter(0)
-    setHasMore(true)
-    setLoadingMore(false)
+    setDetailState(emptyTraceDetail(scopeKey))
     loadingMoreRef.current = false
-    setLoadError(null)
-    setDetailLimited(false)
+  }
+  const toggleDetails = () => {
+    setOpen(value => !value)
+    // Match desktop's one bounded page on a person's first historical
+    // expansion. Live preference changes reveal local data and never fetch.
+    if (!open && !runActive && loadedEvents == null) void showMore()
   }
   return (
     <View style={styles.traceWrap}>
       <Pressable
+        testID={`trace-open-${row.key}`}
         accessibilityRole="button"
         accessibilityLabel={`Reasoning trace. ${metadata || 'Activity details'}. ${toggleLabel}.`}
         accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(value => !value)}
+        onPress={toggleDetails}
         style={[styles.traceHeader, { backgroundColor: colors.raised, borderColor: colors.border }]}
       >
         {open ? <ChevronDown size={15} color={colors.muted} /> : <ChevronRight size={15} color={colors.muted} />}
         <Code2 size={14} color={colors.muted} />
         <View style={styles.traceHeading}>
           <View style={styles.traceHeadingMeta}>
-            <Text style={[styles.traceTitle, { color: colors.text }]} localize>Reasoning trace</Text>
+            <Text style={[styles.traceTitle, { color: colors.text }]} localize>{backend === 'claude' ? 'Claude thinking' : backend === 'codex' ? 'Codex reasoning' : 'Reasoning trace'}</Text>
             {metadata ? <Text style={[styles.traceMeta, { color: colors.muted }]} numberOfLines={1}>{metadata}</Text> : null}
           </View>
           {!open && preview ? <Text style={[styles.traceHeadline, { color: colors.muted }]} numberOfLines={4}>{preview}</Text> : null}
@@ -414,22 +473,18 @@ function TraceRowView({ row, sessionId, onReview, fontScale, anchorSeq, includeC
       {open ? <View style={[styles.traceBody, { borderColor: colors.border }]}>
         {hiddenTraceEvents ? <Text style={[styles.traceHidden, { color: colors.muted }]} localize>{hiddenTraceEvents} older trace updates hidden</Text> : null}
         {visibleTraceEvents.map(event => {
-          const text = boundedTraceText(event)
-          return <View key={event.id} style={styles.traceEvent}>
+          const text = isReasoningTraceEvent(event) ? '' : boundedTraceText(event)
+          return <View key={isReasoningTraceEvent(event) ? reasoningItemKey(event) : event.id} style={styles.traceEvent}>
             {event.type.includes('tool')
               ? <Wrench size={13} color={colors.orange} />
-              : event.type === 'reasoning_summary'
+              : isReasoningTraceEvent(event)
                 ? <Sparkles size={13} color={colors.blue} />
                 : <Code2 size={13} color={colors.blue} />}
             <View style={styles.traceEventBody}>
-              <Text style={[styles.traceEventType, { color: colors.muted }]}>{event.type === 'reasoning_summary'
-                ? event.phase === 'commentary' ? 'Agent update' : 'Thinking summary'
-                : event.tool?.name || event.type.replaceAll('_', ' ')}</Text>
-              {text.trim()
-                ? event.type === 'reasoning_summary'
-                  ? <MarkdownContent value={text} fontScale={fontScale} />
-                  : <Text selectable style={[styles.traceText, { color: colors.text }]}>{text}</Text>
-                : null}
+              {isReasoningTraceEvent(event) ? <ReasoningTraceText event={event} fontScale={fontScale} profileGeneration={profileGeneration} /> : <>
+                <Text style={[styles.traceEventType, { color: colors.muted }]}>{event.tool?.name || event.type.replaceAll('_', ' ')}</Text>
+                {text.trim() ? <Text selectable style={[styles.traceText, { color: colors.text }]}>{text}</Text> : null}
+              </>}
             </View>
           </View>
         })}
@@ -554,7 +609,7 @@ function JobRowView({ row, sessionId, onReview, fontScale }: { row: Extract<Time
     () => traceRunId
       ? row.events.filter(event => (
           event.run_id === traceRunId
-          && ['reasoning_summary', 'tool_started', 'tool_finished', 'code_diff'].includes(event.type)
+          && ['reasoning_summary', 'reasoning_text', 'tool_started', 'tool_finished', 'code_diff'].includes(event.type)
         ))
       : [],
     [row.events, traceRunId],
@@ -573,6 +628,9 @@ function JobRowView({ row, sessionId, onReview, fontScale }: { row: Extract<Time
       promotedCommentaryIds: [],
       runId: traceRunId,
       active: latestStatus.tone === 'running',
+      // Desktop keeps scheduled-job detail compact; scheduler status does
+      // not opt this historical disclosure into live-turn autoexpansion.
+      runActive: false,
     } : null,
     [latestRunTrace, latestRunTraceAnchor, latestStatus.tone, latestStatusSource, row.key, traceRunId],
   )

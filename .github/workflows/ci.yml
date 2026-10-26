@@ -135,11 +135,24 @@ jobs:
         working-directory: mobile-react
       - run: node scripts/run-history-tests.mjs src/lib/team-references.test.ts
         working-directory: mobile-react
+      - name: Verify mobile reasoning transport, ownership, and reader controls
+        run: |
+          node scripts/run-history-tests.mjs src/lib/reasoning-stream.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/api/AgentServerClient.reasoning-stream.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.reasoning-stream.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/timeline-reasoning-stream.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/native-goal-trace-slices.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/trace-detail.test.ts --native-mocks
+          node --test tests/reasoning-trace-rendering.test.mjs tests/reasoning-display-preference.test.mjs tests/timeline-explicit-scroll.test.mjs
+        working-directory: mobile-react
       - name: Verify cross-chat protocol, projection, and store races
         run: |
           node scripts/run-history-tests.mjs src/lib/cross-chat-protocol.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/lib/timeline-async-messages.test.ts --native-mocks
           node scripts/run-history-tests.mjs src/store/useAppStore.cross-chat-routes.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/lib/agent-route-capacity.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/api/AgentServerClient.route-access.test.ts --native-mocks
+          node scripts/run-history-tests.mjs src/store/useAppStore.route-capacity.test.ts --native-mocks
         working-directory: mobile-react
       - name: Verify cross-chat rendering and control interactions
         run: >-
