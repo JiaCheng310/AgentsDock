@@ -1,5 +1,18 @@
 # Public development log
 
+## 2026-10-26 — Prepare stable 1.0.11 from the published beta.12 source
+
+- Start the stable candidate at published beta.12 product source
+  `ab95ad3284f91997c2b249ac413b155f99c09ce6`. Preserve its desktop, server and CLI
+  functionality; only the release version and preparation documentation change.
+  Later main changes are outside this release.
+- Prepare matching desktop, npm runtime, short CLI and signed legacy bridge
+  packages as version `1.0.11`. Exact new package verification and local native
+  upgrade acceptance remain pending; prior beta checks are not relabeled.
+- Hold public publication until populated provider-history retention,
+  busy/queued work, restart and recovery observations have been reviewed.
+  No mobile build or publication is included. See [candidate notes](RELEASE_1.0.11.md).
+
 ## 2026-10-21 — Prepare 1.0.11-beta.12 source
 
 - Integrate main through `b21ef7ea20bd8bc1121708590fa3bc21785c0984` with the
