@@ -1,5 +1,28 @@
 # Public development log
 
+## 2026-10-26 — Publish stable 1.0.11 from the frozen beta.12 release line
+
+- After owner review of the scoped validation, publish the already accepted
+  source `f9823e0da915a82d0a2974c9894e11e4c591444b`, desktop build 1268.
+  Later main changes remain excluded; publication does not rebuild the packages.
+- [Paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40459907265)
+  succeeds. `agentsdock` and `@agentsdock/server` now select `1.0.11` through
+  `latest`, while `beta` stays at `1.0.11-beta.12`. Exact public archives match
+  their accepted records; a fresh scripts-disabled install verifies the pinned
+  dependency and CLI help without running setup or changing managed services.
+- Publish the matching [signed legacy bridge](https://github.com/ZhengyiLuo/AgentsServer/releases/tag/v1.0.11)
+  and verify its runtime parity with npm. [Desktop publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40461050632)
+  passes all four native platform checks and publishes the unchanged release
+  to both canonical and compatibility download repositories.
+- Independently verify both public asset inventories, accepted checksum seal,
+  release notes, source tag and all four Stable update feeds. The production
+  Beta selector discovers stable `1.0.11` as well. A live headless-browser visit
+  confirms the website's JavaScript download buttons and version label select
+  `1.0.11`; its existing fallback files are unchanged.
+- Preserve the documented untested boundaries and unsigned Windows policy.
+  No mobile publication or installed-server operation is included. See the
+  [public completion record](CANDIDATE_REPLAY.md#stable-1011-public-completion).
+
 ## 2026-10-26 — Validate the frozen stable 1.0.11 candidate
 
 - Package artifact source `f9823e0da915a82d0a2974c9894e11e4c591444b` as desktop

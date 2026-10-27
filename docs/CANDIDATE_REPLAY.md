@@ -1,5 +1,44 @@
 # Private macOS candidate rehearsal and publication records
 
+## Stable 1.0.11 public completion
+
+The release owner approved publication after reviewing the scoped validation
+below. On 2026-10-27 UTC, [paired npm publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40459907265)
+published and verified the accepted runtime and short CLI. Both `latest` tags
+select `1.0.11`; both `beta` tags remain `1.0.11-beta.12`. An independent registry
+download verification matches the accepted archives. A fresh scripts-disabled
+installation resolves the exact runtime dependency and runs CLI help without
+operating an installed server.
+
+The [signed legacy server bridge](https://github.com/ZhengyiLuo/AgentsServer/releases/tag/v1.0.11)
+is public and its runtime files match the signed npm payload. [Desktop
+publication](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40461050632)
+reverified all four native platforms before publishing the unchanged build 1268
+to [AgentsDock](https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.11)
+and the [compatibility mirror](https://github.com/ZhengyiLuo/AgentsDock-Releases/releases/tag/v1.0.11).
+The product source remains `f9823e0da915a82d0a2974c9894e11e4c591444b`; the
+publishing workflow is pinned separately to
+`14609d991b0c1fefbc7fc8dc7bf9a52006e6afad`. No package was rebuilt for publication.
+
+Post-publication checks confirm both repositories expose the same 16 accepted
+assets and reviewed release notes. Both public checksum manifests match
+`ca719f6885fdf4a4160cdde5b232e2bdcdc0f3476cb18255aebe5e2cf2327a62`,
+all four Stable update metadata files select `1.0.11`, and the production Beta
+feed selector chooses stable `1.0.11` from each public feed. The canonical tag
+points to the exact product source. A real headless Chrome visit to the live
+website displays `Desktop 1.0.11` and resolves every desktop download button to
+the matching canonical asset through the site's existing GitHub API lookup.
+No website files or fallback manifests were changed.
+
+These are publication and discovery checks, not another installed update test.
+The earlier clean-quit, busy-server, reboot, Windows-updater and provider-parity
+limits remain in the validation record and public release notes. Windows keeps
+the existing unsigned distribution policy. Existing scoped receipts retain
+their original acceptance flags; publication does not relabel them. The
+preparation hold described below is historical and has been resolved by the
+owner's publication instruction. No mobile package or installed service was
+changed by publication.
+
 ## Stable 1.0.11 preparation
 
 The stable candidate is frozen at `f9823e0da915a82d0a2974c9894e11e4c591444b`,
