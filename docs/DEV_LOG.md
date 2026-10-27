@@ -1,5 +1,40 @@
 # Public development log
 
+## 2026-10-26 — Validate the frozen stable 1.0.11 candidate
+
+- Package artifact source `f9823e0da915a82d0a2974c9894e11e4c591444b` as desktop
+  build 1268, with matching signed npm runtime, short CLI and legacy bridge.
+  Product code remains the published beta.12 implementation. Later main
+  changes and mobile builds are excluded.
+- [Four-platform verification](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454474853)
+  passes against the same complete asset seal; publication is disabled.
+  Mac signing and notarization pass. Windows retains the existing unsigned
+  distribution policy. [CLI native checks](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40452316543)
+  pass on macOS and Linux within their documented scope.
+- Exercise two genuine provider conversations in an isolated signed Mac app,
+  upgrading a published 1.0.10 server with the signed candidate installer while
+  idle, then replacing the desktop app with signed 1.0.11. Original Codex and
+  Claude events, native session identities, contextual follow-ups, an attachment,
+  an unsent draft and the reasoning-display preference survive.
+- Keep a Claude approval and one queued follow-up active across app replacement.
+  The replacement app restores the approval; accepting it completes the turn
+  and runs the queued follow-up exactly once. The server instance stays alive.
+  This exercises app replacement while work is pending, not a busy server update.
+- [Linux rollback and retry](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454641002)
+  passes with both legacy installation-root modes. Retain original scoped
+  receipts and their untested boundaries; no report is relabeled as complete
+  release acceptance.
+- [Mac native replay](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454638826)
+  completes all 11 jobs through attempt 2, including stable and beta.12 upgrades,
+  offline-server reconciliation, shared updates across two clients, and retained
+  update-channel preferences. Two Apple validation network failures are retried
+  with unchanged packages. Original hosted provider-history checks remain
+  blocked; the separate local observations do not relabel those fixtures.
+- Public publication remains held for owner review.
+  Normal app quit, busy server replacement, logout/reboot and native Windows
+  updater behavior remain outside these local observations. See the
+  [candidate validation record](CANDIDATE_REPLAY.md#stable-1011-validation-results).
+
 ## 2026-10-26 — Prepare stable 1.0.11 from the published beta.12 source
 
 - Start the stable candidate at published beta.12 product source

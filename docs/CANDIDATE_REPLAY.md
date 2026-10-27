@@ -27,6 +27,77 @@ All candidate receipts and observations remain `publicationEligible: false`;
 observations also remain `releaseAcceptance: false`. A successful job does not
 turn blocked or unobserved scenarios into full release acceptance.
 
+### Stable 1.0.11 validation results
+
+Artifact source is `f9823e0da915a82d0a2974c9894e11e4c591444b`, desktop build
+1268. The separately committed rehearsal harness does not change those packages.
+Desktop, runtime, CLI and bridge remain unpublished at this checkpoint.
+
+- [Desktop preparation](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40452260291)
+  passes on all four platforms. The Mac job was rerun with unchanged source and
+  build after a directory-pagination test timed out; the same focused test
+  passed locally and the complete Mac rerun passed. Developer ID signing and
+  Apple notarization are verified.
+- [Independent platform verification](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454474853)
+  passes for macOS, Windows x64, Linux x64 and Linux ARM64 against the complete
+  asset inventory, SHA-256
+  `ca719f6885fdf4a4160cdde5b232e2bdcdc0f3476cb18255aebe5e2cf2327a62`.
+  This run explicitly disables publication.
+- [Paired CLI native checks](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40452316543)
+  pass on macOS and Linux for setup, authenticated health, named-instance
+  isolation, managed lifecycle and synthetic-state retention. The signed npm
+  and legacy archives contain matching runtime files.
+- A visible, isolated signed Mac app exercised genuine Codex and Claude
+  conversations created with the published 1.0.10 app/server pair. After an
+  idle server upgrade using the exact signed npm payload's native installer,
+  both provider sessions retained their original events and identities and
+  answered contextual follow-ups. The app was then replaced with signed
+  1.0.11 using the same isolated profile. Existing history, an attachment opened
+  in the editor, the unsent draft and the reasoning-display setting persisted.
+- During app replacement the server stayed running with a pending Claude Read
+  approval and one queued follow-up. The new app restored both; approving that
+  exact disposable file read completed the active turn and then executed the
+  queued turn exactly once. The old disposable app required forced termination,
+  so this records cold-start recovery, not clean-quit acceptance.
+
+The populated-history test uses real UI input, production IPC/HTTP and provider
+sessions. It does not substitute for the separate automatic updater replay.
+Server replacement while active/queued, logout/reboot survival, the native
+Windows updater and complete provider-content parity remain unobserved here.
+Owner review remains pending. The checks below retain their scoped acceptance
+limits.
+
+- [Mac native replay](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454638826),
+  through attempt 2, completes all 11 jobs: fresh installation, the legacy
+  desktop/server pair, published stable 1.0.10, beta.12, download-failure recovery
+  and removed-stage retry. Existing installations are exercised with both
+  `0755` and `0750` root permissions. Two Apple ticket-validation network losses
+  were retried using unchanged packages; no signature checks were skipped.
+- The real native updater replaces and relaunches the app while the saved
+  server is offline. Reconnecting triggers the production coordinator to update
+  that same server automatically. Two clients share the update, and Stable/Beta
+  subscriptions remain unchanged. These disposable hosted fixtures contain
+  synthetic history; their provider-history checks remain explicitly blocked.
+- [Linux rollback](https://github.com/ZhengyiLuo/AgentsDock/actions/runs/40454641002),
+  attempt 1, passes both root modes: a candidate-only health failure restores
+  the authenticated baseline, releases maintenance and permits retry of the
+  same signed target. The incumbent is never signaled by the fault injector.
+- All 11 Mac report ZIPs, both Linux rollback report ZIPs, both CLI report ZIPs
+  and the independent platform-verification receipt were downloaded and checked
+  against their original Actions SHA-256 digests. Preserve
+  `publicationEligible: false`, `releaseAcceptance: false`, blocked checks and
+  unobserved boundaries.
+
+The immutable Mac rehearsal receipt SHA-256 is
+`c132168a31a21b8f6655e28b7c97c4bf41322d24f296a0f5f6bb79c06784f1f1`;
+the transport bundle is
+`e5bfb02879a15e3a9febdb815b9a7f94bf8c3f9c09e1fcf47f3786cb98230989`.
+The replay harness source is `14609d991b0c1fefbc7fc8dc7bf9a52006e6afad`.
+These receipts bind the new stable bytes, not the earlier beta packages. Local
+populated-history observations and hosted updater observations cover different
+boundaries; neither changes the other's original acceptance flags. Public npm
+and desktop/bridge publication remains held for release-owner review.
+
 ## Stable 1.0.10 rehearsal preparation
 
 The new exact stable candidate is packaged from
