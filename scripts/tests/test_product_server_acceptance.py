@@ -30,7 +30,7 @@ SPEC.loader.exec_module(MOD)
 class NativeServerAcceptanceUnitTests(unittest.TestCase):
     @staticmethod
     def npm_baseline_identity(profile):
-        return {"version": MOD.NPM_BASELINE_VERSIONS[profile], "track": "stable" if profile in {"stable108", "stable109"} else "beta",
+        return {"version": MOD.NPM_BASELINE_VERSIONS[profile], "track": "stable" if profile in {"stable108", "stable109", "stable110"} else "beta",
                 "sourceSha": "b" * 40, "manifestSha256": "c" * 64, "signatureSha256": "d" * 64,
                 "archiveSha256": "e" * 64, "archiveBytes": 123}
 
@@ -95,7 +95,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
         self.assertEqual(MOD.NPM_BASELINE_TARGETS, {
             "stable108": ("1.0.9",), "beta1085": ("1.0.9",),
             "beta1101": ("1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4", "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10"),
-            "stable109": ("1.0.10",),
+            "stable109": ("1.0.10",), "stable110": ("1.0.11",), "beta11112": ("1.0.11",),
         })
         args = argparse.Namespace(operation="bootstrap", kind="npm-baseline", candidate=True, candidate_server_linux=False,
                                   baseline_profile="beta1101", baseline_npm_directory=Path("/runner/baseline"),
@@ -148,7 +148,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
         with MOD.npm_baseline_installation_policy("1.0.9"):
             self.assertEqual(MOD.installed_runtime_mode(member, installer), 0o644)
         self.assertIs(MOD.installed_runtime_mode, original)
-        with self.assertRaises(RuntimeError), MOD.npm_baseline_installation_policy("1.0.10"):
+        with self.assertRaises(RuntimeError), MOD.npm_baseline_installation_policy("1.0.11"):
             self.fail("Candidate mode policy must not be changed.")
         with self.assertRaisesRegex(RuntimeError, "fixture error"):
             with MOD.npm_baseline_installation_policy("1.0.8"):

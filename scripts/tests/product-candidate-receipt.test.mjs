@@ -382,7 +382,7 @@ test('exact stable and beta.2 through beta.6 matrices select independent npm bas
   const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8')
   const inputs = readFileSync(new URL('../../.github/actions/product-candidate-inputs/action.yml', import.meta.url), 'utf8')
   const job = workflow.slice(workflow.indexOf('  candidate-native:'), workflow.indexOf('  candidate-no-downgrade:'))
-  assert.match(job, /baseline_profile: \$\{\{ fromJSON\(inputs\.candidate_tag == 'candidate-replay-v1\.0\.10' && '\["legacy","stable109","beta1101"\]' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.9' && '\["legacy","stable108","beta1085"\]' \|\| \(inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.2' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.3' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.4' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.5' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.6'\) && '\["legacy","beta1101"\]' \|\| '\["legacy"\]'\) \}\}/)
+  assert.match(job, /baseline_profile: \$\{\{ fromJSON\(inputs\.candidate_tag == 'candidate-replay-v1\.0\.11' && '\["legacy","stable110","beta11112"\]' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10' && '\["legacy","stable109","beta1101"\]' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.9' && '\["legacy","stable108","beta1085"\]' \|\| \(inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.2' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.3' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.4' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.5' \|\| inputs\.candidate_tag == 'candidate-replay-v1\.0\.10-beta\.6'\) && '\["legacy","beta1101"\]' \|\| '\["legacy"\]'\) \}\}/)
   const negative = workflow.slice(workflow.indexOf('  candidate-no-downgrade:'))
   assert.match(negative, /startsWith\(inputs\.candidate_tag, 'candidate-replay-v1\.0\.8-beta\.'\)/)
   assert.match(job, /INSTALL_KIND=npm-baseline/)
@@ -409,6 +409,8 @@ test('candidate composite shell parses and profile gates reject out-of-scope sel
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
     {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
     {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
+    {BASELINE_PROFILE: 'stable110', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
+    {BASELINE_PROFILE: 'beta11112', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.2'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.3'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.4'},
@@ -418,6 +420,8 @@ test('candidate composite shell parses and profile gates reject out-of-scope sel
     assert.equal(spawnSync('/bin/bash', ['-c', gate], {env: {...env, ...change}}).status, 0)
   }
   for (const change of [{BASELINE_PROFILE: 'unknown'}, {CANDIDATE_TAG: 'candidate-replay-v1.0.8-beta.5'},
+    {BASELINE_PROFILE: 'stable110', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
+    {BASELINE_PROFILE: 'beta11112', CANDIDATE_TAG: 'candidate-replay-v1.0.11', EXECUTION_SCOPE: 'candidate-server-linux'},
     {BASELINE_PROFILE: 'stable109', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
     {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.12'},
@@ -669,5 +673,23 @@ test('no-downgrade collector admits only its separate bounded non-publishing obs
     }
     assert(!existsSync(join(output, 'server.json')))
     assert(!existsSync(join(output, 'native.log')))
+  }
+})
+
+
+test('stable 1.0.11 binds its two contemporary baselines and rejects cross-version reuse', () => {
+  const stable = candidateBaselineProfile('stable110', '1.0.11')
+  const beta = candidateBaselineProfile('beta11112', '1.0.11')
+  assert.equal(stable.desktop.version, '1.0.10'); assert.equal(stable.desktop.buildNumber, '1251')
+  assert.equal(beta.desktop.version, '1.0.11-beta.12'); assert.equal(beta.desktop.buildNumber, '1267')
+  assert.equal(stable.subscription, 'stable'); assert.equal(beta.subscription, 'beta')
+  for (const value of [stable, beta]) {
+    assert.equal(value.desktop.sourceSha, value.server.sourceSha)
+    assert(Object.isFrozen(value) && Object.isFrozen(value.desktop) && Object.isFrozen(value.server))
+    for (const key of ['checksumSha256', 'zipSha256', 'metadataSha256']) assert.match(value.desktop[key], /^[a-f0-9]{64}$/)
+    for (const key of ['manifestSha256', 'signatureSha256', 'archiveSha256']) assert.match(value.server[key], /^[a-f0-9]{64}$/)
+  }
+  for (const name of ['stable110', 'beta11112']) for (const target of ['1.0.10', '1.0.11-beta.12', '1.0.11+local', '1.0.12']) {
+    assert.throws(() => candidateBaselineProfile(name, target))
   }
 })

@@ -69,6 +69,10 @@ export const BETA1101_BASELINE = Object.freeze({
 })
 
 export function candidateBaselineProfile(name, candidateVersion) {
+  if (candidateVersion === '1.0.11') {
+    assert(Object.hasOwn(STABLE111_BASELINES, name), 'Unknown stable 1.0.11 baseline profile')
+    return STABLE111_BASELINES[name]
+  }
   if (candidateVersion === '1.0.10') {
     assert(Object.hasOwn(STABLE110_BASELINES, name), 'Unknown stable 1.0.10 baseline profile')
     return STABLE110_BASELINES[name]
@@ -94,6 +98,29 @@ export const STABLE110_BASELINES = Object.freeze({
       signatureSha256: '8c620b91e45687102ef5e67aa239297578dc8110f9576aa1d45ebb0b733e4fc5',
       archiveSha256: '33ca47b105e8d2e8256df6b5c199e0e95972f9228399d8944e32c2e910de8ab8', archiveBytes: 3726608 }) }),
   beta1101: BETA1101_BASELINE,
+})
+
+// Independently verified public stable 1.0.10 and beta.12 artifacts.
+// Only the exact 1.0.11 promotion admits these baselines.
+export const STABLE111_BASELINES = Object.freeze({
+  stable110: Object.freeze({ desktop: Object.freeze({ version: '1.0.10', buildNumber: '1251', track: 'stable', repository: 'AgentsDock',
+    sourceSha: '4f0a5c25a95574f21b0505320a03edcbfb877765',
+    checksumSha256: 'ff944031ebd114fca66d96c70e432d68c94fe1b6576be972ec983a487a286548',
+    zipSha256: 'e96564f8365a6f9cd4d608a150490518504d5fc6fe6502f3aa91bc6de83b10da',
+    metadataSha256: 'c46d73a134d4cc745f091212ae3f337bf99ddc832e462e22cd9bea3123579578' }), subscription: 'stable',
+    server: Object.freeze({ version: '1.0.10', track: 'stable', sourceSha: '4f0a5c25a95574f21b0505320a03edcbfb877765',
+      manifestSha256: '51cfecbccde885ea9f7f92ed70cdd228a7ed1faba536d871815d33551b25e0be',
+      signatureSha256: 'd0155d06c393001e0ac2a687f24df38fb528f80d9724782780de74ee0a1624d0',
+      archiveSha256: 'd599c4ecc6aaa5ddf93ec34d12dfb9848e3298a582bd92be6dc333d723cb2d1c', archiveBytes: 3740373 }) }),
+  beta11112: Object.freeze({ desktop: Object.freeze({ version: '1.0.11-beta.12', buildNumber: '1267', track: 'beta', repository: 'AgentsDock',
+    sourceSha: 'ab95ad3284f91997c2b249ac413b155f99c09ce6',
+    checksumSha256: '61200487717e08fe489970c64ca012c75ee75be9e8e0482ca61501c07ca688c2',
+    zipSha256: '567154dbab6e8e111a369f43f9f972aad6ec03ec46d33b99af3494f14c9837c0',
+    metadataSha256: 'b5c260d7e7823a9d6d249df5fcd555d4380ef960178bad191b7d1dda5cfc3303' }), subscription: 'beta',
+    server: Object.freeze({ version: '1.0.11-beta.12', track: 'beta', sourceSha: 'ab95ad3284f91997c2b249ac413b155f99c09ce6',
+      manifestSha256: 'e67427cd1a7ee014e0a44e583a16f3a25011370c3b681ff67d496b5a3bb79938',
+      signatureSha256: '59759b31c1dc0bd48460ab7f850c1a954424d548eed59513becf3129e0e9bba2',
+      archiveSha256: '856ca05ba216582955a639ed276f8735f9468be5fa7527c43305a1e75a8c560f', archiveBytes: 3876556 }) })
 })
 
 export async function verifyBaselineServer(name, directory, candidateVersion) {

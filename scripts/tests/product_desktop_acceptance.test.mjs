@@ -483,3 +483,15 @@ test('native diagnostics are bounded and drain excess without terminating app st
   assert.equal(stream.ended, true)
   assert.doesNotThrow(() => logs.assertHealthy())
 })
+
+
+test('stable 1.0.11 preserves both incumbent subscriptions without relabeling beta.12', () => {
+  assert.deepEqual(desktopJourney('1.0.11', '1.0.10', 'stable110'),
+    {initialTrack: 'stable', installedTrack: 'stable', switchToBeta: false})
+  assert.deepEqual(desktopJourney('1.0.11', '1.0.11-beta.12', 'beta11112'),
+    {initialTrack: 'beta', installedTrack: 'beta', switchToBeta: false})
+  for (const args of [['1.0.12', '1.0.10', 'stable110'], ['1.0.11', '1.0.11-beta.11', 'beta11112'],
+    ['1.0.11', '1.0.11-beta.12', 'stable110'], ['1.0.11', '1.0.10', 'beta11112']]) {
+    assert.throws(() => desktopJourney(...args))
+  }
+})
