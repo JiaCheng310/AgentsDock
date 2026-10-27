@@ -34,6 +34,16 @@
   Normal app quit, busy server replacement, logout/reboot and native Windows
   updater behavior remain outside these local observations. See the
   [candidate validation record](CANDIDATE_REPLAY.md#stable-1011-validation-results).
+- Additional basic QA on the unchanged signed candidate passes for fresh Codex
+  and Claude chats, contextual follow-ups, editor save and provider file read,
+  older attachment access, background completion and unread navigation.
+  Stopping a pending Claude approval leaves the concurrent Codex turn running
+  to normal completion, and the stopped Claude conversation remains usable.
+  Another cold start preserves the draft, saved file, both native provider
+  identities and all previously recorded events in those fresh chats; both
+  providers answer follow-ups correctly. The test server and unrelated managed
+  services stay running. These are scoped observations, not clean-quit testing
+  or public release acceptance; the limitations above remain unchanged.
 
 ## 2026-10-26 — Prepare stable 1.0.11 from the published beta.12 source
 

@@ -59,6 +59,19 @@ Desktop, runtime, CLI and bridge remain unpublished at this checkpoint.
   exact disposable file read completed the active turn and then executed the
   queued turn exactly once. The old disposable app required forced termination,
   so this records cold-start recovery, not clean-quit acceptance.
+- Additional basic checks use the same signed 1.0.11 build 1268: create fresh
+  Codex and Claude chats, complete contextual follow-ups, create and save a
+  workspace file through the editor, and have Claude read the saved content.
+  An older attachment remains readable. Stop a pending Claude approval while
+  a Codex tool turn runs in parallel; Codex completes normally, and Claude can
+  continue its original conversation afterward. Background completion and
+  unread navigation are observed without replies appearing in the wrong chat.
+- After another cold start, the unsent draft and workspace file persist, both
+  providers answer contextual follow-ups in their original native sessions,
+  and all 49 previously recorded events in those two fresh chats are unchanged.
+  The server instance and unrelated managed services remain unchanged; the
+  test server finishes idle with no queued work. This app close also required
+  forced termination and does not establish clean-quit behavior.
 
 The populated-history test uses real UI input, production IPC/HTTP and provider
 sessions. It does not substitute for the separate automatic updater replay.
