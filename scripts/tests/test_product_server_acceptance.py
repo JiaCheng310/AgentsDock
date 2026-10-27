@@ -1386,7 +1386,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
         self.assertEqual(MOD.BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256, MOD.sha((MOD.ROOT / "server/install.sh").read_bytes()))
         # Current installer bytes must not be relabelled as an earlier release
         # or an unreviewed future beta. Their frozen branches retain old pins.
-        for version in ("1.0.8-beta.5", "1.0.9", "1.0.9-beta.1", "1.0.11", "1.0.10-beta.7",
+        for version in ("1.0.8-beta.5", "1.0.9", "1.0.9-beta.1", "1.0.12", "1.0.10-beta.7",
                         "1.0.10-beta.1", "1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4",
                         "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10", "1.0.11-beta.1", "1.0.11-beta.2", "1.0.11-beta.3", "1.0.11-beta.13"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
@@ -1398,7 +1398,7 @@ class NativeServerAcceptanceUnitTests(unittest.TestCase):
                 args, _, receipt, *_ = self.staging_case(Path(temporary).resolve(), version)
                 with self.assertRaisesRegex(RuntimeError, "exact accepted source/version"):
                     MOD.root_normalization_contract(args.bundle, receipt)
-        for version in ("1.0.11-beta.12",):
+        for version in ("1.0.11-beta.12", "1.0.11"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
                 args, _, receipt, *_ = self.staging_case(Path(temporary).resolve(), version)
                 self.assertEqual(MOD.root_normalization_contract(args.bundle, receipt), MOD.BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256)

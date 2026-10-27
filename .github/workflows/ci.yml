@@ -31,7 +31,7 @@ on:
         type: boolean
         default: false
       candidate_tag:
-        description: Exact unpublished numbered-beta or reviewed stable 1.0.9/1.0.10 candidate tag
+        description: Exact unpublished numbered-beta or reviewed stable 1.0.9/1.0.10/1.0.11 candidate tag
         type: string
         default: ''
       candidate_receipt_sha256:
@@ -86,7 +86,7 @@ jobs:
             git check-ref-format "$GITHUB_REF"
             test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/ci.yml@$GITHUB_REF"
             [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-            [[ "$CANDIDATE_TAG" == candidate-replay-v1.0.9 || "$CANDIDATE_TAG" == candidate-replay-v1.0.10 || "$CANDIDATE_TAG" =~ ^candidate-replay-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.[1-9][0-9]*$ ]] || exit 1
+            [[ "$CANDIDATE_TAG" == candidate-replay-v1.0.9 || "$CANDIDATE_TAG" == candidate-replay-v1.0.10 || "$CANDIDATE_TAG" == candidate-replay-v1.0.11 || "$CANDIDATE_TAG" =~ ^candidate-replay-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.[1-9][0-9]*$ ]] || exit 1
             [[ "$CANDIDATE_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ && "$CANDIDATE_BUNDLE_SHA256" =~ ^[0-9a-f]{64}$ ]] || exit 1
             exit 0
           fi

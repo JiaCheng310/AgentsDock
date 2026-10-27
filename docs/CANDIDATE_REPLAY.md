@@ -1,5 +1,21 @@
 # Private macOS candidate rehearsal and publication records
 
+## Stable 1.0.11 preparation
+
+The stable candidate is frozen at `f9823e0da915a82d0a2974c9894e11e4c591444b`,
+with the same product implementation as published `1.0.11-beta.12`; only the
+server version and release documentation changed. A descendant test harness
+admits exactly stable `1.0.11` to the existing disposable legacy migration,
+preparation-failure recovery and rollback/retry journeys. It retains the exact
+beta.12 installer hash and independently pinned `1.0.6` desktop baseline.
+Other stable versions and unreviewed modern/beta baseline routes remain rejected.
+
+This harness does not alter candidate bytes, publishing gates, host restrictions,
+or publication eligibility. Modern populated-provider-history tests are a
+separate local acceptance boundary. Public publication remains held pending
+candidate validation and release-owner review; preparation is not acceptance.
+
+
 This is a scoped test in the existing registered `ci.yml`, not a product release
 workflow. It installs exact signed packages and changes origin routing/trust only
 on disposable GitHub-hosted macOS runners. It never signs or publishes packages.

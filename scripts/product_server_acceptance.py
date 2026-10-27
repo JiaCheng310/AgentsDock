@@ -1446,7 +1446,7 @@ def root_normalization_contract(bundle: Path, receipt: dict) -> str:
             with package.extractfile(members[0]) as stream:
                 installers.append(stream.read(2 * 1024 * 1024 + 1))
     # These reviewed candidates, including stable 1.0.10, retain the complete beta.1 installer.
-    expected_hash = (BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.12"
+    expected_hash = (BETA11112_ROOT_NORMALIZING_INSTALLER_SHA256 if version in {"1.0.11-beta.12", "1.0.11"}
                      else BETA1112_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.2"
                      else BETA1111_ROOT_NORMALIZING_INSTALLER_SHA256 if version == "1.0.11-beta.1"
                      else BETA1101_ROOT_NORMALIZING_INSTALLER_SHA256 if version in {"1.0.10-beta.1", "1.0.10-beta.2", "1.0.10-beta.3", "1.0.10-beta.4", "1.0.10-beta.5", "1.0.10-beta.6", "1.0.10"}

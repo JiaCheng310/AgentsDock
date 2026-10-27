@@ -10,11 +10,12 @@ import { assertCandidateCheckout, assertCandidateServerCheckout, assertCandidate
   candidateBaselineProfile, BETA1101_BASELINE, BETA1101_CANDIDATE_VERSIONS, verifyBaselineDesktop, verifyBaselineServer } from '../product-candidate-receipt.mjs'
 import {STABLE_IDENTITY} from '../product_no_downgrade_desktop.mjs'
 
-test('only reviewed stable 1.0.9 and 1.0.10 extend the nonpublishing beta candidate contract', () => {
+test('only reviewed stable 1.0.9 through 1.0.11 extend the nonpublishing beta candidate contract', () => {
   assert.equal(candidateTrack('1.0.9'), 'stable')
   assert.equal(candidateTrack('1.0.10'), 'stable')
+  assert.equal(candidateTrack('1.0.11'), 'stable')
   assert.equal(candidateTrack('1.0.8-beta.5'), 'beta')
-  for (const version of ['1.0.8', '1.0.11', '1.0.10+local', '1.0.9-rc.1', '1.0.9+local', '1.0.9-beta.0']) assert.throws(() => candidateTrack(version))
+  for (const version of ['1.0.8', '1.0.12', '1.0.11+local', '1.0.10+local', '1.0.9-rc.1', '1.0.9+local', '1.0.9-beta.0']) assert.throws(() => candidateTrack(version))
   assert(candidateAssets('1.0.9', 'stable').includes('latest-mac.yml'))
   assert(!candidateAssets('1.0.9', 'stable').includes('beta-mac.yml'))
 })
@@ -407,6 +408,7 @@ test('candidate composite shell parses and profile gates reject out-of-scope sel
     {BASELINE_PROFILE: 'stable109', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
     {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.10'},
+    {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.2'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.3'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.4'},
@@ -416,6 +418,9 @@ test('candidate composite shell parses and profile gates reject out-of-scope sel
     assert.equal(spawnSync('/bin/bash', ['-c', gate], {env: {...env, ...change}}).status, 0)
   }
   for (const change of [{BASELINE_PROFILE: 'unknown'}, {CANDIDATE_TAG: 'candidate-replay-v1.0.8-beta.5'},
+    {BASELINE_PROFILE: 'stable109', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
+    {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.11'},
+    {BASELINE_PROFILE: 'legacy', CANDIDATE_TAG: 'candidate-replay-v1.0.12'},
     {BASELINE_PROFILE: 'stable109'}, {BASELINE_PROFILE: 'stable109', CANDIDATE_TAG: 'candidate-replay-v1.0.10-beta.6'},
     {BASELINE_PROFILE: 'stable109', CANDIDATE_TAG: 'candidate-replay-v1.0.10', EXECUTION_SCOPE: 'candidate-server-linux'},
     {BASELINE_PROFILE: 'beta1101', CANDIDATE_TAG: 'candidate-replay-v1.0.10', EXECUTION_SCOPE: 'candidate-server-linux'},
@@ -502,11 +507,11 @@ test('the real manual input gate keeps npm-only validation and candidate replay 
   const serverLinux = {...candidate, CANDIDATE_REPLAY: 'false', CANDIDATE_SERVER_ROLLBACK: 'true'}
   const run = env => spawnSync('/bin/bash', ['-e', '-c', script], { env, encoding: 'utf8' })
   for (const env of [common, candidate, npm, serverLinux, {...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.9'},
-    {...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.10'}]) assert.equal(run(env).status, 0)
+    {...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.10'}, {...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.11'}]) assert.equal(run(env).status, 0)
   for (const env of [{ ...candidate, NPM_NATIVE_VALIDATION: 'true' }, { ...npm, CANDIDATE_REPLAY: 'true' },
     { ...common, CANDIDATE_TAG: candidate.CANDIDATE_TAG }, { ...common, NPM_SOURCE_SHA: npm.NPM_SOURCE_SHA },
     { ...candidate, NPM_SOURCE_SHA: npm.NPM_SOURCE_SHA }, { ...candidate, CANDIDATE_RECEIPT_SHA256: '' },
-    { ...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.8' }, { ...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.11' },
+    { ...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.8' }, { ...candidate, CANDIDATE_TAG: 'candidate-replay-v1.0.12' },
     { ...candidate, GITHUB_EVENT_NAME: 'pull_request' },
     { ...candidate, GITHUB_REPOSITORY: 'fork/AgentsDock' }, { ...candidate, GITHUB_REF: 'refs/heads/main' },
     { ...candidate, GITHUB_WORKFLOW_REF: `${candidate.GITHUB_WORKFLOW_REF}-other` },

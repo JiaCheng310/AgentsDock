@@ -161,6 +161,24 @@ test('stable 1.0.10 replay remains nonpublishing and checks both independently s
   assert.throws(() => validateCandidateReceipt({...f.value, publicationEligible: true}))
 })
 
+test('stable 1.0.11 keeps its frozen legacy rehearsal narrow and nonpublishing', async t => {
+  const f = scopedFixture(t, '1.0.11'), replay = await createCandidateReplay(f.options)
+  assert.equal(replay.identity.track, 'stable')
+  assert.equal(replay.identity.publicationEligible, false)
+  assert(replay.inventory().some(item => item.url.endsWith('/latest/download/latest-mac.yml')))
+  assert.deepEqual(replayBaselineMetadata('1.0.6', '1.0.11', true),
+    {track: 'stable', metadata: 'latest-mac.yml', prerelease: false})
+  for (const previous of ['1.0.9', '1.0.10', '1.0.11-beta.12', '1.0.11', '1.0.12']) {
+    assert.throws(() => replayBaselineMetadata(previous, '1.0.11', true))
+  }
+  const baselineDesktopDirectory = join(f.root, 'legacy-baseline')
+  mkdirSync(baselineDesktopDirectory)
+  writeFileSync(join(baselineDesktopDirectory, 'SHA256SUMS'), 'substituted baseline manifest')
+  await assert.rejects(() => createCandidateReplay({...f.options, baselineDesktopDirectory, baselineVersion: '1.0.6'}), /independently pinned bytes/)
+  await assert.rejects(() => createProductReplay(f.options), /candidate/)
+  assert.throws(() => validateCandidateReceipt({...f.value, publicationEligible: true}))
+})
+
 test('stable 1.0.10 allows only reviewed older stable and beta promotion routes', () => {
   for (const previous of ['1.0.6', '1.0.9']) assert.deepEqual(replayBaselineMetadata(previous, '1.0.10', true),
     {track: 'stable', metadata: 'latest-mac.yml', prerelease: false})

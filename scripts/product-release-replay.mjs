@@ -42,6 +42,8 @@ export function replayBaselineMetadata(baselineVersion, candidateVersion, candid
     'Stable candidate requires an independently pinned desktop baseline.')
   if (candidate && candidateVersion === '1.0.10') need(['1.0.6', '1.0.9', '1.0.10-beta.1'].includes(baselineVersion),
     'Stable candidate requires an independently pinned desktop baseline.')
+  if (candidate && candidateVersion === '1.0.11') need(baselineVersion === '1.0.6',
+    'Stable 1.0.11 rehearsal admits only the independently pinned legacy desktop baseline.')
   return { track: beta ? 'beta' : 'stable', metadata: `${beta ? 'beta' : 'latest'}-mac.yml`, prerelease: beta }
 }
 const STARTUP_STAGES = Object.freeze(['arguments', 'runner-guard', 'input-containment', 'artifact-verification',
@@ -434,6 +436,9 @@ async function createReplay({ receiptPath, acceptedReceiptSha256, preparationRun
     if (candidate && receipt.version === '1.0.10') {
       if (baselineVersion === '1.0.6') await verifyBaselineDesktop('stable108', baselineDesktopDirectory, '1.0.9')
       else await verifyBaselineDesktop(baselineVersion === '1.0.9' ? 'stable109' : 'beta1101', baselineDesktopDirectory, receipt.version)
+    }
+    if (candidate && receipt.version === '1.0.11') {
+      await verifyBaselineDesktop('stable108', baselineDesktopDirectory, '1.0.9')
     }
     const bytes = await regular(join(baselineDesktopDirectory, 'SHA256SUMS'))
     const lines = bytes.toString('utf8').trimEnd().split('\n')
