@@ -1,5 +1,24 @@
 # Public development log
 
+## 2026-10-26 - Android 0.1.1 beta.9 publication
+
+- Published the ARM64 sideload APK as `android-v0.1.1-beta.9`, app version
+  `0.1.1`, Android build `11`, from source `15e4d61d` based on main `eb165198`.
+  Build 11 supersedes the public beta.8 build 10 without changing the existing
+  application ID or signing certificate.
+- Release assembly and lint passed. Verified package/version, permissions,
+  embedded JavaScript, ZIP integrity, release signature and 16 KB alignment.
+  Android signing/updater contract tests and updater discovery tests passed.
+- Uploaded the APK, update manifest, public signing certificate and checksums.
+  Verified every uploaded asset's size and digest, then anonymously downloaded
+  the public APK and confirmed SHA-256
+  `3aaa501122e139106d673cf8d6f8a0404dd275953cf01d28986c21c088b0cbb0`.
+  Production updater code against the public feed offers build 11 to build 10
+  and does not offer build 11 to itself. Desktop stable remains unchanged.
+- [Public Android beta.9 release](https://github.com/ZhengyiLuo/AgentsDock-Releases/releases/tag/android-v0.1.1-beta.9).
+  Physical-device launch, installation and QR capture remain untested. No iOS
+  upload or server deployment was performed.
+
 ## 2026-10-25 - Android APK packaging configuration
 
 - Scope Chinese native privacy descriptions to iOS so Android release lint no
