@@ -1,36 +1,36 @@
 {
-  "version": "1.0.10",
+  "version": "1.0.11",
   "channel": "stable",
-  "published_at": "2026-10-13T07:29:23Z",
-  "notes_url": "https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.10",
-  "stable_notes_url": "https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.10",
+  "published_at": "2026-10-27T06:30:13Z",
+  "notes_url": "https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.11",
+  "stable_notes_url": "https://github.com/ZhengyiLuo/AgentsDock/releases/tag/v1.0.11",
   "platforms": {
     "macos": {
       "available": true,
-      "filename": "AgentsDock-1.0.10-mac-universal.dmg",
-      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.10/AgentsDock-1.0.10-mac-universal.dmg",
-      "sha256": "8a224cc7061a3f23f9a0bc8ba70514f4c3782f5ad78ad8e535ce4d7c547eadd5",
+      "filename": "AgentsDock-1.0.11-mac-universal.dmg",
+      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.11/AgentsDock-1.0.11-mac-universal.dmg",
+      "sha256": "9be935941734d7440ea682bba98bf89571417249de64ccd0d3e9ddbd68f99c44",
       "label": "Universal macOS build for Apple silicon and Intel, signed with Developer ID and notarized by Apple."
     },
     "linux": {
       "available": true,
-      "filename": "AgentsDock-1.0.10-linux-x86_64.AppImage",
-      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.10/AgentsDock-1.0.10-linux-x86_64.AppImage",
-      "sha256": "c8bfd14f659dc7c1465d7f29adca51ece7378fd3a8508634e26e6a35472f50d3",
+      "filename": "AgentsDock-1.0.11-linux-x86_64.AppImage",
+      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.11/AgentsDock-1.0.11-linux-x86_64.AppImage",
+      "sha256": "2d2214d4ebe3b21aae2ca1d799e41d3ef54e41fa8702c756012e3e1eb982fa9d",
       "label": "Linux x86_64 AppImage; a portable tarball is also available in the release notes."
     },
     "linux-arm64": {
       "available": true,
-      "filename": "AgentsDock-1.0.10-linux-arm64.AppImage",
-      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.10/AgentsDock-1.0.10-linux-arm64.AppImage",
-      "sha256": "984ff764993b7fa5bf57af1dde8c4f573bf4531eef071388df47aed1fcdf8ca3",
+      "filename": "AgentsDock-1.0.11-linux-arm64.AppImage",
+      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.11/AgentsDock-1.0.11-linux-arm64.AppImage",
+      "sha256": "20cae841c510b167881c89c1572f46bc0943a5d683fa5f6b0b513918fe3d2080",
       "label": "Linux ARM64 AppImage; a portable tarball is also available in the release notes."
     },
     "windows": {
       "available": true,
-      "filename": "AgentsDock-1.0.10-win-x64.exe",
-      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.10/AgentsDock-1.0.10-win-x64.exe",
-      "sha256": "f06568f94863b3842e7978bdfa9eb04b98ef37b1b4950257f35de448d9d4150f",
+      "filename": "AgentsDock-1.0.11-win-x64.exe",
+      "url": "https://github.com/ZhengyiLuo/AgentsDock/releases/download/v1.0.11/AgentsDock-1.0.11-win-x64.exe",
+      "sha256": "163bf0e48d50f5d76caa39ab1604f701c98fcfafa719a25fc4ac072618dfb5c6",
       "label": "Unsigned Windows x64 installer."
     }
   }

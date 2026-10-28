@@ -22,6 +22,25 @@ painful to rediscover later.
   active server and push the latest server repository/code to GitHub so app and
   server contract versions do not drift.
 
+## 2026-10-27 - Publish the reviewed website download updates
+
+- Updated English and Simplified Chinese desktop fallback links, release notes,
+  and `website/releases/latest.json` to stable 1.0.11. Preserved the unsigned
+  Windows notice and compared all four published asset digests with SHA256SUMS.
+- Updated Android links to 0.1.1 beta.9, build 11. Fixed discovery of Android
+  releases beyond the first GitHub API page with a bounded three-page scan and
+  a guard against replacing a pinned APK from a stale or incomplete result.
+- Added the verified public TestFlight invitation alongside the existing App
+  Store download. The public invitation does not expose a current build number,
+  so the website does not claim a specific TestFlight build is available.
+- Eight focused release-link regressions passed. Real-browser checks passed
+  for the four localized homepage/client-install pages at desktop and mobile
+  widths, including live release API requests, blocked-API fallbacks, and no
+  JavaScript. Anonymous range downloads succeeded for all five installer links.
+- Reviewed on October 26 and approved on October 27 for website publication
+  and mirror sync. No application builds, mobile uploads, native installations,
+  or server changes are included.
+
 ## 2026-10-19 - Retire Traditional Chinese website pages
 
 - Kept English and Simplified Chinese as the website's two languages. Removed

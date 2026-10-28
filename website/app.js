@@ -3,7 +3,7 @@
 // Releases API for the newest appropriate builds and upgrade each link in place.
 // Desktop tracks stable releases; Android still comes from its APK prerelease feed.
 const DESKTOP_RELEASES_API = 'https://api.github.com/repos/ZhengyiLuo/AgentsDock/releases?per_page=30'
-const ANDROID_RELEASES_API = 'https://api.github.com/repos/ZhengyiLuo/AgentsDock-Releases/releases?per_page=30'
+const ANDROID_RELEASES_API = 'https://api.github.com/repos/ZhengyiLuo/AgentsDock-Releases/releases?per_page=100'
 
 // Match the right asset for each platform button by file-name pattern.
 const ASSET_MATCHERS = {
@@ -36,6 +36,13 @@ function setDesktopVersionLabel(release) {
   const language = (document.documentElement.lang || '').toLowerCase()
   const isChinese = language.startsWith('zh')
 
+  if (release.html_url) {
+    document.querySelectorAll('[data-release-notes]').forEach(link => {
+      link.href = release.html_url
+      link.textContent = isChinese ? `${release.tag_name} 发布说明` : `Release notes ${release.tag_name}`
+    })
+  }
+
   if (release.prerelease) {
     label.textContent = isChinese
       ? `桌面预览版 ${version}`
@@ -50,12 +57,19 @@ function setDesktopVersionLabel(release) {
 
 async function loadReleases(url, options = {}) {
   const includePrereleases = options.includePrereleases !== false
-  let releases
+  const releases = []
   try {
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) throw new Error(`Releases API returned ${res.status}`)
-    releases = await res.json()
-    if (!Array.isArray(releases) || !releases.length) throw new Error('No releases')
+    const requestUrl = new URL(url)
+    const pageSize = Number(requestUrl.searchParams.get('per_page')) || 30
+    for (let page = 1; page <= (options.maxPages || 1); page += 1) {
+      requestUrl.searchParams.set('page', String(page))
+      const res = await fetch(requestUrl.href, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`Releases API returned ${res.status}`)
+      const batch = await res.json()
+      if (!Array.isArray(batch)) throw new Error('Invalid releases response')
+      releases.push(...batch)
+      if (batch.length < pageSize) break
+    }
   } catch {
     return [] // keep the hardcoded fallback links + copy already in the HTML
   }
@@ -88,8 +102,13 @@ async function loadRelease() {
 }
 
 async function loadAndroidRelease() {
-  // Android still publishes separately to the legacy repository.
-  const sorted = await loadReleases(ANDROID_RELEASES_API, { includePrereleases: true })
+  const link = document.querySelector('a[data-dl="android"]')
+  if (!link) return
+  // Android releases can appear behind older desktop entries in this feed.
+  const sorted = await loadReleases(ANDROID_RELEASES_API, { includePrereleases: true, maxPages: 3 })
+  // A truncated or stale feed must not downgrade the pinned APK fallback.
+  const pinned = sorted.find(r => (r.assets || []).some(a => a.browser_download_url === link.href))
+  if (!pinned) return
   const android = sorted.find(r => (r.assets || []).some(a => ASSET_MATCHERS.android.test(a.name)))
   setPlatformHref('android', findAsset(android, ASSET_MATCHERS.android))
 }

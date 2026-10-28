@@ -11,6 +11,12 @@ npm run dev
 
 Open `http://localhost:4175`.
 
+Run the release-link regression tests from the repository root:
+
+```bash
+node --test scripts/tests/website-release-links.test.mjs
+```
+
 ## Website languages
 
 English pages live at the site root and Simplified Chinese at `zh/`. Keep each
@@ -30,4 +36,9 @@ language menus, alternate metadata, or the sitemap.
 3. Set the platform's `available` value to `true`.
 4. Deploy the contents of `website/` to any static host.
 
-The UI reads `releases/latest.json` at runtime, so releases do not require rebuilding the website.
+Keep the desktop metadata in `releases/latest.json` and the English/Chinese
+homepage and client-install fallback links in sync. The UI checks the public
+GitHub release feeds at runtime; failed requests retain the static links.
+Android discovery scans at most three 100-release pages and only replaces a
+pinned APK after finding that release in the fetched window, so a truncated or
+stale response cannot downgrade it. Mobile releases are versioned separately.
