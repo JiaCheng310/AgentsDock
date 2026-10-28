@@ -872,6 +872,7 @@
   "connections.claudeLoginCheck": "Claude confirms authentication on your next message. Recheck only checks installation; it does not sign you out or renew your login.",
   "connections.signedIn": "Signed in",
   "connections.loginUnknown": "Sign-in not confirmed",
+  "connections.nativeUnverifiedHelp": "Credentials found on the server. Sign-in is checked when you send a message.",
   "connections.unsupported": "Cursor API key: configure in CLI",
   "connections.settingsOnly": "Settings only — not used by chats yet.",
   "connections.configure": "Configure API",

@@ -1,5 +1,48 @@
 # Public development log
 
+## 2026-10-27 - Honest native sign-in status in My Agents
+
+- Separate credential discovery from verified native login. A reported
+  authentication failure now overrides retained credential files; detected but
+  unverified credentials show a neutral status rather than a connected check.
+  Native and Custom API cards remain independent. Keep send-time verification
+  and retries available after credentials are renewed outside the app.
+- Add English/Chinese guidance and regressions for expired credentials, passive
+  detection, latest-diagnostic selection, Recheck, recovery and independent API
+  connectivity. No provider login, token storage or server admission changes.
+- Based on main `eb165198`; availability is local source/build only. An isolated
+  offscreen Electron app reproduced the previous false Connected label using a
+  real authenticated server catalog, then verified the corrected CLI status,
+  login guidance and reopening My Agents through the production renderer,
+  preload, IPC and client transport. Inspected English light/dark and Chinese
+  narrow-window layouts. No server deployment or user-app replacement.
+- 86 focused checks, TypeScript and production compilation passed. One full
+  regression run passed 5,484 tests (5 skipped), plus 8 packaging/license checks.
+  A repeat full run hit an unrelated existing SecurePeerPanel timing assertion;
+  all 156 tests in the focused/auth and secure-peer follow-up run passed. That
+  repeat-suite failure is recorded, not counted as a successful full run.
+- Live credential renewal and an actual post-login provider request remain
+  pending. Recheck failure/recovery uses component fixtures; the live legacy
+  server's forced catalog refresh was deliberately not invoked because it may
+  initiate an unrelated provider auth handoff. Real-app inspection used passive
+  reads and did not modify credentials or run agent tasks.
+- Follow-up: launched the complete compiled Electron app interactively with an
+  isolated cache and existing connection metadata for user acceptance. Native
+  clicks opened My Agents and expanded Claude. The server now reported a
+  successful native authentication, and the CLI card correctly showed Signed
+  in rather than relying on credential presence. This observes recovery; the
+  login operation and provider request were not initiated by this test. All 86
+  focused checks, TypeScript and compilation passed again. User chat acceptance
+  is pending; no server restart, deployment, publication or PR was performed.
+- PR validation: repeated the full suite successfully (5,484 passed, 5 skipped,
+  plus 8 packaging/license checks), TypeScript and production compilation.
+  In an isolated native offscreen app, opened My Agents, inspected the verified
+  CLI status, then typed and sent a short no-tools prompt to an exact-ID-bound
+  disposable Claude chat. The real server/provider returned the expected reply
+  and the renderer displayed it without errors. Screenshots stay local; account
+  metadata is not attached to the public PR. Login renewal itself remains a
+  native-provider operation, and this display fix does not prevent OAuth expiry.
+
 ## 2026-10-25 - Mobile provider pre-merge validation
 
 - Integrated main `3ac069e`; only the development log required conflict
