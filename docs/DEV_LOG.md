@@ -21,6 +21,10 @@
   stay in execution order while the human input remains at its original position.
   If Claude already accepted the input and folds it into native work, retain
   proven progress and native acknowledgment/result boundaries without replay.
+- Cancellation during native-to-human ownership restoration emits one terminal
+  event and keeps the original accepted metadata until cleanup finishes. The
+  production-supervised regression covers cancellation before, during, and
+  after restoration without sending the canceled query or evicting Claude.
 - An isolated production-app baseline with real Claude reproduced a native
   cron command executing while the app remained idle without Stop. The patched
   app showed the wake as active, streamed its tools and reply, delivered its
