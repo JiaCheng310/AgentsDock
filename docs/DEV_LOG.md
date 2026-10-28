@@ -34,6 +34,14 @@
   login operation and provider request were not initiated by this test. All 86
   focused checks, TypeScript and compilation passed again. User chat acceptance
   is pending; no server restart, deployment, publication or PR was performed.
+- PR validation: repeated the full suite successfully (5,484 passed, 5 skipped,
+  plus 8 packaging/license checks), TypeScript and production compilation.
+  In an isolated native offscreen app, opened My Agents, inspected the verified
+  CLI status, then typed and sent a short no-tools prompt to an exact-ID-bound
+  disposable Claude chat. The real server/provider returned the expected reply
+  and the renderer displayed it without errors. Screenshots stay local; account
+  metadata is not attached to the public PR. Login renewal itself remains a
+  native-provider operation, and this display fix does not prevent OAuth expiry.
 
 ## 2026-10-25 - Mobile provider pre-merge validation
 
