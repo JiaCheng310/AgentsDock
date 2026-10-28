@@ -1,5 +1,23 @@
 # Public development log
 
+## 2026-10-27 - Queued-message saves during reconnect
+
+- Queued edits can finish as soon as the current server passes its existing
+  identity check, without waiting for an unrelated chat/job list refresh.
+  Reuse the same health request; retain profile-switch and validation failures.
+  Other mutations retain their existing metadata ordering.
+- Native offscreen production-app acceptance against an isolated full server
+  with real Claude reproduced the old blocked Save by delaying the chat-list
+  response after a simulated health failure. The corrected app persisted the
+  edit and closed the editor while the list remained delayed and Claude kept
+  working. Repeat save, Cancel, an injected save failure, manual retry, and
+  reopening all preserved the expected draft and queued message.
+- All 460 service tests, TypeScript, production compilation, and compiled-entry
+  verification passed. Regression tests fail against the previous service.
+  The transport delays/errors were controlled test faults; no live incident
+  timing or signed-package acceptance is claimed.
+- Availability: source fix only; no app installation or live-server change.
+
 ## 2026-10-27 - Claude goal activity and recovered timeline order
 
 - Distinguish a saved Claude goal from live execution, waiting, idle, and an
