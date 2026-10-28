@@ -26,6 +26,14 @@
   server's forced catalog refresh was deliberately not invoked because it may
   initiate an unrelated provider auth handoff. Real-app inspection used passive
   reads and did not modify credentials or run agent tasks.
+- Follow-up: launched the complete compiled Electron app interactively with an
+  isolated cache and existing connection metadata for user acceptance. Native
+  clicks opened My Agents and expanded Claude. The server now reported a
+  successful native authentication, and the CLI card correctly showed Signed
+  in rather than relying on credential presence. This observes recovery; the
+  login operation and provider request were not initiated by this test. All 86
+  focused checks, TypeScript and compilation passed again. User chat acceptance
+  is pending; no server restart, deployment, publication or PR was performed.
 
 ## 2026-10-25 - Mobile provider pre-merge validation
 
