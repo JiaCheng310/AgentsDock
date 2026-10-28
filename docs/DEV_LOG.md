@@ -1,5 +1,49 @@
 # Public development log
 
+## 2026-10-28 - Claude native cron activity
+
+- Track successful native CronCreate receipts and the native command/prompt
+  hook that identifies their later wakes. Give each observed wake its own run
+  for live activity, tools, output, Stop, and provider file delivery without
+  submitting a replacement prompt or restarting Claude.
+- Keep the chat idle between occurrences. A clean Stop interrupts the current
+  occurrence and preserves future native schedules. Preserve the schedule's
+  original authority across intervening human messages; successful CronDelete
+  and provider teardown retire the corresponding registration. Native cron
+  inputs stay out of ordinary user bubbles.
+- Exact schedule IDs are not exposed on SDK wake frames. Identical registered
+  prompts retain their candidate IDs and use the most recent matching original
+  owner, without combining grants. Simultaneous background-task provenance is
+  retained separately.
+- If a native wake wins before a human message reaches Claude, preserve the
+  original accepted run and its effects, then submit it once after the native
+  work finishes. Stop/delete can cancel that unsent message. Replies and activity
+  stay in execution order while the human input remains at its original position.
+  If Claude already accepted the input and folds it into native work, retain
+  proven progress and native acknowledgment/result boundaries without replay.
+- An isolated production-app baseline with real Claude reproduced a native
+  cron command executing while the app remained idle without Stop. The patched
+  app showed the wake as active, streamed its tools and reply, delivered its
+  attachment, and reopened without duplicate output or an internal user bubble.
+  The recurring app check stopped one occurrence, sent a human follow-up, then
+  observed the next occurrence and successful schedule deletion on the same
+  native thread. Scrolling the virtualized timeline confirmed exactly the
+  original user messages remained visible.
+- A deliberate admission delay through the actual app exercised a native cron
+  wake winning before human submission: the original human query arrived once
+  afterward, the connection survived, and replies appeared in the correct order
+  before and after reopening. A separate real native overlap probe exercised
+  Claude folding already-submitted human input into a scheduled turn, retaining
+  progress before acknowledgment without an extra query or synthetic result.
+- SDK, runner, admission, queue/recovery, and timeline regressions passed, along
+  with TypeScript, production compilation, and compiled-entry verification.
+  Two earlier app-harness assertions were corrected: a follow-up accidentally
+  prohibited future scheduled work, and a DOM count ignored virtualization.
+  They are not counted as passing acceptance; the corrected full run passed.
+- Scope: schedules observed in the current native connection. Recovery of
+  durable schedules after provider teardown is not established by these checks.
+  No app installation, release, or live-service change has been performed.
+
 ## 2026-10-27 - Queued-message saves during reconnect
 
 - Queued edits can finish as soon as the current server passes its existing

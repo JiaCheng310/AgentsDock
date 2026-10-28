@@ -1053,6 +1053,12 @@ export interface Event extends SharedChatAttribution {
   provider_task_ids?: string[] | null
   provider_task_type?: string | null
   provider_tool_use_id?: string | null
+  provider_wake_kind?: 'task' | 'schedule' | null
+  provider_schedule_id?: string | null
+  provider_schedule_ids?: string[] | null
+  provider_native_wake_id?: string | null
+  provider_concurrent_task_ids?: string[] | null
+  provider_admission_after_run_id?: string | null
   provider_input_sha256?: string | null
   phase?: string | null
   /** Durable summary placement at its first streamed section, without changing its ledger sequence. */

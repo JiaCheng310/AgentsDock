@@ -713,6 +713,23 @@ export class TimelineProjector {
       return
     }
 
+    const resumedAfterRun = event.provider_admission_after_run_id?.trim()
+    if (resumedAfterRun && event.run_id && resumedAfterRun !== event.run_id && event.imported !== true
+      && (traceTypes.has(event.type) || event.type === 'assistant_text' || event.type === 'turn_finished')) {
+      const prior = this.turnByRun.get(event.run_id)
+      if (prior?.user && (event.backend ?? prior.user.backend) === 'claude' && !prior.assistant.length) {
+        // The human input was persisted before a native wake won admission.
+        // Keep that bubble in place, but start its first actual execution here
+        // so its answer and activity do not jump above the intervening wake.
+        const input = this.writableTurn(prior)
+        input.finishedAt ||= event.ts
+        input.throughSeq = event.seq - 1
+        this.assistantByTurn.delete(input.key)
+        this.activeTurn = this.writableTurn(this.ensureTurn(event, true))
+        this.activeTurn.afterSeq = event.seq - 1
+      }
+    }
+
     if (event.type === 'turn_started') {
       const interruptedRunId = event.steer_interrupted_run_id?.trim()
       if (interruptedRunId) this.retireNativeSteerPredecessor(interruptedRunId, event.ts)
@@ -1682,16 +1699,24 @@ function isNativeMailboxWakeInput(event: Event): boolean {
 }
 
 function isNativeBackgroundWakeInput(event: Event): boolean {
-  return event.type === 'turn_started' && event.backend === 'claude' && event.imported !== true
+  const nativeBoundary = event.type === 'turn_started' && event.backend === 'claude' && event.imported !== true
     && typeof event.run_id === 'string' && Boolean(event.run_id.trim()) && !event.run_id.startsWith('import_')
     && event.purpose === 'provider_background_wake' && event.provider_generated === true
     && event.metadata_only === true && event.prompt === '' && !hasProviderUserProvenance(event)
     && typeof event.parent_run_id === 'string' && Boolean(event.parent_run_id.trim()) && event.parent_run_id !== event.run_id
     && typeof event.provider_session_id === 'string' && Boolean(event.provider_session_id.trim())
+    && typeof event.provider_tool_use_id === 'string' && Boolean(event.provider_tool_use_id.trim())
+  if (!nativeBoundary) return false
+  if (event.provider_wake_kind === 'schedule') {
+    return typeof event.provider_native_wake_id === 'string' && Boolean(event.provider_native_wake_id.trim())
+      && Array.isArray(event.provider_schedule_ids) && event.provider_schedule_ids.length > 0
+      && event.provider_schedule_ids.every(id => typeof id === 'string' && Boolean(id.trim()))
+      && (event.provider_schedule_id == null || event.provider_schedule_ids.includes(event.provider_schedule_id))
+  }
+  return (event.provider_wake_kind == null || event.provider_wake_kind === 'task')
     && typeof event.provider_task_id === 'string' && Boolean(event.provider_task_id.trim())
     && Array.isArray(event.provider_task_ids) && event.provider_task_ids.includes(event.provider_task_id)
     && ['local_agent', 'local_workflow', 'local_bash'].includes(event.provider_task_type ?? '')
-    && typeof event.provider_tool_use_id === 'string' && Boolean(event.provider_tool_use_id.trim())
 }
 
 function digestBody(event: Event): string {
