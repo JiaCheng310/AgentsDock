@@ -1,5 +1,37 @@
 # Public development log
 
+## 2026-10-27 - Claude goal activity and recovered timeline order
+
+- Distinguish a saved Claude goal from live execution, waiting, idle, and an
+  unloaded session. Remove the wall-clock timer that implied continuous work.
+  Show only native evaluator duration and offer an explicit **Continue goal**
+  action in the same thread when Claude is idle or unloaded. Preserve native
+  failed verdicts and their reasons.
+- Place recovered provider replies between the appropriate native turns using
+  their original timestamps and identities. Keep separate replies separate,
+  retain genuine identical-text messages, and keep history imports from ending
+  the active turn. Live streaming remains incremental after catch-up.
+- Capture Claude's actual background-task completion wakes after the parent
+  result. Bind the observed wake to a new owned run before tools execute,
+  without submitting another prompt or keeping background Bash permanently
+  busy. Preserve the existing task authorization and native thread.
+- Native offscreen desktop checks used production IPC and authenticated HTTP
+  against isolated full servers. A real Claude goal exercised working, Stop,
+  idle, Continue, native completion, chat navigation, narrow/light/dark layouts,
+  and reopening with the same thread. The isolated server restart check reopened
+  the app; automatic reconnection after restart is not an accepted boundary.
+- Real Claude background tasks exercised idle between turns, live wake output,
+  file attachment through the provider helper, history reopening without a
+  duplicate, stopping a second wake, and a subsequent human message. Separate
+  synthetic journal fixtures through the actual app reproduced the old ordering
+  and verified corrected chronology after navigation and reopening.
+- Focused SDK, goal, history-repair, native-runner, shared-transcript, renderer,
+  and localization regressions pass, along with TypeScript and desktop
+  production compilation. Timeline coverage includes incremental projection,
+  pagination, a large import batch, and silent native-wake boundaries.
+- Availability: source changes and local production compilation only. No
+  release, installation, live history rewrite, or server deployment performed.
+
 ## 2026-10-26 - Claude scheduled-message import recovery
 
 - Keep source-proven scheduled inputs out of ordinary user bubbles on first
