@@ -872,6 +872,7 @@
   "connections.claudeLoginCheck": "Claude 会在下次发送消息时确认登录状态。重新检查只检查安装状态，不会退出账号或刷新登录凭据。",
   "connections.signedIn": "已登录",
   "connections.loginUnknown": "登录状态尚未确认",
+  "connections.nativeUnverifiedHelp": "服务端已检测到凭据，将在发送消息时验证登录是否有效。",
   "connections.unsupported": "Cursor API 密钥：通过 CLI 配置",
   "connections.settingsOnly": "仅保存设置，暂不用于会话。",
   "connections.configure": "配置 API",
