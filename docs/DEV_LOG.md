@@ -1,5 +1,46 @@
 # Public development log
 
+## 2026-10-28 - Custom API message metrics and local model commands
+
+- Desktop accepted-message analytics now includes an allowlisted connection
+  kind (`default` or `custom_api`) when explicitly known at submission. Keep it
+  separate from the five Agent families; omit legacy/unknown values. No model,
+  endpoint, credential, account, chat ID or message content is collected.
+  Update the event catalog and source privacy disclosure accordingly.
+- Typed `/model` opens the existing model picker; `/model <ID or unique label>`
+  updates the session through the same model/effort logic as that picker.
+  Commands never enter prompt composition or count as sent messages. Unknown,
+  ambiguous and locked choices are rejected without starting a turn. Preserve
+  attachments, failed-command drafts and newer drafts; ignore late results
+  after switching servers. Keep existing slash skills and ordinary text intact.
+- Based on main `9a750c7a`; source-built desktop metadata remains 0.2.0/build 86.
+  An isolated native offscreen Electron app connected to a test AgentsServer
+  1.0.7-beta.11 reproduced the old typed command starting a Claude turn without
+  changing the selected model. After the fix, real keyboard input changed
+  Claude and Codex models through production preload/IPC/HTTP and server
+  persistence without adding turns. Subsequent real provider messages returned
+  expected replies. Repeated switching, default reset, reload persistence,
+  unknown-model draft retention and the existing picker were also exercised.
+- Captured and cancelled test analytics before network transmission: default
+  Claude/Codex messages included the new property; model commands did not emit
+  message events. Custom API classification across all five Agents, Custom API
+  accepted sends, queued/failed sends, stale-response ownership and failure
+  rollback were verified with deterministic tests. The isolated test service
+  had no configured Custom API endpoint; see the user-acceptance follow-up below.
+  No production analytics events were sent.
+- 576 focused regressions, TypeScript and the production build/output check
+  passed. No server/mobile changes, release, deployment, or website publication.
+- User-acceptance follow-up: at the user's request, gracefully closed the prior
+  local source app and launched this branch with its existing profile and cache.
+  Rebuilt and verified the loaded renderer asset, online connection, composer
+  and model picker through native input. No server restart or release occurred.
+  The user's subsequent live Cursor Custom API submission produced one accepted
+  `message_sent` event with `backend: cursor` and `connection_kind: custom_api`.
+  This verifies client submission acceptance and classification, not provider
+  completion. Test telemetry is captured locally and cancelled before Mixpanel
+  submission. Other live Custom API backends and a live queued-send scenario
+  remain untested; their deterministic coverage is described above.
+
 ## 2026-10-27 - Honest native sign-in status in My Agents
 
 - Separate credential discovery from verified native login. A reported
