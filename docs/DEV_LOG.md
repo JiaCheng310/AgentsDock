@@ -1,5 +1,44 @@
 # Public development log
 
+## 2026-10-28 - Cursor compound tool IDs and live analytics acceptance
+
+- Cursor CLI 2026.10.22 emits compound tool correlation IDs containing an LF
+  separator. The server previously rejected these and interrupted otherwise
+  valid tool-using turns. Recognize the observed bounded compound format and
+  map its entire value to a deterministic, control-free digest. Preserve ordinary
+  IDs, separate the encoded namespace from literal provider IDs, and continue
+  rejecting empty, oversized and unrelated control-bearing IDs. Tool start and
+  completion retain the same key without conflating distinct calls.
+- Reproduced the native CLI format before the fix. Added a failing-before/passing-
+  after parser regression and production-runner subprocess coverage. An isolated
+  native offscreen Electron app connected through its production IPC/HTTP boundary
+  to a source-built test server and real Cursor API key: two file reads completed
+  with distinct paired IDs, their results appeared in the UI, and a subsequent
+  tool-using follow-up succeeded. No production service was restarted or deployed.
+- Repeated acceptance in the user-designated installed test instance, retaining
+  its existing connection identity and configuration and changing only the parser.
+  The visible native desktop app selected Cursor API key and a disposable working
+  directory through the UI. Three real-provider turns and six paired tool calls
+  (including four file reads) completed successfully, and reloading retained the
+  results. The main service was left running unchanged; this test-only patch is
+  not a published update.
+- Removed the temporary local-launcher analytics cancellation used during
+  automated QA; this was not shipped app code. With normal consent handling
+  unchanged, three real UI submissions produced exactly three Cursor Custom API
+  message events in the actual Mixpanel project's raw export. Verification must
+  distinguish raw ingestion from dashboards that exclude test installations.
+  Earlier intercepted events were not replayed or backfilled. No new payload
+  fields, credentials or message content were added.
+- Follow-up desktop acceptance found that `/model default` could remain in the
+  composer after a successful API-model reset: the server returned its concrete
+  default rather than null. Clear the command after that confirmed normalization,
+  retaining existing failure/newer-draft/server-switch guards. Added a regression
+  that fails before this correction. No prompt or provider turn is submitted.
+- Validation: 120 focused Cursor parser/runner/API-key regressions, 577 desktop
+  regressions, TypeScript and Electron production build/output verification pass.
+  Source repair is not an installed server update: existing services need to load
+  the new parser before their tool-using chats benefit.
+
 ## 2026-10-28 - Custom API message metrics and local model commands
 
 - Desktop accepted-message analytics now includes an allowlisted connection

@@ -236,6 +236,17 @@ describe('Composer', () => {
       expect(useAppStore.getState().uploadsBySession['chat-1']).toEqual([file])
       expect(window.agentsDock.turns.send).not.toHaveBeenCalled()
     })
+    it('clears a confirmed default command when the server resolves the concrete API model', async () => {
+      const cursor: Session = {id:'chat-1',title:'QA',backend:'cursor',provider_connection:'custom',model:'chosen'}
+      useAppStore.setState({sessions:[cursor],runtimeCatalog:{backends:{cursor:{models:[],efforts:[],custom_provider:{configured:true,available:true,base_url:null,model:'auto',default_model:'auto',models:[{value:'auto',label:'Auto'},{value:'chosen',label:'Chosen'}]}}}}})
+      vi.mocked(window.agentsDock.sessions.update).mockResolvedValue({...cursor,model:'auto'})
+      render(<Composer />); enter('/model default')
+      await waitFor(() => expect(screen.getByPlaceholderText('Message')).toHaveValue(''))
+      expect(window.agentsDock.sessions.update).toHaveBeenCalledExactlyOnceWith('chat-1',{model:null,effort:null})
+      expect(useAppStore.getState().sessions[0].model).toBe('auto')
+      expect(window.agentsDock.turns.send).not.toHaveBeenCalled()
+      expect(tracker).not.toHaveBeenCalledWith('message_sent',expect.anything())
+    })
     it('allows fixing an unavailable current model without sending a turn', async () => {
       useAppStore.setState({sessions:[{...claude,model:'locked'}]})
       render(<Composer />); enter('/model Opus')

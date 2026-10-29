@@ -1280,7 +1280,9 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       try {
         let saved = false
         await liveState.updateSession(liveSession.id, sessionModelPatch(liveSession, liveState.runtimeCatalog, option.value), {
-          onConfirmed: updated => { saved = (updated.model ?? '') === option.value }
+          // A cleared model may be resolved to the API connection's concrete
+          // default (for example Cursor's "auto") by the server.
+          onConfirmed: updated => { saved = option.value === '' || (updated.model ?? '') === option.value }
         })
         if (saved && composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, liveSession.id, draftContextRef, mountedRef)
           && draftRef.current === rawOutgoing) updateComposerDraft('', 0)
