@@ -297,7 +297,7 @@ interface AppState {
   updateSession(
     sessionId: string,
     patch: Partial<Session> & { gemini_connect_api?: boolean },
-    options?: { allowDuringWorkspaceFlush?: boolean }
+    options?: { allowDuringWorkspaceFlush?: boolean; onConfirmed?: (session: Session) => void }
   ): Promise<void>
   deleteFolder(folder: string): Promise<void>
   forkSession(sessionId: string): Promise<void>
@@ -2439,6 +2439,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (isImportedAPIConnection(previousSession, patch)) trackEvent('imported_chat_api_connected', {
         backend: 'gemini', success: updated.provider_connection === 'custom'
       })
+      if (pending?.version === version) options?.onConfirmed?.(updated)
     } catch (error) {
       if (!profileScopeMatches(scope, get())) return
       if (isImportedAPIConnection(previousSession, patch)) trackEvent('imported_chat_api_connected', { backend: 'gemini', success: false })
