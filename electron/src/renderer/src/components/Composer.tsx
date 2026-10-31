@@ -588,7 +588,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
   const editorLayoutFrameRef = useRef<number | null>(null)
   const paletteBlurTimerRef = useRef<number | null>(null)
   const pendingCaretRef = useRef<number | null>(null)
-  const historyCursorRef = useRef<{ sessionId: string; cursor: ComposerHistoryCursor } | null>(null)
+  const historyCursorRef = useRef<{ workspaceKey: string; cursor: ComposerHistoryCursor } | null>(null)
   const pendingSelectionRef = useRef<{ start: number; end: number; direction: 'forward' | 'backward' | 'none' } | null>(null)
   const nativeEditSelectionRef = useRef<ComposerNativeEditSelection | null>(null)
   const providerCommandBindingRef = useRef<BoundProviderCommand | null>(null)
@@ -1009,6 +1009,7 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
       void Promise.all(writes).catch(() => undefined)
     }
     draftContextRef.current = { profileId: activeProfileId, profileGeneration, serverIdentity, sessionId: selectedId, workspaceKey }
+    historyCursorRef.current = null
     setMention(null)
     setMentionCandidates([])
     setTeamMention(null)
@@ -1530,9 +1531,12 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
         if (message) setSendFailure({ context: sendContext, message })
       }
       if (sent) {
-        if (consumeComposer && promptOverride === undefined) {
-          recordComposerHistory(session.id, rawOutgoing.trim())
-          historyCursorRef.current = null
+        if (consumeComposer && promptOverride === undefined && workspaceKey) {
+          // This closure owns the submitting workspace, even after navigation.
+          recordComposerHistory(workspaceKey, rawOutgoing.trim())
+          if (composerSessionIsCurrent(activeProfileId, profileGeneration, serverIdentity, session.id, draftContextRef, mountedRef)) {
+            historyCursorRef.current = null
+          }
         }
         trackEvent('message_sent', messageProps)
         if (boundProviderCommand) {
@@ -2151,6 +2155,12 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
           onScroll={event => recordEditorMirrorAlignment(syncComposerEditorMirror(event.currentTarget, editorMirrorRef.current))}
           onKeyDown={event => {
             if (event.nativeEvent.isComposing) return
+            // A held send/selection key is not a second, deliberate Send now.
+            // Keep Shift/Alt+Enter multiline editing unchanged.
+            if (event.key === 'Enter' && event.repeat && !event.shiftKey && !event.altKey) {
+              event.preventDefault()
+              return
+            }
             const projection = projectTeamMessageComposer(draftRef.current)
             const atomicSpans = [
               ...orderedComposerReferenceSpans(referencesRef.current, teamReferencesRef.current),
@@ -2262,18 +2272,18 @@ export const Composer = memo(function Composer({ dropActive = false, sessionId, 
               }
             }
             if (
-              selectedId
+              workspaceKey
               && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
               && (event.key === 'ArrowUp' || event.key === 'ArrowDown')
             ) {
               const direction = event.key === 'ArrowUp' ? 'older' : 'newer'
               const displayText = event.currentTarget.value
               if (caretAllowsHistoryStep(displayText, event.currentTarget.selectionStart, event.currentTarget.selectionEnd, direction)) {
-                const current = historyCursorRef.current?.sessionId === selectedId ? historyCursorRef.current.cursor : null
-                const step = stepComposerHistory(loadComposerHistory(selectedId), current, draftRef.current, direction)
+                const current = historyCursorRef.current?.workspaceKey === workspaceKey ? historyCursorRef.current.cursor : null
+                const step = stepComposerHistory(loadComposerHistory(workspaceKey), current, draftRef.current, direction)
                 if (step) {
                   event.preventDefault()
-                  historyCursorRef.current = { sessionId: selectedId, cursor: step.cursor }
+                  historyCursorRef.current = { workspaceKey, cursor: step.cursor }
                   pendingCaretRef.current = step.text.length
                   updateComposerDraft(step.text, step.text.length)
                   return

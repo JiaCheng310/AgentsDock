@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { profileSessionKey } from './profile-scope'
 import {
   COMPOSER_HISTORY_LIMIT,
   appendComposerHistory,
@@ -30,10 +31,41 @@ describe('composer history storage', () => {
   })
 
   it('treats corrupt storage as empty history', () => {
-    window.localStorage.setItem('agentsdock:composer-history:chat-a', '{not json')
+    window.localStorage.setItem('agentsdock:composer-history:v2:chat-a', '{not json')
     expect(loadComposerHistory('chat-a')).toEqual([])
-    window.localStorage.setItem('agentsdock:composer-history:chat-a', JSON.stringify(['ok', 3, '']))
+    window.localStorage.setItem('agentsdock:composer-history:v2:chat-a', JSON.stringify(['ok', 3, '']))
     expect(loadComposerHistory('chat-a')).toEqual(['ok'])
+  })
+
+  it('isolates servers and unknown-identity profiles but shares aliases of a known server', () => {
+    const scope = (profile: string, identity?: string) => profileSessionKey(profile, 'same-chat', identity)
+    recordComposerHistory(scope('profile-a', 'server-a'), 'server A only')
+    expect(loadComposerHistory(scope('profile-b', 'server-b'))).toEqual([])
+    expect(loadComposerHistory(scope('profile-alias', 'server-a'))).toEqual(['server A only'])
+    recordComposerHistory(scope('unknown-a'), 'profile A only')
+    expect(loadComposerHistory(scope('unknown-b'))).toEqual([])
+    // Learning a server identity must not adopt potentially unrelated history.
+    expect(loadComposerHistory(scope('unknown-a', 'new-server'))).toEqual([])
+  })
+
+  it('does not adopt unscoped legacy history', () => {
+    window.localStorage.setItem('agentsdock:composer-history:chat-a', JSON.stringify(['unattributed']))
+    expect(loadComposerHistory(profileSessionKey('profile-a', 'chat-a'))).toEqual([])
+  })
+
+  it('bounds loaded history and preserves previous data if storage is full', () => {
+    const key = 'agentsdock:composer-history:v2:chat-a'
+    const saved = JSON.stringify(Array.from({length: 105}, (_, i) => `prompt ${i}`))
+    window.localStorage.setItem(key, saved)
+    expect(loadComposerHistory('chat-a')).toHaveLength(100)
+    const set = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full', 'QuotaExceededError')
+    })
+    try {
+      expect(() => recordComposerHistory('chat-a', 'new prompt')).not.toThrow()
+      expect(set).toHaveBeenCalledOnce()
+      expect(window.localStorage.getItem(key)).toBe(saved)
+    } finally { set.mockRestore() }
   })
 })
 

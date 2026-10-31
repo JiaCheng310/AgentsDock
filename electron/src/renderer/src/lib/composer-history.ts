@@ -3,12 +3,14 @@ import { saveLocalStorage } from './local-storage'
 /** Prompts this composer sent, newest last, recalled with ArrowUp/ArrowDown like the Codex and Claude CLIs. */
 export const COMPOSER_HISTORY_LIMIT = 100
 
-const storageKey = (sessionId: string): string => `agentsdock:composer-history:${sessionId}`
+// Use the same server identity/profile + chat scope as drafts. Never adopt the
+// old chat-only key: its originating server cannot be established safely.
+const storageKey = (workspaceSessionKey: string): string => `agentsdock:composer-history:v2:${workspaceSessionKey}`
 
-export function loadComposerHistory(sessionId: string): string[] {
+export function loadComposerHistory(workspaceSessionKey: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(storageKey(sessionId)) ?? '[]')
-    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string' && Boolean(entry.trim())) : []
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(storageKey(workspaceSessionKey)) ?? '[]')
+    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string' && Boolean(entry.trim())).slice(-COMPOSER_HISTORY_LIMIT) : []
   } catch {
     return []
   }
@@ -20,9 +22,9 @@ export function appendComposerHistory(entries: readonly string[], prompt: string
   return next.slice(-COMPOSER_HISTORY_LIMIT)
 }
 
-export function recordComposerHistory(sessionId: string, prompt: string): void {
-  const next = appendComposerHistory(loadComposerHistory(sessionId), prompt)
-  saveLocalStorage(storageKey(sessionId), JSON.stringify(next))
+export function recordComposerHistory(workspaceSessionKey: string, prompt: string): void {
+  const next = appendComposerHistory(loadComposerHistory(workspaceSessionKey), prompt)
+  saveLocalStorage(storageKey(workspaceSessionKey), JSON.stringify(next))
 }
 
 /** Index into `entries` of the recalled prompt, or null while the user is editing a fresh draft. */

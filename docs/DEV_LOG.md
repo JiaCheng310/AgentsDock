@@ -1,5 +1,35 @@
 # Public development log
 
+## 2026-10-31 - Composer history isolation and deliberate queue shortcuts
+
+- Integrated prompt-history and empty-composer Enter shortcuts with main
+  `45fe1710`, retaining Escape-to-stop and the opt-in workspace UI.
+- Holding Enter no longer promotes a queued message or submits a selected
+  command accidentally. Release and press Enter again to use Send now;
+  Shift/Alt+Enter multiline editing and IME composition remain unchanged.
+- Recall history and its navigation cursor use the existing server-identity
+  and chat scope, with a saved-profile fallback. Aliases of the same known
+  server share history; different servers cannot recall each other's prompts.
+  Legacy chat-only history is not adopted because its server is unknown.
+  Late receipts do not reset another chat's history cursor; failed sends keep
+  their drafts and are not added to history. Storage failures retain old data.
+- Verification: 284 focused component/helper/shortcut tests, TypeScript,
+  production compilation and compiled-output verification passed. Reproduced
+  held-Enter queue promotion in the original native macOS app, then exercised
+  the fixed build with an isolated, analytics-disabled profile and a disposable
+  service through real Electron IPC/HTTP and Codex/Claude requests. Both agents
+  completed repeated messages; Up/Down recall, draft and multiline preservation,
+  chat navigation, idle Enter and held Enter passed. A deliberate second Enter
+  issued one successful run-now request per provider: ordinary Codex stopped
+  and continued on its thread; Claude admitted the native follow-up without a
+  stopped turn. No server implementation changes were required.
+- Cross-server identical-ID, storage-full and late-receipt cases were exercised
+  in deterministic fixtures, not on customer servers. Native Windows/Linux and
+  every provider's own CLI keyboard UI were not exercised. Computer-control
+  integration was unavailable; native app input used Electron's debugging
+  keyboard/mouse interface, not direct React handler calls. Availability: local
+  development build only, not published or merged.
+
 ## 2026-10-28 - Composer prompt history and Enter to send queued messages
 
 - ArrowUp/ArrowDown in the desktop composer recall prompts previously sent from
