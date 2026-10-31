@@ -1,5 +1,51 @@
 # Public development log
 
+## 2026-10-31 - Escape shortcut integration verification
+
+- Integrated the Escape-to-stop change with main `827ed452`, retaining the
+  workspace/header updates and peer-message Edit and send behavior. Only the
+  development log required conflict resolution; no server change was needed.
+- Added focused regressions for modified/repeated Escape, IME composition,
+  per-composer ownership, pending Stop de-duplication and cancelled interruption
+  confirmation. The six affected desktop suites pass (292 tests); TypeScript,
+  production compilation and compiled-output verification pass.
+- Native macOS Electron acceptance used an isolated analytics-disabled profile
+  and a disposable test service. Confirmed the old source did not stop on
+  composer Escape, then exercised real Codex and Claude turns through native
+  IPC and HTTP. Each Escape stop produced one HTTP 200 response and a server
+  terminal event marked stopped. Drafts survived; slash, chat-mention and team-
+  mention palettes closed first; idle, modified and repeated Escape did not
+  stop work. A second Codex stop and a successful Claude follow-up also passed.
+- Inspected the Chinese dark Stop tooltip and English shortcut settings at a
+  narrow viewport with simulated light styling. Native Windows/Linux behavior,
+  live subagent-only stopping and live inbound-delivery cancellation were not
+  exercised; existing Stop behavior is reused and focused regressions cover
+  ownership and confirmation. Available as a local development app only; not
+  released or merged.
+
+## 2026-10-29 - Escape stops the running agent from the composer
+
+- Escape in the desktop composer stops the running agent, like the Codex and
+  Claude CLIs. It reuses the Stop button's action (including the inbound
+  delivery confirmation and Stop subagents for idle Codex chats with live
+  children). An open command, @Chat or team-mention palette is closed first;
+  the draft is kept; key repeat, modifiers and idle chats are ignored. Escape
+  elsewhere in the app is unchanged. The Stop button tooltip and the shortcut
+  list show the new ⎋/Esc shortcut in English and Chinese.
+- Based on main `aa1b8c4`. 5 new regression checks (the two composer stop
+  checks fail without the change); TypeScript and production compilation
+  passed; the full run passed 5,518 tests (5 skipped) plus 8 packaging/license
+  checks.
+- Test surface: `pnpm dev` Electron app with isolated user data, connected over
+  its production transport to a loopback AgentsServer from this checkout with
+  isolated HOME/state and a real Codex login. Escape during a running Codex
+  turn sent exactly one `stop` (200) and the turn ended as stopped; the Stop
+  tooltip showed ⎋; with the command palette open, the first Escape only
+  closed it and the second stopped the turn; an unsent draft survived Escape;
+  Escape while idle did nothing. Claude was not exercised (no Claude login in
+  the isolated environment); the stop request itself is provider-agnostic.
+  Availability: source only.
+
 ## 2026-10-31 - Workspace toolbar entry and contextual chat headers
 
 - Move Create workspace from the chat menu to a matching icon button next to
