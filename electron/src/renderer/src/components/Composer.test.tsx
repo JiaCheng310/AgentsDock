@@ -13,6 +13,7 @@ import { loadTeamNetworkCore, loadTeamNetworkWorkspace, resetTeamNetworkSnapshot
 import { flushActiveWorkspace, useAppStore } from '../store/app-store'
 import { teamMessageLinkURL } from '../lib/team-message-links'
 import { projectTeamMessageComposer } from '../lib/team-message-composer'
+import { appendComposerDraft } from '../lib/composer-draft-append'
 import { Composer, TeamMentionPalette } from './Composer'
 import { ClaudeRuntimeProvider } from './ClaudeRuntimeContext'
 import { CodexRuntimeProvider } from './CodexRuntimeContext'
@@ -322,6 +323,50 @@ describe('Composer', () => {
   it('mounts with empty per-chat upload state without an external-store render loop', () => {
     render(<Composer />)
     expect(screen.getByPlaceholderText('Message')).toBeInTheDocument()
+  })
+
+  it('appends a reviewed peer message to the live draft without replacing selected text or attached files', async () => {
+    const file = { id: 'file-1', filename: 'keep.txt' } as AgentFile
+    const send = vi.fn().mockResolvedValue({ session: { id: 'chat-1', title: 'Chat', backend: 'codex' }, queued: false })
+    window.agentsDock.turns = { send } as unknown as AgentsDockAPI['turns']
+    useAppStore.setState({ uploadsBySession: { 'chat-1': [file] } })
+    render(<section data-chat-pane="primary"><button>Peer message</button><Composer /></section>)
+    const editor = screen.getByPlaceholderText('Message') as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: 'Keep this unsaved draft.' } })
+    editor.setSelectionRange(5, 9)
+    act(() => {
+      expect(appendComposerDraft(screen.getByRole('button', { name: 'Peer message' }),
+        { profileId: 'profile-a', profileGeneration: 0, serverIdentity: null }, 'chat-1', 'Review this peer instruction.')).toBe(true)
+    })
+    expect(editor).toHaveValue('Keep this unsaved draft.\n\nReview this peer instruction.')
+    expect(editor).toHaveFocus()
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(useAppStore.getState().uploadsBySession['chat-1']).toEqual([file])
+    expect(send).not.toHaveBeenCalled()
+    const edited = 'Keep this unsaved draft.\n\nProceed with my revised instruction.'
+    fireEvent.change(editor, { target: { value: edited } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+    await waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'chat-1', prompt: edited, fileIds: ['file-1'] }))
+    expect(send.mock.calls[0][0]).not.toHaveProperty('source_user_instruction')
+  })
+
+  it('targets only the originating composer pane and rejects stale server identities', () => {
+    useAppStore.setState({ sessions: [{ id: 'chat-1', title: 'Alpha', backend: 'codex' },
+      { id: 'chat-2', title: 'Beta', backend: 'claude' }] })
+    render(<><section data-chat-pane="primary"><button>Alpha message</button><Composer sessionId="chat-1" /></section>
+      <section data-chat-pane="secondary"><button>Beta message</button><Composer sessionId="chat-2" /></section></>)
+    const scope = { profileId: 'profile-a', profileGeneration: 0, serverIdentity: null }
+    const source = screen.getByRole('button', { name: 'Beta message' })
+    act(() => {
+      expect(appendComposerDraft(source, { ...scope, profileGeneration: 1 }, 'chat-2', 'Stale')).toBe(false)
+      expect(appendComposerDraft(source, { ...scope, serverIdentity: 'other-server' }, 'chat-2', 'Wrong server')).toBe(false)
+      expect(appendComposerDraft(source, scope, 'chat-1', 'Wrong pane')).toBe(false)
+      expect(appendComposerDraft(source, scope, 'chat-2', 'For Beta')).toBe(true)
+    })
+    expect(screen.getByRole('textbox', { name: 'Message Alpha' })).toHaveValue('')
+    expect(screen.getByRole('textbox', { name: 'Message Beta' })).toHaveValue('For Beta')
+    expect(screen.getByRole('textbox', { name: 'Message Beta' })).toHaveFocus()
   })
 
   it('shows an active-turn submission immediately in the queue shelf', () => {
@@ -1925,6 +1970,124 @@ describe('Composer', () => {
     expect(useAppStore.getState().error).toBe('Still stopping. Retry Stop.')
     expect(confirm).not.toHaveBeenCalled()
     confirm.mockRestore()
+  })
+
+  it('stops the running agent with Escape and keeps the draft', async () => {
+    const stop = vi.fn().mockResolvedValue({ stopped: true })
+    Object.defineProperty(window, 'agentsDock', {
+      configurable: true,
+      value: {
+        preferences: { get: vi.fn().mockResolvedValue(''), set: vi.fn().mockResolvedValue(undefined) },
+        turns: { stop }
+      } as unknown as AgentsDockAPI
+    })
+    useAppStore.setState({ activeSessionIds: new Set(['chat-1']), stoppingSessionIds: new Set() })
+    const user = userEvent.setup()
+    render(<Composer />)
+    const editor = screen.getByPlaceholderText('Message')
+
+    await user.type(editor, 'next idea')
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(stop).toHaveBeenCalledExactlyOnceWith('chat-1'))
+    expect(editor).toHaveValue('next idea')
+  })
+
+  it('closes an open command palette with Escape before stopping the agent', async () => {
+    const stop = vi.fn().mockResolvedValue({ stopped: true })
+    Object.defineProperty(window, 'agentsDock', {
+      configurable: true,
+      value: {
+        preferences: { get: vi.fn().mockResolvedValue(''), set: vi.fn().mockResolvedValue(undefined) },
+        turns: { stop }
+      } as unknown as AgentsDockAPI
+    })
+    useAppStore.setState({ activeSessionIds: new Set(['chat-1']), stoppingSessionIds: new Set() })
+    const user = userEvent.setup()
+    render(<Composer />)
+    const editor = screen.getByPlaceholderText('Message')
+
+    await user.type(editor, '/')
+    expect(editor).toHaveAttribute('aria-expanded', 'true')
+    await user.keyboard('{Escape}')
+    expect(editor).toHaveAttribute('aria-expanded', 'false')
+    expect(stop).not.toHaveBeenCalled()
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(stop).toHaveBeenCalledExactlyOnceWith('chat-1'))
+  })
+
+  it('ignores Escape when no agent is running', async () => {
+    const stop = vi.fn()
+    Object.defineProperty(window, 'agentsDock', {
+      configurable: true,
+      value: {
+        preferences: { get: vi.fn().mockResolvedValue(''), set: vi.fn().mockResolvedValue(undefined) },
+        turns: { stop }
+      } as unknown as AgentsDockAPI
+    })
+    const user = userEvent.setup()
+    render(<Composer />)
+
+    await user.click(screen.getByPlaceholderText('Message'))
+    await user.keyboard('{Escape}')
+    expect(stop).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { metaKey: true }, { ctrlKey: true }, { altKey: true }, { shiftKey: true },
+    { repeat: true }, { isComposing: true }
+  ])('does not stop for a modified, repeated or composing Escape: %j', key => {
+    const stop = vi.fn()
+    window.agentsDock.turns = { stop } as unknown as AgentsDockAPI['turns']
+    useAppStore.setState({ activeSessionIds: new Set(['chat-1']) })
+    render(<Composer />)
+    fireEvent.keyDown(screen.getByPlaceholderText('Message'), { key: 'Escape', code: 'Escape', ...key })
+    expect(stop).not.toHaveBeenCalled()
+  })
+
+  it('keeps Escape scoped to its composer and ignores it while Stop is pending', async () => {
+    let finish!: (result: { stopped: boolean }) => void
+    const stop = vi.fn(() => new Promise<{ stopped: boolean }>(resolve => { finish = resolve }))
+    window.agentsDock.turns = { stop } as unknown as AgentsDockAPI['turns']
+    useAppStore.setState({
+      sessions: [
+        { id: 'chat-1', title: 'Chat', backend: 'codex' },
+        { id: 'chat-2', title: 'Second', backend: 'claude' }
+      ],
+      activeSessionIds: new Set(['chat-1', 'chat-2']),
+      syncBySession: { 'chat-2': { status: 'live', error: null } }
+    })
+    render(<Composer sessionId="chat-2" />)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(stop).not.toHaveBeenCalled()
+    const editor = screen.getByRole('textbox')
+    fireEvent.change(editor, { target: { value: 'Keep this draft' } })
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(stop).toHaveBeenCalledExactlyOnceWith('chat-2')
+    await act(async () => finish({ stopped: true }))
+    expect(useAppStore.getState().activeSessionIds).toEqual(new Set(['chat-1']))
+    expect(editor).toHaveValue('Keep this draft')
+  })
+
+  it('honors cancelled inbound-interruption confirmation for Escape', async () => {
+    const stop = vi.fn().mockResolvedValue({ stopped: true })
+    window.agentsDock.turns = { stop } as unknown as AgentsDockAPI['turns']
+    useAppStore.setState({
+      activeSessionIds: new Set(['chat-1']),
+      syncBySession: { 'chat-1': { status: 'cached', error: null } }
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(<Composer />)
+      fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+      expect(confirm).toHaveBeenCalledOnce()
+      expect(stop).not.toHaveBeenCalled()
+      confirm.mockReturnValue(true)
+      fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+      await waitFor(() => expect(stop).toHaveBeenCalledExactlyOnceWith('chat-1'))
+    } finally { confirm.mockRestore() }
   })
 
   it.each(['codex_thread_id', 'session_id'] as const)('keeps idle Stop subagents with %s until a native terminal arrives, without queuing Send', async providerId => {
