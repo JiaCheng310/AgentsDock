@@ -28,6 +28,60 @@
   reproduce the old failure with a constrained executor and a slow snapshot;
   both pass with the revised synchronization. No server runtime behavior changed.
 
+## 2026-10-29 - User-authorized mailbox tasks and editable drafts
+
+- Existing authorized chat pairs now carry the originating user's exact task
+  without requiring another `@` mention. Shared, idle-wake and busy-mail guidance
+  tells the receiving agent to perform work covered by that instruction without
+  requesting the same authorization again. Peer-written bodies, quoted wrappers,
+  reply links and internal wakes remain distinct from user instructions.
+- Native steering records the incoming user's text without generated attachment
+  scaffolding. Goal steering suspends earlier task attestation at the actual
+  transport write, binds the correction after a valid acknowledgement and keeps
+  the existing provider owner, routes and tools. Previously accepted messages
+  retain their original source instruction on exact retries. Empty or oversized
+  ordinary tasks still deliver peer mail without truncated authorization.
+- Inbox messages have an **Edit and send** action. It loads the complete message
+  into the matching chat's composer, preserves existing drafts and attachments,
+  and requires normal Send after review. The original received message and its
+  agent-read state are unchanged. Late responses cannot populate another pane,
+  chat or server. English and Simplified Chinese are included.
+- Validation uses source-built Electron 0.2.0/build 86 in an isolated native
+  offscreen profile, production IPC/authenticated HTTP and a disposable full
+  server with real Codex. Repeated no-mention delegation produced the requested
+  files without asking for authorization again. A quoted authorization lookalike
+  did not authorize an additional file. Native app clicks appended full mail,
+  preserved an existing draft across chat navigation, and sent user-edited text
+  through normal Send to a real provider response. Light/dark and narrow English/
+  Chinese presentation were inspected. The 229 focused server tests and 343
+  desktop regressions pass, along with TypeScript and production compilation.
+- Component/transport regressions cover unread/read messages, attachments,
+  stale responses, forged provenance, size boundaries and retry identity. Those
+  edge cases are not all repeated in the native UI; Claude-provider acceptance
+  is not claimed. A separate pre-existing limitation was reproduced: an idle
+  native goal resume can acknowledge steering but lacks the runtime capability/
+  metadata needed by Chats, which fails before mailbox dispatch. This change
+  does not claim to repair that distinct goal-resume lifecycle path. Full CI
+  also exposed an invalid object-only goal authority fixture and a peer-panel
+  assertion preceding its effect; use a real capability fixture and await the
+  existing observer without weakening assertions or increasing timeouts.
+  Changes are source-only and need a matching app/server update;
+  no public release or production server restart was performed.
+- Latest-main revalidation: integrated `d79677ef` without changing the new
+  workspace/header behavior; the only merge conflict was overlapping log entries.
+  On the matching source-preview test server, native Electron input exercised
+  initial pairing, repeated no-mention Codex and Claude delegation, recipient
+  file creation and replies. Reviewed mail appended to an existing draft;
+  navigation preserved it, a manually edited Send reached a real provider,
+  and split-pane drafting left the other pane unchanged. Checked dark English
+  and narrow light Chinese rendering. Focused checks: 212 server tests and
+  376 desktop tests pass; TypeScript and production compilation pass. Clarified
+  the documented difference between oversized ordinary-turn fallback and
+  explicit-reference delegation. Live goal steering, cross-server stale replies
+  and attachment retention were not repeated in this acceptance pass; their
+  automated coverage and the separate idle-goal limitation above still apply.
+  No production restart, public release or mobile change.
+
 ## 2026-10-28 - Optional desktop workspaces and single-row chat headers
 
 - Ordinary chats no longer manufacture a default workspace. The chat action
