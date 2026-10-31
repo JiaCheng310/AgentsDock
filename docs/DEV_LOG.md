@@ -1,5 +1,28 @@
 # Public development log
 
+## 2026-10-31 - Escape shortcut integration verification
+
+- Integrated the Escape-to-stop change with main `827ed452`, retaining the
+  workspace/header updates and peer-message Edit and send behavior. Only the
+  development log required conflict resolution; no server change was needed.
+- Added focused regressions for modified/repeated Escape, IME composition,
+  per-composer ownership, pending Stop de-duplication and cancelled interruption
+  confirmation. The six affected desktop suites pass (292 tests); TypeScript,
+  production compilation and compiled-output verification pass.
+- Native macOS Electron acceptance used an isolated analytics-disabled profile
+  and a disposable test service. Confirmed the old source did not stop on
+  composer Escape, then exercised real Codex and Claude turns through native
+  IPC and HTTP. Each Escape stop produced one HTTP 200 response and a server
+  terminal event marked stopped. Drafts survived; slash, chat-mention and team-
+  mention palettes closed first; idle, modified and repeated Escape did not
+  stop work. A second Codex stop and a successful Claude follow-up also passed.
+- Inspected the Chinese dark Stop tooltip and English shortcut settings at a
+  narrow viewport with simulated light styling. Native Windows/Linux behavior,
+  live subagent-only stopping and live inbound-delivery cancellation were not
+  exercised; existing Stop behavior is reused and focused regressions cover
+  ownership and confirmation. Available as a local development app only; not
+  released or merged.
+
 ## 2026-10-29 - Escape stops the running agent from the composer
 
 - Escape in the desktop composer stops the running agent, like the Codex and
@@ -22,6 +45,116 @@
   Escape while idle did nothing. Claude was not exercised (no Claude login in
   the isolated environment); the stop request itself is provider-agnostic.
   Availability: source only.
+
+## 2026-10-31 - Workspace toolbar entry and contextual chat headers
+
+- Move Create workspace from the chat menu to a matching icon button next to
+  Scheduled jobs and Terminal. Ordinary chats show title and folder together,
+  with their copyable provider session ID underneath. Workspace chats retain
+  a single compact title/ID/action row without the folder chip.
+- Workspace menus now offer Change folder as a hover/keyboard submenu, listing
+  saved and in-use folders, including folders containing only pinned chats.
+  Mark the current folder and preserve the existing per-chat update path.
+- Native desktop acceptance on base `aa1b8c47` (development 0.2.0/build 86)
+  used a test server: created a workspace from the toolbar, reloaded, closed
+  back to ordinary mode, hovered the submenu, changed and restored a test
+  chat's folder through production IPC/HTTP, and verified server state and
+  the newly selected checkmark. Copied the full native session ID in both
+  modes. Restored the original test layout. Checked both themes and a narrow
+  simulated viewport; no provider turn, server restart or deployment was needed.
+- Targeted header/layout/design regressions: 58 passed. Full desktop suite:
+  5,532 passed, 5 skipped. TypeScript and production build/output verification
+  pass. Native Windows/Linux UI and live cross-server switching were not
+  repeated. Source and local development app only; no release published.
+- CI follow-up: make the existing Team Hub maintenance-cancellation test use
+  event-loop notifications instead of blocking executor observers. Keep real
+  temporary-store snapshots, repeated cancellation and exact-fence assertions;
+  use explicit release gates and a bounded watchdog independent of filesystem
+  speed. The regression now runs with a single worker. Local before/after probes
+  reproduce the old failure with a constrained executor and a slow snapshot;
+  both pass with the revised synchronization. No server runtime behavior changed.
+
+## 2026-10-29 - User-authorized mailbox tasks and editable drafts
+
+- Existing authorized chat pairs now carry the originating user's exact task
+  without requiring another `@` mention. Shared, idle-wake and busy-mail guidance
+  tells the receiving agent to perform work covered by that instruction without
+  requesting the same authorization again. Peer-written bodies, quoted wrappers,
+  reply links and internal wakes remain distinct from user instructions.
+- Native steering records the incoming user's text without generated attachment
+  scaffolding. Goal steering suspends earlier task attestation at the actual
+  transport write, binds the correction after a valid acknowledgement and keeps
+  the existing provider owner, routes and tools. Previously accepted messages
+  retain their original source instruction on exact retries. Empty or oversized
+  ordinary tasks still deliver peer mail without truncated authorization.
+- Inbox messages have an **Edit and send** action. It loads the complete message
+  into the matching chat's composer, preserves existing drafts and attachments,
+  and requires normal Send after review. The original received message and its
+  agent-read state are unchanged. Late responses cannot populate another pane,
+  chat or server. English and Simplified Chinese are included.
+- Validation uses source-built Electron 0.2.0/build 86 in an isolated native
+  offscreen profile, production IPC/authenticated HTTP and a disposable full
+  server with real Codex. Repeated no-mention delegation produced the requested
+  files without asking for authorization again. A quoted authorization lookalike
+  did not authorize an additional file. Native app clicks appended full mail,
+  preserved an existing draft across chat navigation, and sent user-edited text
+  through normal Send to a real provider response. Light/dark and narrow English/
+  Chinese presentation were inspected. The 229 focused server tests and 343
+  desktop regressions pass, along with TypeScript and production compilation.
+- Component/transport regressions cover unread/read messages, attachments,
+  stale responses, forged provenance, size boundaries and retry identity. Those
+  edge cases are not all repeated in the native UI; Claude-provider acceptance
+  is not claimed. A separate pre-existing limitation was reproduced: an idle
+  native goal resume can acknowledge steering but lacks the runtime capability/
+  metadata needed by Chats, which fails before mailbox dispatch. This change
+  does not claim to repair that distinct goal-resume lifecycle path. Full CI
+  also exposed an invalid object-only goal authority fixture and a peer-panel
+  assertion preceding its effect; use a real capability fixture and await the
+  existing observer without weakening assertions or increasing timeouts.
+  Changes are source-only and need a matching app/server update;
+  no public release or production server restart was performed.
+- Latest-main revalidation: integrated `d79677ef` without changing the new
+  workspace/header behavior; the only merge conflict was overlapping log entries.
+  On the matching source-preview test server, native Electron input exercised
+  initial pairing, repeated no-mention Codex and Claude delegation, recipient
+  file creation and replies. Reviewed mail appended to an existing draft;
+  navigation preserved it, a manually edited Send reached a real provider,
+  and split-pane drafting left the other pane unchanged. Checked dark English
+  and narrow light Chinese rendering. Focused checks: 212 server tests and
+  376 desktop tests pass; TypeScript and production compilation pass. Clarified
+  the documented difference between oversized ordinary-turn fallback and
+  explicit-reference delegation. Live goal steering, cross-server stale replies
+  and attachment retention were not repeated in this acceptance pass; their
+  automated coverage and the separate idle-goal limitation above still apply.
+  No production restart, public release or mobile change.
+
+## 2026-10-28 - Optional desktop workspaces and single-row chat headers
+
+- Ordinary chats no longer manufacture a default workspace. The chat action
+  menu's Create workspace entry enables the workspace/layout bar on demand.
+  Preserve existing named and multi-pane layouts, while migrating the old
+  implicit single-chat default back to ordinary mode. Closing the last
+  workspace keeps the selected chat and its draft; no chat or directory is
+  deleted. Workspace preferences remain scoped to the connected server.
+- Keep title, folder, provider session ID/copy and right-side actions in one
+  chat header, including three- and four-pane layouts. Remove the redundant
+  pinned Chat/file row while viewing chat and the Changes entry altogether.
+  File tabs and their Chat return action remain available when viewing a file.
+- Source base: `aa1b8c47`; local desktop metadata: 0.2.0/build 86. Exercised the
+  visible native Electron app with disposable chats on an authorized
+  AgentsServer 1.0.11-beta.12 test instance: ordinary mode, explicit and repeated workspace creation, three/four
+  panes, closing a workspace, last-workspace exit, and persistence on reload.
+  Opened an existing file through the real preload/IPC/server boundary and
+  returned to chat without the duplicate header. Checked dark and simulated
+  light system appearance and narrow three-column layouts. Primary services
+  were not restarted. No new provider turn was needed for this layout change.
+- Regression coverage includes legacy preference migration, explicit opt-in,
+  draft retention, per-pane menu ownership, hidden tab navigation and file
+  return. Desktop suite: 5,528 passed, 5 skipped; build/license script tests:
+  8 passed. TypeScript, production compilation and output verification pass.
+  Native Windows/Linux presentation and live cross-server switching were not
+  exercised; ownership/isolation remain covered by automated regressions.
+  Available in source and the local development app only; not published.
 
 ## 2026-10-28 - Cursor compound tool IDs and live analytics acceptance
 
